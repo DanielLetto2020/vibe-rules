@@ -7,9 +7,19 @@
 
 > 🇷🇺 [Русская версия](README.ru.md)
 
-**Modular development standards for Claude Code.** One repository, all your
-projects. Rules load only when relevant. Checks run as hooks, not as polite
-requests.
+**Standards your AI agent actually follows.**
+
+You explain the same conventions every session. The agent follows them most of
+the time — and the times it doesn't are the ones you catch in review, if you
+catch them at all.
+
+This repository takes a different position: **anything a machine can check
+should not live in prose.** A rule written as text is a request. A rule
+compiled into a hook is a guarantee — there is no percentage.
+
+The end goal is to reach a state where not reading the generated code is a
+defensible position rather than recklessness. Not by trusting the agent, but by
+automating the distrust.
 
 > **Note on language:** rule texts are written in Russian. The architecture,
 > tooling and tests are language-agnostic — fork it and write your own rules in
@@ -28,10 +38,6 @@ Claude Code starts every session with an empty context. Two constraints follow:
 
 So the question isn't *what to write*. It's *where to put it so it's found
 exactly when needed*.
-
-And a second, harder problem: a rule written as prose is a **request**. The
-model reads it, understands it, follows it most of the time. A rule compiled
-into a hook is a **guarantee**. There is no percentage.
 
 ## The idea
 
