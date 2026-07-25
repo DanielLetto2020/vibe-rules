@@ -1,5 +1,10 @@
 # vibe-rules
 
+[![gates](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml/badge.svg)](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml)
+[![release](https://img.shields.io/github/v/release/DanielLetto2020/vibe-rules?color=blue)](https://github.com/DanielLetto2020/vibe-rules/releases)
+[![license](https://img.shields.io/github/license/DanielLetto2020/vibe-rules?color=blue)](LICENSE)
+[![modules](https://img.shields.io/badge/modules-20-blue)](#modules)
+
 > 🇷🇺 [Русская версия](README.ru.md)
 
 **Modular development standards for Claude Code.** One repository, all your
@@ -288,6 +293,7 @@ grows. That's expected.
 - [Enforcement](docs/ENFORCEMENT.md) — the rule-versus-lock boundary
 - [The gauntlet](plugins/std-gauntlet/docs/GAUNTLET.md) — the five stages in detail
 - [Contributing](CONTRIBUTING.md) — adding modules and rules
+- [Security](SECURITY.md) — trust model and how to report a vulnerability
 
 ## License
 

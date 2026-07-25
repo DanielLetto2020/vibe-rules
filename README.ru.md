@@ -1,5 +1,10 @@
 # vibe-rules
 
+[![gates](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml/badge.svg)](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml)
+[![release](https://img.shields.io/github/v/release/DanielLetto2020/vibe-rules?color=blue)](https://github.com/DanielLetto2020/vibe-rules/releases)
+[![license](https://img.shields.io/github/license/DanielLetto2020/vibe-rules?color=blue)](LICENSE)
+[![modules](https://img.shields.io/badge/%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D0%B5%D0%B9-20-blue)](#%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D0%B8)
+
 > 🇬🇧 [English version](README.md)
 
 Модульные стандарты разработки для Claude Code. Один репозиторий — все проекты.
@@ -150,4 +155,5 @@ tests/run.sh
 
 Подробнее: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
 [docs/ENFORCEMENT.md](docs/ENFORCEMENT.md),
-[строй проверок](plugins/std-gauntlet/docs/GAUNTLET.md).
+[строй проверок](plugins/std-gauntlet/docs/GAUNTLET.md),
+[SECURITY.md](SECURITY.md) — модель доверия и как сообщить об уязвимости.

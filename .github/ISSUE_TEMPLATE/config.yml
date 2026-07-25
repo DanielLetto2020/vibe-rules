@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/DanielLetto2020/vibe-rules/discussions
+    about: Open-ended discussion — how to adopt this, what worked, what did not.
+  - name: Security vulnerability
+    url: https://github.com/DanielLetto2020/vibe-rules/security/advisories/new
+    about: A lock that can be bypassed, or a script that can be made to run arbitrary code. Report privately.
+  - name: Documentation
+    url: https://github.com/DanielLetto2020/vibe-rules/blob/main/docs/EXAMPLES.md
+    about: End-to-end walkthroughs before opening an issue.

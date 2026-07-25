@@ -1,0 +1,76 @@
+name: Bug report
+description: A lock, script or rule does not behave as documented
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a lock that can be bypassed, use
+        [Security Advisories](https://github.com/DanielLetto2020/vibe-rules/security/advisories/new)
+        instead — see [SECURITY.md](https://github.com/DanielLetto2020/vibe-rules/blob/main/SECURITY.md).
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Lock (guard-bash, guard-tests, guard-infra, guard-deps, guard-commit, secret-scan)
+        - Stack detection (std-link.sh --auto)
+        - Gauntlet (gauntlet.sh, gates, mutation threshold)
+        - A rule not loading, or loading when it should not
+        - Skill or command
+        - Tests or CI
+        - Documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+      description: What should happen, and what happens instead.
+      placeholder: |
+        Expected: `podman ps` is allowed, only deletion is blocked.
+        Actual: `podman ps` is blocked as well.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: |
+        Locks are pure functions — JSON in, a decision out. That makes them
+        reproducible without a model:
+
+        ```bash
+        jq -n '{tool_name:"Bash",tool_input:{command:"podman ps"}}' \
+          | plugins/std-core/scripts/guard-bash.sh
+        ```
+
+        For detection issues, list the files present in the project
+        (`composer.json`, `package.json`, compose files) and the modules linked.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      value: |
+        - OS:
+        - Claude Code version (`claude --version`):
+        - jq version:
+        - Installed how (marketplace / local directory / clone):
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: tests
+    attributes:
+      label: Test suite
+      options:
+        - label: I ran `tests/run.sh` and it reproduces there
+        - label: I ran `tests/run.sh` and it passes, the issue only appears in a real project

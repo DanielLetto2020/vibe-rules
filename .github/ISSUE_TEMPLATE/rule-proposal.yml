@@ -1,0 +1,77 @@
+name: Rule proposal
+description: Propose a new rule for an existing module
+title: "rule: "
+labels: ["rule"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Rules are added in reaction, never in anticipation. The bar is one of:
+        the model made the same mistake twice, code review caught something it
+        should have known, or you typed the same correction into chat twice.
+
+  - type: input
+    id: module
+    attributes:
+      label: Module
+      description: Which module does this belong to?
+      placeholder: std-php-laravel
+    validations:
+      required: true
+
+  - type: textarea
+    id: rule
+    attributes:
+      label: The rule
+      description: |
+        Write it as it would appear in the file. Verifiable, not aspirational:
+        "validation only in FormRequest" beats "validate your input".
+      placeholder: "- Validation lives in FormRequest. No `$request->validate()` in controllers."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: enforcement
+    attributes:
+      label: How is it enforced?
+      description: |
+        The important field. If a machine can check it, it does not belong in
+        prose — it belongs in a linter config or a hook.
+      options:
+        - hook — a script blocks it before it happens
+        - lint — a linter or type checker catches it
+        - test — the test suite catches it
+        - review — a human must look, no automation possible
+        - prose — an agreement or rationale a machine cannot verify
+    validations:
+      required: true
+
+  - type: textarea
+    id: enforcement_detail
+    attributes:
+      label: Enforcement detail
+      description: |
+        For `lint` — which linter and which rule, so it can go into `configs/`.
+        For `hook` — what exactly gets blocked, and what similar action must
+        still pass. For `prose` — why a machine cannot check this.
+    validations:
+      required: true
+
+  - type: textarea
+    id: trigger
+    attributes:
+      label: What went wrong
+      description: |
+        The concrete incident behind this. "Might be useful" is not a reason —
+        every rule costs context in every session for every developer.
+    validations:
+      required: true
+
+  - type: input
+    id: paths
+    attributes:
+      label: Paths
+      description: Glob patterns the rule applies to. Without them it loads in every session.
+      placeholder: "app/Http/**/*.php"
+    validations:
+      required: true

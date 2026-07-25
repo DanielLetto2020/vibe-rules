@@ -1,0 +1,65 @@
+name: New module
+description: Propose standards for a stack that has no module yet
+title: "module: "
+labels: ["module"]
+body:
+  - type: input
+    id: stack
+    attributes:
+      label: Stack
+      placeholder: Symfony 7 / Django / Go / Terraform
+    validations:
+      required: true
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Layer
+      description: |
+        Language and framework are separate modules. A plain PHP project gets
+        `php-base`; `php-laravel` stacks on top of it. Keep that split.
+      options:
+        - Language (a new language, e.g. go-base)
+        - Framework (stacks on an existing language module)
+        - Data store
+        - Messaging
+        - Infrastructure / ops
+        - Testing
+    validations:
+      required: true
+
+  - type: input
+    id: base
+    attributes:
+      label: Base module
+      description: For a framework module — which language module it builds on.
+      placeholder: std-php-base
+
+  - type: textarea
+    id: rules
+    attributes:
+      label: Rules you would put in it
+      description: |
+        Three to five to start with. Each one should come from something that
+        actually went wrong, not from a style guide.
+    validations:
+      required: true
+
+  - type: textarea
+    id: automation
+    attributes:
+      label: What is automatable
+      description: |
+        Which linter, type checker or test tool covers this stack, and which of
+        the rules above it can enforce. A module made entirely of prose is a
+        bad module — `configs/` is where the value is.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I intend to open a pull request for this
+        - label: I am proposing it for someone else to pick up
