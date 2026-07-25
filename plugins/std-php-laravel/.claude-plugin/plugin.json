@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-php-laravel",
+  "displayName": "Стандарты: Laravel",
+  "version": "0.1.0",
+  "description": "HTTP-слой, Eloquent, тесты. Правила грузятся по путям файлов.",
+  "author": {
+    "name": "DanielLetto2020"
+  },
+  "keywords": [
+    "php",
+    "laravel"
+  ],
+  "dependencies": [
+    "std-core"
+  ]
+}

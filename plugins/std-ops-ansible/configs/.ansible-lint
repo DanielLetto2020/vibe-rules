@@ -1,0 +1,12 @@
+# ansible-lint: pip install ansible-lint
+# Правила ниже соответствуют пунктам rules/10-playbooks.md.
+profile: production
+exclude_paths:
+  - .cache/
+  - .github/
+enable_list:
+  - no-changed-when        # shell/command без changed_when ломает идемпотентность
+  - no-handler
+  - fqcn-builtins          # ansible.builtin.* вместо коротких имён
+warn_list: []
+skip_list: []

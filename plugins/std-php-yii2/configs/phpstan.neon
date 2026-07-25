@@ -1,0 +1,13 @@
+# PHPStan для Yii 2. Требует: composer require --dev phpstan/phpstan yii2-extensions/phpstan
+parameters:
+    level: 5
+    paths:
+        - controllers
+        - models
+        - components
+        - modules
+    # Магические свойства ActiveRecord PHPStan сам не знает — нужен плагин,
+    # иначе уровень выше 5 утонет в ложных срабатываниях.
+    ignoreErrors:
+        - '#Access to an undefined property yii\\db\\ActiveRecord::#'
+    checkMissingIterableValueType: false

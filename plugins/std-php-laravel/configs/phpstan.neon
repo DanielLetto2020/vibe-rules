@@ -1,0 +1,18 @@
+# Подключение в проекте:
+#   includes:
+#     - vendor/... (larastan)
+#     - .claude/rules/std-php-laravel/../configs/phpstan.neon   # или скопировать
+#
+# Каждое правило с enforcement: lint обязано иметь здесь соответствие.
+# Иначе это не lint, а prose, и его соблюдение — вопрос везения.
+parameters:
+    level: 6
+    paths:
+        - app
+    # «Контроллер не содержит бизнес-логики» из rules/10-http.md
+    # проверяется ограничением на длину метода:
+    # (требует phpstan-strict-rules / кастомного правила в проекте)
+    treatPhpDocTypesAsCertain: false
+    checkMissingIterableValueType: false
+    ignoreErrors:
+        - '#Unsafe usage of new static#'

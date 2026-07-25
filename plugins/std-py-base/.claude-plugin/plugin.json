@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-py-base",
+  "displayName": "Стандарты: Python (язык)",
+  "version": "0.1.0",
+  "description": "Типизация, исключения, ресурсы, ловушки языка",
+  "author": {
+    "name": "DanielLetto2020"
+  },
+  "keywords": [
+    "python",
+    "language"
+  ],
+  "dependencies": [
+    "std-core",
+    "std-gauntlet"
+  ]
+}

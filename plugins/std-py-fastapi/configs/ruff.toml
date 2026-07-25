@@ -1,0 +1,22 @@
+# Ruff — линтер и форматтер для Python. pip install ruff
+target-version = "py312"
+line-length = 100
+
+[lint]
+select = [
+    "E", "F", "W",      # базовые ошибки
+    "I",                # порядок импортов
+    "UP",               # устаревшие конструкции
+    "B",                # типовые ловушки (bugbear)
+    "S",                # безопасность (bandit)
+    "ASYNC",            # блокирующие вызовы в async — прямое соответствие rules/10-api.md
+    "C90",              # цикломатическая сложность
+    "RUF",
+]
+ignore = ["S101"]       # assert разрешён в тестах
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.per-file-ignores]
+"tests/**" = ["S", "C90"]

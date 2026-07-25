@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-js-nuxt",
+  "displayName": "Стандарты: Nuxt 3",
+  "version": "0.1.0",
+  "description": "SSR, data fetching, server routes, состояние",
+  "author": {
+    "name": "DanielLetto2020"
+  },
+  "keywords": [
+    "js",
+    "nuxt",
+    "vue",
+    "ssr"
+  ],
+  "dependencies": [
+    "std-core",
+    "std-gauntlet"
+  ]
+}

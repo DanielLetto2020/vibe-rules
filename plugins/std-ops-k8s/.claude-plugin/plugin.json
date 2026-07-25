@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-ops-k8s",
+  "displayName": "Стандарты: Kubernetes",
+  "version": "0.1.0",
+  "description": "Ресурсы, probe'ы, секреты, обновления без простоя",
+  "author": {
+    "name": "DanielLetto2020"
+  },
+  "keywords": [
+    "k8s",
+    "kubernetes",
+    "helm"
+  ],
+  "dependencies": [
+    "std-core",
+    "std-gauntlet"
+  ]
+}

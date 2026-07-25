@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-js-base",
+  "displayName": "Стандарты: JS/TS (язык)",
+  "version": "0.1.0",
+  "description": "Строгая типизация, асинхронность, обработка ошибок",
+  "author": {
+    "name": "DanielLetto2020"
+  },
+  "keywords": [
+    "js",
+    "ts",
+    "language"
+  ],
+  "dependencies": [
+    "std-core",
+    "std-gauntlet"
+  ]
+}

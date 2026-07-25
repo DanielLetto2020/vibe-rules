@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-cache-redis",
+  "displayName": "Стандарты: Redis",
+  "version": "0.1.0",
+  "description": "TTL, инвалидация, блокировки, устойчивость",
+  "author": {
+    "name": "DanielLetto2020"
+  },
+  "keywords": [
+    "cache",
+    "redis"
+  ],
+  "dependencies": [
+    "std-core",
+    "std-gauntlet"
+  ]
+}

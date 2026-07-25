@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-msg-rabbitmq",
+  "displayName": "Стандарты: RabbitMQ",
+  "version": "0.1.0",
+  "description": "Подтверждения, идемпотентность, DLQ, ретраи",
+  "author": {
+    "name": "DanielLetto2020"
+  },
+  "keywords": [
+    "queue",
+    "rabbitmq",
+    "amqp"
+  ],
+  "dependencies": [
+    "std-core",
+    "std-gauntlet"
+  ]
+}

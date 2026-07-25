@@ -1,0 +1,15 @@
+# hadolint — линтер Dockerfile. Ставится в CI.
+# Каждое правило здесь — пункт из rules/10-images.md, ставший проверкой.
+failure-threshold: warning
+ignored: []
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+  - registry.access.redhat.com
+override:
+  error:
+    - DL3006   # образ без тега версии
+    - DL3007   # тег latest
+    - DL3002   # последний USER — root
+    - DL3020   # ADD вместо COPY
+    - DL3009   # не очищен кэш apt
