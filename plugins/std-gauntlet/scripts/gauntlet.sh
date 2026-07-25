@@ -71,8 +71,23 @@ read_gates() {
   default_gates
 }
 
-MSI=$( [[ -f "$CFG" ]] && jq -r '.mutation.minMsi // 70' "$CFG" 2>/dev/null || echo 70 )
-[[ "$MSI" == "null" || -z "$MSI" ]] && MSI=70
+# --- Режим мутационного гейта -------------------------------------------------
+# absolute — фиксированный порог. Годится там, где качество уже высокое.
+# ratchet  — планка равна лучшему достигнутому: улучшать не обязательно,
+#            ухудшать нельзя. Единственный режим, работающий на легаси, где
+#            любой достижимый абсолютный порог бесполезен, а полезный —
+#            недостижим и потому будет отключён.
+MUT_MODE="absolute"; MSI=70; MUT_CHANGED_ONLY="false"
+if [[ -f "$CFG" ]] && command -v jq >/dev/null 2>&1; then
+  m=$(jq -r '.mutation.mode // "absolute"' "$CFG" 2>/dev/null); [[ -n "$m" && "$m" != "null" ]] && MUT_MODE="$m"
+  t=$(jq -r '.mutation.threshold // .mutation.minMsi // empty' "$CFG" 2>/dev/null); [[ -n "$t" && "$t" != "null" ]] && MSI="$t"
+  c=$(jq -r '.mutation.changedOnly // false' "$CFG" 2>/dev/null); [[ "$c" == "true" ]] && MUT_CHANGED_ONLY="true"
+fi
+if [[ "$MUT_MODE" == "ratchet" ]]; then
+  # При храповике инструмент не должен падать по своему порогу: решение
+  # принимает ratchet.sh, сравнивая с планкой проекта.
+  MSI=0
+fi
 export MSI
 
 mapfile -t GATES < <(read_gates)
@@ -104,8 +119,38 @@ for g in "${GATES[@]}"; do
 
   printf '\n'; bold "▸ $name"
   cmd_expanded=$(eval "echo \"$cmd\"")
+
+  # На большом проекте полный мутационный прогон идёт часами. Ограничение
+  # изменёнными файлами превращает его в проверку, которую реально запускают.
+  if [[ "$name" == *mutation* && "$MUT_CHANGED_ONLY" == "true" ]]; then
+    case "$cmd_expanded" in
+      *infection*) cmd_expanded="$cmd_expanded --git-diff-filter=AM" ;;
+      *stryker*)   cmd_expanded="$cmd_expanded --since" ;;
+    esac
+  fi
+
   ( cd "$PROJECT_DIR" && eval "$cmd_expanded" ) > "$LOGDIR/$name.log" 2>&1
   rc=$?
+
+  # --- Храповик вместо порога инструмента -------------------------------------
+  if [[ "$name" == *mutation* && "$MUT_MODE" == "ratchet" ]]; then
+    # Формат вывода различается: Infection печатает «MSI: 63%»,
+    # Stryker — «Mutation score: 63.45%», mutmut — свою сводку.
+    score=$(grep -oiE '(mutation score indicator \(msi\)|mutation score|msi)[^0-9]{0,12}[0-9]+([.,][0-9]+)?' \
+              "$LOGDIR/$name.log" 2>/dev/null | grep -oE '[0-9]+([.,][0-9]+)?' | tail -1)
+    if [[ -n "$score" ]]; then
+      score=${score%%[.,]*}
+      if CLAUDE_PROJECT_DIR="$PROJECT_DIR" "$(dirname "${BASH_SOURCE[0]}")/ratchet.sh" check "$score" 2>&1 | sed 's/^/  /'; then
+        rc=0
+      else
+        rc=1
+      fi
+    else
+      ylw "  не удалось извлечь mutation score из вывода — храповик пропущен"
+      ylw "  задай mutation.mode = absolute либо проверь формат отчёта"
+    fi
+  fi
+
   if [[ $rc -eq 0 ]]; then
     grn "  пройден"; NAMES+=("$name"); STATUS+=("ок")
   else

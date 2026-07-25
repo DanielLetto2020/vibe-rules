@@ -63,15 +63,17 @@ not swell.
 /plugin marketplace add DanielLetto2020/vibe-rules
 /plugin install std-core@vibe-rules
 
-# in each project
-/std-core:link --auto      # detects your stack, links the right modules
-/std-gauntlet:init         # configures quality gates
-/context                   # verify what actually loaded
+# in each project — one command
+/std-core:setup
 ```
 
-`--auto` reads `composer.json`, `package.json`, `pyproject.toml`, compose
-files, Kubernetes manifests and Ansible playbooks. Real output from five
-different projects:
+`setup` reads your repository, works out what kind of project this is, links
+the matching stack modules and writes the gate configuration. Nothing to pick
+by hand.
+
+Stack detection reads `composer.json`, `package.json`, `pyproject.toml`,
+compose files, Kubernetes manifests and Ansible playbooks. Real output from
+five different projects:
 
 | Project | Modules linked |
 |---|---|
@@ -84,6 +86,53 @@ different projects:
 Note the split: **PHP is not always Laravel.** Language rules and framework
 rules are separate modules — a plain PHP or Symfony project still gets
 `php-base`, and framework modules stack on top.
+
+## Profiles: strictness that fits the project
+
+One level of strictness for every project does not work. On a prototype it
+slows down the very thing being tested; on legacy it is unreachable and gets
+switched off on day one; in a team a lax setting means there are no standards
+at all.
+
+The profile is inferred from facts in the repository — how many people commit,
+how many commits exist, whether tests exist at all:
+
+| Profile | When | Spec | Test-edit lock | Mutation gate |
+|---|---|---|---|---|
+| `prototype` | under 15 commits, no tests | not required | off | off |
+| `solo` | single author | required | ask | ratchet from 50% |
+| `team` | more than one active author | required | ask | ratchet from 60% |
+| `legacy` | 200+ commits, almost no tests | characterize first | ask | ratchet from 0%, changed files only |
+| `regulated` | money, personal data, audit | required | **deny** | absolute 80% |
+
+**Safety locks are identical in every profile.** No profile permits deleting a
+volume, force-pushing or committing a secret — the profile only moves the
+quality bar.
+
+`regulated` is never selected automatically: deciding from code that a project
+handles money or medical data cannot be done reliably, and erring in that
+direction is expensive.
+
+### The ratchet
+
+An absolute threshold has a failure mode. On an existing project the real
+mutation score is usually 20–40%. A 70% gate is unreachable today, so it gets
+disabled on day one. A 20% gate is useless — it does not stop unverified code
+from arriving.
+
+The ratchet sets the bar to **the best result the project has already
+achieved**, minus a small tolerance for run-to-run noise. Improving is
+optional; regressing is not.
+
+```
+run 1:  20%  → bar rises to 20%
+run 2:  45%  → bar rises to 45%
+run 3:  44%  → passes, within tolerance
+run 4:  30%  → FAILS — new code is verified worse than what already exists
+```
+
+That is what makes the gate usable on legacy from day one, at any starting
+point.
 
 ## Modules
 
@@ -233,7 +282,10 @@ as a blocking CI gate:
 3. **Locks** — 49 cases: JSON in, `allow`/`deny`/`ask` out.
 4. **Stack detection and link integrity** — 20 cases, including regressions for
    bugs found during development.
-5. **`claude plugin validate --strict`** on every module.
+5. **Profiles, ratchet and setup** — 20 cases: profile inference from a
+   synthetic git history, ratchet raising and holding the bar, profile
+   controlling lock strictness, repeated setup preserving manual edits.
+6. **`claude plugin validate --strict`** on every module.
 
 Separately, `tests/test-context.sh` verifies what usually stays an act of
 faith: that a rule **actually loaded** into context for the right file. It's

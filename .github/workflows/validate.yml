@@ -33,5 +33,11 @@ jobs:
       - name: Автодетект стека и целостность связей
         run: bash tests/test-link.sh
 
+      - name: Профили, храповик, единая настройка
+        run: |
+          git config --global user.email ci@example.com
+          git config --global user.name CI
+          bash tests/test-profile.sh
+
       # test-context.sh не запускается в CI: он поднимает модель.
       # Прогоняйте его локально перед релизом модуля.
