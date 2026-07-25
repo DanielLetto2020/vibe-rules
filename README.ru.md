@@ -160,9 +160,9 @@ tests/run.sh
 - **Ревизия раз в квартал.** Правило, которое за квартал ни разу не
   нарушалось, либо уже вбито в линтер (убрать текст), либо не нужно.
 
-Сквозные примеры использования: [docs/EXAMPLES.md](docs/EXAMPLES.md).
+Сквозные примеры использования: [docs/EXAMPLES.ru.md](docs/EXAMPLES.ru.md).
 
 Подробнее: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
 [docs/ENFORCEMENT.md](docs/ENFORCEMENT.md),
 [строй проверок](plugins/std-gauntlet/docs/GAUNTLET.md),
-[SECURITY.md](SECURITY.md) — модель доверия и как сообщить об уязвимости.
+[SECURITY.ru.md](SECURITY.ru.md) — модель доверия и как сообщить об уязвимости.

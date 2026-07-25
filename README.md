@@ -294,10 +294,12 @@ grows. That's expected.
 
 ## Documentation
 
+🇷🇺 marks a document that is currently Russian-only.
+
 - [Examples](docs/EXAMPLES.md) — four walkthroughs from install to daily use
-- [Architecture](docs/ARCHITECTURE.md) — why it's built this way
-- [Enforcement](docs/ENFORCEMENT.md) — the rule-versus-lock boundary
-- [The gauntlet](plugins/std-gauntlet/docs/GAUNTLET.md) — the five stages in detail
+- [Architecture](docs/ARCHITECTURE.md) 🇷🇺 — why it's built this way
+- [Enforcement](docs/ENFORCEMENT.md) 🇷🇺 — the rule-versus-lock boundary
+- [The gauntlet](plugins/std-gauntlet/docs/GAUNTLET.md) 🇷🇺 — the five stages in detail
 - [Contributing](CONTRIBUTING.md) — adding modules and rules
 - [Security](SECURITY.md) — trust model and how to report a vulnerability
 

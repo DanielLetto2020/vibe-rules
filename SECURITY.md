@@ -1,5 +1,7 @@
 # Security Policy
 
+> 🇷🇺 [Русская версия](SECURITY.ru.md) · [back to README](README.md)
+
 ## Reporting a vulnerability
 
 Report privately via

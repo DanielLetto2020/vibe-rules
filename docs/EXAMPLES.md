@@ -1,6 +1,6 @@
 # Examples: from install to daily use
 
-> 🇷🇺 Русская версия описания — в [README.ru.md](../README.ru.md).
+> 🇷🇺 [Русская версия](EXAMPLES.ru.md) · [back to README](../README.md)
 
 Four walkthroughs covering what actually happens once the standards are wired
 into a project.
