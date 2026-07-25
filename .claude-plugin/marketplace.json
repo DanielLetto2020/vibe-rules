@@ -1,0 +1,218 @@
+{
+  "name": "vibe-rules",
+  "owner": {
+    "name": "DanielLetto2020"
+  },
+  "metadata": {
+    "description": "Модульные стандарты разработки для Claude Code: замки (hooks), правила (rules), процедуры (skills), конвейер проверок (gauntlet)",
+    "version": "0.2.0"
+  },
+  "plugins": [
+    {
+      "name": "std-core",
+      "source": "./plugins/std-core",
+      "description": "Ядро: замки-хуки, линковка правил в проект, диагностика. Ставится всем.",
+      "version": "0.2.0",
+      "keywords": [
+        "standards",
+        "hooks",
+        "core"
+      ]
+    },
+    {
+      "name": "std-gauntlet",
+      "source": "./plugins/std-gauntlet",
+      "description": "Строй проверок: спека, независимые тесты, мутационное тестирование, метрики, гейты",
+      "version": "0.1.0",
+      "keywords": [
+        "testing",
+        "mutation",
+        "atdd",
+        "quality-gates"
+      ]
+    },
+    {
+      "name": "std-php-base",
+      "source": "./plugins/std-php-base",
+      "description": "PHP (язык): типизация, исключения, строгие сравнения — вне зависимости от фреймворка",
+      "version": "0.1.0",
+      "keywords": [
+        "php",
+        "language"
+      ]
+    },
+    {
+      "name": "std-js-base",
+      "source": "./plugins/std-js-base",
+      "description": "JS/TS (язык): строгая типизация, асинхронность, обработка ошибок",
+      "version": "0.1.0",
+      "keywords": [
+        "js",
+        "ts",
+        "language"
+      ]
+    },
+    {
+      "name": "std-py-base",
+      "source": "./plugins/std-py-base",
+      "description": "Python (язык): типизация, исключения, ресурсы, ловушки языка",
+      "version": "0.1.0",
+      "keywords": [
+        "python",
+        "language"
+      ]
+    },
+    {
+      "name": "std-php-laravel",
+      "source": "./plugins/std-php-laravel",
+      "description": "Laravel: HTTP-слой, Eloquent, тесты",
+      "version": "0.1.0",
+      "keywords": [
+        "php",
+        "laravel"
+      ]
+    },
+    {
+      "name": "std-php-yii2",
+      "source": "./plugins/std-php-yii2",
+      "description": "Yii 2: контроллеры, ActiveRecord, миграции",
+      "version": "0.1.0",
+      "keywords": [
+        "php",
+        "yii2"
+      ]
+    },
+    {
+      "name": "std-js-vue3",
+      "source": "./plugins/std-js-vue3",
+      "description": "Vue 3: SFC, композиция, типизация пропсов",
+      "version": "0.1.0",
+      "keywords": [
+        "js",
+        "vue"
+      ]
+    },
+    {
+      "name": "std-js-nuxt",
+      "source": "./plugins/std-js-nuxt",
+      "description": "Nuxt 3: SSR, загрузка данных, серверные роуты, состояние",
+      "version": "0.1.0",
+      "keywords": [
+        "js",
+        "nuxt",
+        "ssr"
+      ]
+    },
+    {
+      "name": "std-js-playwright",
+      "source": "./plugins/std-js-playwright",
+      "description": "Playwright: селекторы, ожидания, изоляция тестов, борьба с флаками",
+      "version": "0.1.0",
+      "keywords": [
+        "js",
+        "e2e",
+        "playwright"
+      ]
+    },
+    {
+      "name": "std-py-fastapi",
+      "source": "./plugins/std-py-fastapi",
+      "description": "FastAPI: схемы, зависимости, асинхронность, ошибки",
+      "version": "0.1.0",
+      "keywords": [
+        "python",
+        "fastapi"
+      ]
+    },
+    {
+      "name": "std-py-parsers",
+      "source": "./plugins/std-py-parsers",
+      "description": "Python-парсеры: сеть, ретраи, устойчивость к изменению источника",
+      "version": "0.1.0",
+      "keywords": [
+        "python",
+        "parsing"
+      ]
+    },
+    {
+      "name": "std-sql-postgres",
+      "source": "./plugins/std-sql-postgres",
+      "description": "PostgreSQL: миграции без даунтайма, индексы, запросы",
+      "version": "0.1.0",
+      "keywords": [
+        "sql",
+        "postgres"
+      ]
+    },
+    {
+      "name": "std-sql-sqlite",
+      "source": "./plugins/std-sql-sqlite",
+      "description": "SQLite: ограничения движка и отличия от Postgres",
+      "version": "0.1.0",
+      "keywords": [
+        "sql",
+        "sqlite"
+      ]
+    },
+    {
+      "name": "std-msg-rabbitmq",
+      "source": "./plugins/std-msg-rabbitmq",
+      "description": "RabbitMQ: подтверждения, идемпотентность, DLQ, ретраи",
+      "version": "0.1.0",
+      "keywords": [
+        "queue",
+        "rabbitmq"
+      ]
+    },
+    {
+      "name": "std-msg-kafka",
+      "source": "./plugins/std-msg-kafka",
+      "description": "Kafka: ключи, партиции, оффсеты, порядок, совместимость схем",
+      "version": "0.1.0",
+      "keywords": [
+        "queue",
+        "kafka"
+      ]
+    },
+    {
+      "name": "std-cache-redis",
+      "source": "./plugins/std-cache-redis",
+      "description": "Redis: TTL, инвалидация, блокировки, устойчивость к отказу",
+      "version": "0.1.0",
+      "keywords": [
+        "cache",
+        "redis"
+      ]
+    },
+    {
+      "name": "std-ops-containers",
+      "source": "./plugins/std-ops-containers",
+      "description": "Docker/Podman: образы, слои, секреты, non-root, healthcheck",
+      "version": "0.1.0",
+      "keywords": [
+        "docker",
+        "podman"
+      ]
+    },
+    {
+      "name": "std-ops-k8s",
+      "source": "./plugins/std-ops-k8s",
+      "description": "Kubernetes: ресурсы, probe'ы, секреты, обновления без простоя",
+      "version": "0.1.0",
+      "keywords": [
+        "k8s",
+        "kubernetes"
+      ]
+    },
+    {
+      "name": "std-ops-ansible",
+      "source": "./plugins/std-ops-ansible",
+      "description": "Ansible: идемпотентность, инвентарь, секреты, проверочный прогон",
+      "version": "0.1.0",
+      "keywords": [
+        "ansible",
+        "iac"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "_comment": "Копировать в .claude/gauntlet.json. Порядок ключей = порядок запуска: дешёвое и быстрое первым, чтобы очевидная ошибка находилась за секунды, а не после мутационного прогона. Оставь строки своего стека.",
+
+  "gates": {
+    "style": "./vendor/bin/pint --test",
+    "types": "./vendor/bin/phpstan analyse --no-progress",
+    "test": "php artisan test",
+    "mutation": "./vendor/bin/infection --threads=max --min-msi=$MSI --no-progress",
+
+    "_js-lint": "npm run lint",
+    "_js-types": "npx tsc --noEmit",
+    "_js-test": "npm test",
+    "_js-mutation": "npx stryker run",
+    "_e2e": "npx playwright test",
+
+    "_py-lint": "ruff check .",
+    "_py-types": "mypy .",
+    "_py-test": "pytest -q",
+
+    "_k8s": "kubeconform -strict -summary k8s/ && kube-linter lint k8s/",
+    "_ansible": "ansible-lint && ansible-playbook --check --diff -i inventory/prod playbook.yml",
+    "_docker": "hadolint Dockerfile"
+  },
+
+  "mutation": {
+    "_comment": "Ставь порог чуть выше текущего фактического значения, а не красивое число. Недостижимый порог отключают в первый же день.",
+    "minMsi": 70
+  },
+
+  "requireBeforeCommit": true
+}

@@ -1,0 +1,37 @@
+name: validate-standards
+
+# Гейт на каждый PR. Ни один шаг не запускает модель и не тратит токены,
+# поэтому проверка идёт секунды и может быть блокирующей.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Установить jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Права на исполнение хуков
+        run: |
+          bad=0
+          while IFS= read -r s; do
+            [ -x "$s" ] || { echo "не исполняемый: $s"; bad=1; }
+          done < <(find plugins tests -name '*.sh' -type f)
+          exit $bad
+
+      - name: Структура модулей и frontmatter
+        run: python3 tests/lint-modules.py
+
+      - name: Замки (unit-тесты хуков)
+        run: bash tests/test-hooks.sh
+
+      - name: Автодетект стека и целостность связей
+        run: bash tests/test-link.sh
+
+      # test-context.sh не запускается в CI: он поднимает модель.
+      # Прогоняйте его локально перед релизом модуля.

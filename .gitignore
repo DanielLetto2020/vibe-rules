@@ -1,0 +1,17 @@
+# Инструкции для агента — личные, в публичный репозиторий не уходят.
+# Якорь на корень обязателен: без ведущего слэша правило скрыло бы и
+# templates/project/CLAUDE.md, который как раз должен публиковаться.
+/CLAUDE.md
+/CLAUDE.local.md
+/.claude/settings.local.json
+
+# Журналы фактических загрузок инструкций (пишет хук InstructionsLoaded)
+.std-trace.jsonl
+**/.std-trace.jsonl
+
+# Отметка успешного прогона гейтов — локальное состояние машины
+.gauntlet-pass
+**/.gauntlet-pass
+
+*.tmp
+.DS_Store

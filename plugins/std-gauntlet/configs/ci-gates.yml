@@ -1,0 +1,129 @@
+# Шаблон CI с блокирующими гейтами.
+# Скопировать в .github/workflows/gates.yml и вырезать лишний стек.
+#
+# Принцип: гейт либо блокирующий, либо его нет. Гейт с continue-on-error
+# создаёт видимость проверки и хуже отсутствия — на него перестают смотреть,
+# но продолжают на него ссылаться.
+
+name: gates
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  fast:
+    name: Быстрые гейты
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- PHP ---
+      - name: PHP
+        if: hashFiles('composer.json') != ''
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: xdebug
+      - name: Зависимости PHP
+        if: hashFiles('composer.json') != ''
+        run: composer install --no-interaction --prefer-dist
+      - name: Стиль
+        if: hashFiles('composer.json') != ''
+        run: ./vendor/bin/pint --test
+      - name: Статический анализ
+        if: hashFiles('composer.json') != ''
+        run: ./vendor/bin/phpstan analyse --no-progress
+      - name: Тесты
+        if: hashFiles('composer.json') != ''
+        run: php artisan test --coverage-clover=coverage.xml
+
+      # --- JS/TS ---
+      - name: Node
+        if: hashFiles('package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Зависимости JS
+        if: hashFiles('package.json') != ''
+        run: npm ci
+      - name: Линтер
+        if: hashFiles('package.json') != ''
+        run: npm run lint --if-present
+      - name: Типы
+        if: hashFiles('tsconfig.json') != ''
+        run: npx tsc --noEmit
+      - name: Тесты JS
+        if: hashFiles('package.json') != ''
+        run: npm test --if-present
+
+      # --- Python ---
+      - name: Python
+        if: hashFiles('pyproject.toml') != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Зависимости Python
+        if: hashFiles('pyproject.toml') != ''
+        run: pip install -e ".[dev]"
+      - name: Ruff
+        if: hashFiles('pyproject.toml') != ''
+        run: ruff check .
+      - name: Mypy
+        if: hashFiles('pyproject.toml') != ''
+        run: mypy .
+      - name: Pytest
+        if: hashFiles('pyproject.toml') != ''
+        run: pytest -q
+
+  secrets:
+    name: Секреты и зависимости
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Зависимости — единственный вектор, который тесты не закрывают вообще
+      - name: Аудит PHP
+        if: hashFiles('composer.lock') != ''
+        run: composer audit
+      - name: Аудит npm
+        if: hashFiles('package-lock.json') != ''
+        run: npm audit --audit-level=high
+
+  mutation:
+    name: Мутационный гейт
+    runs-on: ubuntu-latest
+    needs: fast
+    # Прогон долгий, поэтому отдельной задачей и после быстрых гейтов:
+    # нет смысла мутировать код, который не проходит типизацию.
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHP
+        if: hashFiles('composer.json') != ''
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: xdebug
+      - name: Infection
+        if: hashFiles('composer.json') != ''
+        run: |
+          composer install --no-interaction --prefer-dist
+          ./vendor/bin/infection --threads=max --min-msi=70 --min-covered-msi=80 --no-progress
+      - name: Node
+        if: hashFiles('package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Stryker
+        if: hashFiles('stryker.conf.json') != ''
+        run: |
+          npm ci
+          npx stryker run

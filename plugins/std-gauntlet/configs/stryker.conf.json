@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-js/master/packages/api/schema/stryker-schema.json",
+  "_comment": "Stryker — мутационное тестирование для JS/TS. npm i -D @stryker-mutator/core @stryker-mutator/vitest-runner",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "reporters": ["html", "clear-text", "progress"],
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/**/*.{ts,js,vue}",
+    "app/**/*.{ts,js,vue}",
+    "composables/**/*.ts",
+    "server/**/*.ts",
+    "!**/*.spec.*",
+    "!**/*.test.*",
+    "!**/*.d.ts",
+    "!**/types/**"
+  ],
+  "thresholds": {
+    "_comment": "break — уровень, ниже которого прогон падает. Это и есть гейт. high/low влияют только на цвет отчёта.",
+    "high": 85,
+    "low": 70,
+    "break": 70
+  },
+  "timeoutMS": 10000,
+  "concurrency": 4
+}

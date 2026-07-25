@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-ЗАМЕНИ",
+  "displayName": "Стандарты: ЗАМЕНИ",
+  "version": "0.1.0",
+  "description": "Одна строка: какой стек покрывает модуль",
+  "author": {
+    "name": "DanielLetto2020"
+  },
+  "keywords": [],
+  "dependencies": [
+    "std-core"
+  ]
+}

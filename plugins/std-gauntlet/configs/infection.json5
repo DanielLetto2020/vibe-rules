@@ -1,0 +1,33 @@
+// Infection — мутационное тестирование для PHP.
+//   composer require --dev infection/infection
+//   ./vendor/bin/infection --threads=max --min-msi=70
+//
+// minMsi   — доля убитых мутантов от всех.
+// minCoveredMsi — доля убитых среди покрытых тестами. Она всегда выше и
+//                 честнее показывает качество именно написанных тестов.
+{
+    "$schema": "vendor/infection/infection/resources/schema.json",
+    "source": {
+        "directories": ["app", "src"],
+        "excludes": [
+            "Providers",
+            "Console/Kernel.php",
+            "Exceptions"
+        ]
+    },
+    "timeout": 20,
+    "logs": {
+        "text": "storage/logs/infection.log",
+        "summary": "storage/logs/infection-summary.log",
+        "json": "storage/logs/infection.json"
+    },
+    "tmpDir": "storage/infection",
+    "mutators": {
+        "@default": true,
+        // Логирование и отладочный вывод мутировать бессмысленно:
+        // их отсутствие не меняет наблюдаемого поведения.
+        "IncrementInteger": {
+            "ignoreSourceCodeByRegex": ["Log::.*", ".*logger\\(\\).*"]
+        }
+    }
+}

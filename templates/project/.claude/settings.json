@@ -1,0 +1,16 @@
+{
+  "_comment": "Коммитится в git. При доверии папки Claude Code предложит поставить маркетплейс сам. Оставь в enabledPlugins только модули своего стека — или положись на /std-core:link --auto, он определит стек сам.",
+  "extraKnownMarketplaces": {
+    "vibe-rules": {
+      "source": {
+        "source": "github",
+        "repo": "DanielLetto2020/vibe-rules"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "std-core@vibe-rules": true,
+    "std-gauntlet@vibe-rules": true,
+    "std-php-laravel@vibe-rules": true
+  }
+}
