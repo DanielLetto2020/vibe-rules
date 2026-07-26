@@ -63,6 +63,10 @@ bash_case "запуск тестов разрешён"                 'php arti
 
 echo "== guard-tests: защита надзорного слоя =="
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+# Замки методологии срабатывают только в проектах, подключённых к стандартам.
+# Тестовый каталог помечаем подключённым, иначе они молчат и проверяется не то.
+mkdir -p "$TMP/.claude"; echo '{"guardTests":"ask"}' > "$TMP/.claude/gauntlet.json"
+export CLAUDE_PROJECT_DIR="$TMP"
 mkdir -p "$TMP/tests/Feature" "$TMP/app"
 echo "<?php" > "$TMP/tests/Feature/OrderTest.php"
 echo "<?php" > "$TMP/app/Order.php"
@@ -119,6 +123,7 @@ deps_case "обычный файл не трогает"      "$TMP/app/Order.php
 echo "== guard-commit: коммит без прогона гейтов =="
 GT="$ROOT/plugins/std-gauntlet/scripts/guard-commit.sh"
 GP=$(mktemp -d); mkdir -p "$GP/.claude" "$GP/app"
+echo '{}' > "$GP/.claude/gauntlet.json"
 
 commit_case() { # <описание> <команда> <ожидаемое>
   local desc="$1" cmd="$2" want="$3"
@@ -161,6 +166,46 @@ secret_case "AWS-ключ ловится"                "AKIAIOSFODNN7EXAMPLE" 
 secret_case "приватный ключ ловится"          "-----BEGIN RSA PRIVATE KEY-----"            error
 secret_case "чтение из env не ловится"        "\$pass = getenv('DB_PASSWORD');"            allow
 secret_case "плейсхолдер не ловится"          "\$pass = env('DB_PASS', '');"               allow
+
+echo "== плагин стоит на машине, но чужие проекты не трогает =="
+# Замки методологии применяются там, где стандарты приняли. Иначе первый же
+# посторонний проект встречает вопросы, которых человек не просил, и замки
+# отключают целиком. Защита от необратимого работает везде.
+NOSTD="$TMP/чужой"; mkdir -p "$NOSTD/tests"
+echo '<?php' > "$NOSTD/tests/ATest.php"; touch "$NOSTD/Dockerfile"
+
+silent() { # <скрипт> <json> -> 0 если замок промолчал
+  local out
+  out=$(printf '%s' "$2" | CLAUDE_PROJECT_DIR="$NOSTD" bash "$1" 2>/dev/null)
+  [[ -z "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision // empty' 2>/dev/null)" ]]
+}
+
+silent "$ROOT/plugins/std-gauntlet/scripts/guard-commit.sh" \
+       "$(jq -n '{tool_name:"Bash",tool_input:{command:"git commit -m x"}}')" \
+  && ok "коммит в чужом проекте не спрашивают" || bad "guard-commit в чужом" "молчание" "решение"
+
+silent "$ROOT/plugins/std-core/scripts/guard-tests.sh" \
+       "$(jq -n --arg p "$NOSTD/tests/ATest.php" '{tool_name:"Edit",tool_input:{file_path:$p}}')" \
+  && ok "правку теста в чужом проекте не блокируют" || bad "guard-tests в чужом" "молчание" "решение"
+
+silent "$ROOT/plugins/std-core/scripts/guard-infra.sh" \
+       "$(jq -n --arg p "$NOSTD/Dockerfile" '{tool_name:"Edit",tool_input:{file_path:$p}}')" \
+  && ok "правку Dockerfile в чужом проекте не трогают" || bad "guard-infra в чужом" "молчание" "решение"
+
+# А необратимое блокируется независимо от того, знает ли проект о стандартах
+OUT=$(jq -n '{tool_name:"Bash",tool_input:{command:"podman volume rm data"}}' \
+      | CLAUDE_PROJECT_DIR="$NOSTD" bash "$SCRIPTS/guard-bash.sh" 2>/dev/null \
+      | jq -r '.hookSpecificOutput.permissionDecision // "allow"')
+[[ "$OUT" == "deny" ]] && ok "удаление тома блокируется и в чужом проекте" \
+  || bad "guard-bash в чужом" deny "$OUT"
+
+# Признак подключённого проекта — конфигурация или слинкованные правила
+mkdir -p "$NOSTD/.claude"; echo '{"guardTests":"ask"}' > "$NOSTD/.claude/gauntlet.json"
+OUT=$(jq -n --arg p "$NOSTD/tests/ATest.php" '{tool_name:"Edit",tool_input:{file_path:$p}}' \
+      | CLAUDE_PROJECT_DIR="$NOSTD" bash "$SCRIPTS/guard-tests.sh" 2>/dev/null \
+      | jq -r '.hookSpecificOutput.permissionDecision // "allow"')
+[[ "$OUT" == "ask" ]] && ok "в подключённом проекте замок снова работает" \
+  || bad "guard-tests в подключённом" ask "$OUT"
 
 echo
 printf 'Пройдено: \033[32m%d\033[0m   Провалено: \033[31m%d\033[0m\n' "$PASS" "$FAIL"

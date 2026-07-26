@@ -13,6 +13,19 @@ INPUT=$(cat)
 FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 [[ -z "$FILE" ]] && exit 0
 
+# Проект подключён к стандартам? Признак — конфигурация гейтов или слинкованные
+# правила. Плагин ставится на машину и виден во всех проектах, но вмешиваться
+# он должен только там, где стандарты приняли: иначе первый же чужой проект
+# встречает вопросы, которых человек не просил, и замки отключают целиком.
+project_uses_standards() {
+  local d="${CLAUDE_PROJECT_DIR:-$PWD}"
+  [[ -f "$d/.claude/gauntlet.json" ]] && return 0
+  compgen -G "$d/.claude/rules/std-*" >/dev/null 2>&1 && return 0
+  return 1
+}
+
+project_uses_standards || exit 0
+
 ask() {
   jq -n --arg r "$1" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"ask",permissionDecisionReason:$r}}'
   exit 0
