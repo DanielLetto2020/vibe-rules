@@ -76,10 +76,19 @@ gate_cmd() { # <имя гейта> -> команда или пусто
       have package.json && { echo 'npm run lint --if-present'; return; }
       have pyproject.toml && { echo 'ruff check .'; return; } ;;
     types)
+      # Psalm и PHPStan сосуществуют: если настроены оба, гоняем оба
+      if have psalm.xml || have psalm.xml.dist; then
+        have phpstan.neon && { echo './vendor/bin/psalm --no-progress && ./vendor/bin/phpstan analyse --no-progress'; return; }
+        echo './vendor/bin/psalm --no-progress'; return
+      fi
       have composer.json && { echo './vendor/bin/phpstan analyse --no-progress'; return; }
       have tsconfig.json && { echo 'npx --no-install tsc --noEmit'; return; }
       have pyproject.toml && { echo 'mypy .'; return; } ;;
     test)
+      # Codeception проверяется до PHPUnit: он его надстройка, и запускать
+      # надо именно его, иначе приёмочные наборы не выполнятся
+      have codeception.yml && { echo './vendor/bin/codecept run'; return; }
+      have codeception.dist.yml && { echo './vendor/bin/codecept run'; return; }
       have artisan && { echo 'php artisan test'; return; }
       have composer.json && { echo './vendor/bin/phpunit'; return; }
       have package.json && { echo 'npm test --if-present'; return; }

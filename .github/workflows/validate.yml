@@ -16,6 +16,9 @@ jobs:
       - name: Установить jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
+      - name: Страж приватных данных
+        run: python3 tests/no-private-data.py
+
       - name: Права на исполнение хуков
         run: |
           bad=0
@@ -32,6 +35,9 @@ jobs:
 
       - name: Автодетект стека и целостность связей
         run: bash tests/test-link.sh
+
+      - name: Политика стека
+        run: bash tests/test-policy.sh
 
       - name: Профили, храповик, единая настройка
         run: |

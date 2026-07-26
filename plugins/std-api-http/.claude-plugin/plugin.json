@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-api-http",
+  "displayName": "Стандарты: HTTP API",
+  "version": "0.1.0",
+  "description": "Версионирование, именование, контракты, коды ответов",
+  "author": { "name": "DanielLetto2020" },
+  "keywords": ["api", "http", "rest"],
+  "dependencies": ["std-core", "std-gauntlet"]
+}

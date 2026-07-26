@@ -5,6 +5,11 @@
 /CLAUDE.local.md
 /.claude/settings.local.json
 
+# Локальный список названий внутренних систем для стража утечек.
+# Сами названия приватны — в публичном репозитории их нет даже
+# в списке запрещённых. Образец: tests/private-patterns.example
+/tests/.private-patterns
+
 # Журналы фактических загрузок инструкций (пишет хук InstructionsLoaded)
 .std-trace.jsonl
 **/.std-trace.jsonl

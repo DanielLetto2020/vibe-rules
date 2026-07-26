@@ -90,15 +90,15 @@ case_detect "SQLite" \
 
 case_detect "RabbitMQ + Kafka в compose" \
   'printf "services:\n  mq:\n    image: rabbitmq:3\n  kafka:\n    image: redpanda\n" > docker-compose.yml' \
-  "std-core std-gauntlet std-msg-kafka std-msg-rabbitmq std-ops-containers"
+  "std-core std-gauntlet std-msg-kafka std-msg-rabbitmq std-ops-containers std-ops-observability"
 
 case_detect "compose в подкаталоге тоже находится" \
   'mkdir -p deploy; printf "services:\n  app:\n    build: .\n" > deploy/docker-compose.yml' \
-  "std-core std-gauntlet std-ops-containers"
+  "std-core std-gauntlet std-ops-containers std-ops-observability"
 
 case_detect "манифесты Kubernetes" \
   'mkdir -p k8s; printf "apiVersion: apps/v1\nkind: Deployment\n" > k8s/app.yaml' \
-  "std-core std-gauntlet std-ops-k8s"
+  "std-core std-gauntlet std-ops-k8s std-ops-observability"
 
 case_detect "Ansible" \
   'printf -- "- hosts: all\n  become: true\n" > playbook.yml' \
@@ -108,6 +108,10 @@ case_detect "Ansible" \
 # нет» было неотличимо от «нашлось совпадение», и в Python-проект подключались
 # правила Kubernetes и Ansible.
 case_detect "проект без yaml не получает k8s и ansible" \
+  'printf "[project]\ndependencies = [\"fastapi\"]\n" > pyproject.toml' \
+  "std-core std-gauntlet std-py-base std-py-fastapi"
+
+case_detect "наблюдаемость приходит с развёртыванием, а не сама по себе" \
   'printf "[project]\ndependencies = [\"fastapi\"]\n" > pyproject.toml' \
   "std-core std-gauntlet std-py-base std-py-fastapi"
 

@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Модульные стандарты разработки для Claude Code: замки (hooks), правила (rules), процедуры (skills), конвейер проверок (gauntlet)",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "plugins": [
     {
@@ -29,6 +29,16 @@
         "mutation",
         "atdd",
         "quality-gates"
+      ]
+    },
+    {
+      "name": "std-policy",
+      "source": "./plugins/std-policy",
+      "description": "Механизм политики стека: разрешённые технологии, минимальные версии, запрет нестабильных",
+      "version": "0.1.0",
+      "keywords": [
+        "policy",
+        "governance"
       ]
     },
     {
@@ -244,6 +254,47 @@
       "keywords": [
         "ansible",
         "iac"
+      ]
+    },
+    {
+      "name": "std-api-http",
+      "source": "./plugins/std-api-http",
+      "description": "HTTP API: версионирование, именование полей и методов, контракты, коды ответов",
+      "version": "0.1.0",
+      "keywords": [
+        "api",
+        "http",
+        "rest"
+      ]
+    },
+    {
+      "name": "std-arch-services",
+      "source": "./plugins/std-arch-services",
+      "description": "Границы между сервисами: только HTTP API, авторизация запросов, шлюз без логики",
+      "version": "0.1.0",
+      "keywords": [
+        "architecture",
+        "microservices"
+      ]
+    },
+    {
+      "name": "std-arch-approach",
+      "source": "./plugins/std-arch-approach",
+      "description": "Выбор подхода к предметной области: DDD, code-first, db-first по сложности",
+      "version": "0.1.0",
+      "keywords": [
+        "architecture",
+        "ddd"
+      ]
+    },
+    {
+      "name": "std-ops-observability",
+      "source": "./plugins/std-ops-observability",
+      "description": "Наблюдаемость: структурированные логи, бизнес-метрики, алертинг, проверенные бэкапы",
+      "version": "0.1.0",
+      "keywords": [
+        "observability",
+        "monitoring"
       ]
     }
   ]

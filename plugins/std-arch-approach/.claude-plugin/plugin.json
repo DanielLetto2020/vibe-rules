@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-arch-approach",
+  "displayName": "Стандарты: Подход к домену",
+  "version": "0.1.0",
+  "description": "DDD, code-first, db-first — выбор по сложности проекта",
+  "author": { "name": "DanielLetto2020" },
+  "keywords": ["architecture", "ddd"],
+  "dependencies": ["std-core", "std-gauntlet"]
+}

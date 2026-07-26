@@ -62,10 +62,15 @@ has_in() { # <регулярка> <файл>...
 # `xargs -r` при пустом вводе ничего не запускает и возвращает 0, из-за чего
 # «файлов вообще нет» было неотличимо от «нашлось совпадение» — так в проект
 # на Python подключались правила Kubernetes и Ansible.
+# Глубина 5, а не 3: контроллеры в PHP-проектах лежат в app/Http/Controllers/,
+# то есть на четвёртом уровне, и при меньшей глубине не находились.
 has_tree() { # <регулярка> <маска-имени> [подкаталог]
   local re="$1" name="$2" sub="${3:-.}" found
   [[ -d "$PROJECT_DIR/$sub" ]] || return 1
-  found=$(find "$PROJECT_DIR/$sub" -maxdepth 3 -name "$name" -type f -print0 2>/dev/null \
+  found=$(find "$PROJECT_DIR/$sub" -maxdepth 5 \
+            \( -path '*/node_modules' -o -path '*/vendor' -o -path '*/.git' \
+               -o -path '*/.venv' -o -path '*/dist' -o -path '*/build' \) -prune -o \
+            -name "$name" -type f -print0 2>/dev/null \
           | xargs -0 -r grep -liE "$re" 2>/dev/null | head -1)
   [[ -n "$found" ]]
 }
@@ -176,6 +181,33 @@ detect_modules() {
   elif has_tree 'hosts:|become:|ansible\.builtin' '*.y*ml' .; then
     mods+=("ops-ansible")
   fi
+
+  # --- Универсальные модули, зависящие не от стека, а от устройства проекта ---
+
+  # HTTP API: есть контроллеры, роуты или схема OpenAPI
+  if has_tree 'Controller|Route|router' '*.php' . \
+     || has_tree 'openapi|swagger' '*.y*ml' . \
+     || [[ -d "$PROJECT_DIR/routes" ]]; then
+    mods+=("api-http")
+  fi
+
+  # Межсервисное взаимодействие: в конфигурации фигурируют внешние сервисы
+  has_in 'API_URL|_SERVICE_URL|_HOST=|BASE_URI|GATEWAY' "${ENV_FILES[@]}" \
+    && mods+=("arch-services")
+
+  # Наблюдаемость нужна всему, что где-то развёрнуто
+  printf '%s\n' "${mods[@]}" | grep -qE 'ops-k8s|ops-containers' \
+    && mods+=("ops-observability")
+
+  # Подход к предметной области — там, где домен выделен явно
+  local dd
+  for dd in Domain domain src/Domain app/Domain Entity entities; do
+    [[ -d "$PROJECT_DIR/$dd" ]] && { mods+=("arch-approach"); break; }
+  done
+
+  # Политика подключается только если она в проекте объявлена: механизм есть
+  # у всех, содержимое задаёт организация
+  [[ -f "$PROJECT_DIR/.claude/policy.json" ]] && mods+=("policy")
 
   printf '%s\n' "${mods[@]:-}" | grep -v '^$' | sort -u
 }

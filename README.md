@@ -3,7 +3,7 @@
 [![gates](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml/badge.svg)](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml)
 [![release](https://img.shields.io/github/v/release/DanielLetto2020/vibe-rules?color=blue)](https://github.com/DanielLetto2020/vibe-rules/releases)
 [![license](https://img.shields.io/github/license/DanielLetto2020/vibe-rules?color=blue)](LICENSE)
-[![modules](https://img.shields.io/badge/modules-23-blue)](#modules)
+[![modules](https://img.shields.io/badge/modules-28-blue)](#modules)
 
 > 🇷🇺 [Русская версия](README.ru.md)
 
@@ -134,12 +134,52 @@ run 4:  30%  → FAILS — new code is verified worse than what already exists
 That is what makes the gate usable on legacy from day one, at any starting
 point.
 
+## Organisation policy
+
+Rules in this repository are universal practices. A company usually also has a
+**policy** — which technologies are permitted, which minimum versions, which
+packages are out. That is a different axis: this repository says *how to use
+Postgres*, a policy says *Postgres 13+ and nothing else*.
+
+`std-policy` is the mechanism for it. The content stays private — in your own
+repository — while the enforcement is public and shared:
+
+```json
+{
+  "runtime": { "php": "8.1", "node": "18" },
+  "stability": { "denyPrerelease": true },
+  "deniedPackages": { "some/lib": "unmaintained since 2023" },
+  "staticAssets": { "maxBinaryKb": 512 },
+  "exempt": { "enabled": false, "reason": "" }
+}
+```
+
+A `PreToolUse` lock checks dependency changes against it: a beta version,
+a banned package or a runtime below the minimum is blocked before it lands.
+Twenty test cases cover the lock.
+
+Two properties matter more than the feature list:
+
+- **A policy never unlocks safety.** Even with `exempt: true` — for a project
+  built by an outside contractor, or with an approved deviation — deleting
+  a volume and force-pushing stay blocked. Otherwise the exemption flag would
+  become the way to switch protection off entirely.
+- **No policy file, no interference.** Projects without a policy see nothing.
+
+The `corporate` profile pairs with this: the required gate set comes from the
+policy and a project cannot weaken it, only add to it.
+
 ## Modules
 
 | Module | Covers |
 |---|---|
 | `std-core` | locks, rule linking, diagnostics — install everywhere |
 | `std-gauntlet` | the gauntlet: spec, tests, mutation, metrics, gates — install everywhere |
+| `std-policy` | mechanism for an organisation's stack policy: allowed technologies, minimum versions |
+| `std-api-http` | versioning, field and path naming, contracts, status codes |
+| `std-arch-services` | service boundaries, request auth, gateway without logic |
+| `std-arch-approach` | choosing DDD, code-first or db-first by complexity |
+| `std-ops-observability` | structured logs, business metrics, alerting, verified backups |
 | `std-php-base` | PHP as a language: `strict_types`, types, strict comparison |
 | `std-js-base` | JS/TS runtime behaviour: promises, comparison, dates, money |
 | `std-py-base` | Python as a language: annotations, mutable defaults, resources |

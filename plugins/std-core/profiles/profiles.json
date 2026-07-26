@@ -11,7 +11,6 @@
     "Профиль выбирается автоматически (std-setup.sh) и записывается",
     "в .claude/gauntlet.json. Меняется вручную в любой момент."
   ],
-
   "profiles": {
     "prototype": {
       "title": "Прототип",
@@ -19,35 +18,52 @@
       "specFirst": false,
       "requireBeforeCommit": false,
       "guardTests": "off",
-      "gates": ["style"],
-      "mutation": { "enabled": false },
+      "gates": [
+        "style"
+      ],
+      "mutation": {
+        "enabled": false
+      },
       "rationale": "Требовать спеку и мутационный порог там, где проверяется гипотеза, — верный способ убить и гипотезу, и доверие к стандартам. Замки безопасности при этом работают: выбросить прототип не то же самое, что потерять данные."
     },
-
     "solo": {
       "title": "Один разработчик",
       "when": "Рабочий проект, один автор. Нет издержек на согласование, но и нет второй пары глаз.",
       "specFirst": true,
       "requireBeforeCommit": true,
       "guardTests": "ask",
-      "gates": ["style", "types", "test"],
-      "mutation": { "enabled": true, "mode": "ratchet", "floor": 50 },
+      "gates": [
+        "style",
+        "types",
+        "test"
+      ],
+      "mutation": {
+        "enabled": true,
+        "mode": "ratchet",
+        "floor": 50
+      },
       "rationale": "Второй пары глаз нет, поэтому надзорный слой важнее, чем в команде. Но церемоний меньше: спека может быть тремя строками в чате, а не документом."
     },
-
     "team": {
       "title": "Команда",
       "when": "Больше одного автора. Код читают люди, которые его не писали.",
       "specFirst": true,
       "requireBeforeCommit": true,
       "guardTests": "ask",
-      "gates": ["style", "types", "test"],
-      "mutation": { "enabled": true, "mode": "ratchet", "floor": 60 },
+      "gates": [
+        "style",
+        "types",
+        "test"
+      ],
+      "mutation": {
+        "enabled": true,
+        "mode": "ratchet",
+        "floor": 60
+      },
       "requireOwners": true,
       "onboarding": true,
       "rationale": "Главное отличие от соло — не строгость, а согласованность: правило, которое знает один человек, для команды не существует. Отсюда владельцы модулей и процедура онбординга."
     },
-
     "legacy": {
       "title": "Легаси",
       "when": "Существующий код без тестов или с низким покрытием. Поведение известно частично.",
@@ -55,33 +71,81 @@
       "characterizeFirst": true,
       "requireBeforeCommit": true,
       "guardTests": "ask",
-      "gates": ["style", "test"],
-      "mutation": { "enabled": true, "mode": "ratchet", "floor": 0, "changedOnly": true },
+      "gates": [
+        "style",
+        "test"
+      ],
+      "mutation": {
+        "enabled": true,
+        "mode": "ratchet",
+        "floor": 0,
+        "changedOnly": true
+      },
       "rationale": "Абсолютный порог здесь недостижим и потому будет отключён в первый же день. Храповик от нуля работает иначе: улучшать не обязательно, ухудшать нельзя. Мутация считается только по изменённым файлам — прогон по всему легаси занял бы часы."
     },
-
     "regulated": {
       "title": "Повышенные требования",
       "when": "Деньги, персональные данные, медицина, всё с внешним аудитом.",
       "specFirst": true,
       "requireBeforeCommit": true,
       "guardTests": "deny",
-      "gates": ["style", "types", "test", "security"],
-      "mutation": { "enabled": true, "mode": "absolute", "threshold": 80 },
+      "gates": [
+        "style",
+        "types",
+        "test",
+        "security"
+      ],
+      "mutation": {
+        "enabled": true,
+        "mode": "absolute",
+        "threshold": 80
+      },
       "requireOwners": true,
       "auditTrail": true,
       "rationale": "Единственный профиль, где правка существующего теста запрещена, а не эскалируется: в регулируемой среде нужно доказуемое отсутствие такой возможности, а не запись о том, что человек подтвердил."
+    },
+    "corporate": {
+      "title": "Корпоративная политика",
+      "when": "Организация задала обязательный набор проверок и перечень технологий. Проект может добавить строгости, но не убрать.",
+      "specFirst": true,
+      "requireBeforeCommit": true,
+      "guardTests": "ask",
+      "gates": [
+        "style",
+        "types",
+        "test",
+        "security"
+      ],
+      "mutation": {
+        "enabled": true,
+        "mode": "ratchet",
+        "floor": 50
+      },
+      "requireOwners": true,
+      "requirePolicy": true,
+      "rationale": "Отличается от team не строгостью, а источником требований: набор гейтов приходит из политики организации (.claude/policy.json) и проектом не ослабляется. Это делает регламент проверкой, а не документом, о котором помнят."
     }
   },
-
   "detection": {
     "_comment": "Порядок проверки сверху вниз, первое совпадение выигрывает",
     "rules": [
-      { "profile": "prototype", "if": "commits < 15 AND no_tests" },
-      { "profile": "legacy",    "if": "commits > 200 AND (no_tests OR test_ratio < 0.1)" },
-      { "profile": "team",      "if": "authors > 1" },
-      { "profile": "solo",      "if": "authors <= 1" }
+      {
+        "profile": "prototype",
+        "if": "commits < 15 AND no_tests"
+      },
+      {
+        "profile": "legacy",
+        "if": "commits > 200 AND (no_tests OR test_ratio < 0.1)"
+      },
+      {
+        "profile": "team",
+        "if": "authors > 1"
+      },
+      {
+        "profile": "solo",
+        "if": "authors <= 1"
+      }
     ],
-    "note": "regulated никогда не выбирается автоматически — только человеком. Определить по коду, что проект работает с деньгами или медданными, нельзя надёжно, а ошибка в эту сторону дорого стоит."
+    "note": "regulated и corporate никогда не выбираются автоматически. regulated — потому что определить работу с деньгами или медданными по коду нельзя надёжно. corporate — потому что политика организации задаётся человеком, а не выводится из репозитория."
   }
 }
