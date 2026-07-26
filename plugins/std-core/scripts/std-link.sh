@@ -258,6 +258,7 @@ do_check() {
 main() {
   local mode="link" modules=()
   case "${1:-}" in
+    --home)   mode="home" ;;
     --detect) mode="detect" ;;
     --check)  mode="check" ;;
     --unlink) mode="unlink" ;;
@@ -265,6 +266,12 @@ main() {
     "")       red "Укажи модули или --auto. Пример: std-link.sh --auto"; exit 2 ;;
     *)        modules=("$@") ;;
   esac
+
+  # Путь репозитория — для скриптов, которым он нужен (std-setup.sh)
+  if [[ "$mode" == "home" ]]; then
+    resolve_standards_home || exit 1
+    exit 0
+  fi
 
   # Сухой прогон: только показать результат детекта. Каталог правил не
   # создаётся — команда безопасна для чужого проекта, который ещё не решили

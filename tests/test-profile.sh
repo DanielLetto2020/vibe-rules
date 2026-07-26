@@ -138,6 +138,64 @@ VIBE_RULES_HOME="$ROOT" CLAUDE_PROJECT_DIR="$S" bash "$SETUP" >/dev/null 2>&1
   && ok "повторный setup сохраняет ручные правки" \
   || bad "слияние конфигов" "МОЯ КОМАНДА" "$(jq -r '.gates.test' "$S/.claude/gauntlet.json")"
 
+echo "== автоустановка плагинов и пересинхронизация =="
+
+# Модуль из одних правил ставить не нужно — он приезжает симлинком.
+# Установка требуется там, где есть хуки, скиллы или команды.
+A="$TMP/autoinstall"; mkdir -p "$A"
+( cd "$A" && printf '<!doctype html><html lang=ru><body>x</body></html>' > index.html
+  printf 'body{color:red}' > style.css
+  git init -q 2>/dev/null; git add -A >/dev/null 2>&1
+  git -c user.email=a@x -c user.name=a commit -qm init >/dev/null 2>&1 ) >/dev/null 2>&1
+
+# Подменяем базу установленных плагинов на пустую: результат не должен
+# зависеть от того, что стоит на машине, где идут тесты
+echo '{"version":2,"plugins":{}}' > "$TMP/empty-plugins.json"
+OUT=$(VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
+      CLAUDE_PROJECT_DIR="$A" bash "$SETUP" --dry-run 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+
+grep -q 'установил бы' <<<"$OUT" \
+  && ok "setup сообщает, какие плагины поставит" \
+  || bad "автоустановка" "строка «установил бы»" "нет"
+
+grep -q 'core' <<<"$(grep 'установил бы' <<<"$OUT")" \
+  && ok "модули с хуками попадают в установку" \
+  || bad "модули с хуками" "core в списке" "нет"
+
+grep -qE 'только правила.*web-html' <<<"$OUT" \
+  && ok "модули из одних правил в установку не попадают" \
+  || bad "модули-правила" "web-html среди «только правила»" "нет"
+
+grep -q 'установил бы.*web-html' <<<"$OUT" \
+  && bad "модуль правил не должен ставиться" "web-html вне установки" "он в списке установки" \
+  || ok "web-html не ставится как плагин"
+
+echo '{"version":2,"plugins":{"std-core@vibe-rules":[{"scope":"user"}],"std-gauntlet@vibe-rules":[{"scope":"user"}]}}' > "$TMP/full-plugins.json"
+OUTF=$(VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/full-plugins.json" \
+       CLAUDE_PROJECT_DIR="$A" bash "$SETUP" --dry-run 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+grep -q 'доустанавливать нечего' <<<"$OUTF" \
+  && ok "уже установленные плагины не ставятся повторно" \
+  || bad "повторная установка" "«доустанавливать нечего»" "нет"
+
+# --sync берёт профиль из конфигурации, а не определяет заново
+S2="$TMP/syncproj"; mkdir -p "$S2/.claude"
+( cd "$S2" && echo '{"require":{"laravel/framework":"^11.0"}}' > composer.json
+  git init -q 2>/dev/null; git add -A >/dev/null 2>&1
+  git -c user.email=a@x -c user.name=a commit -qm init >/dev/null 2>&1 ) >/dev/null 2>&1
+printf '{"profile": "regulated", "gates": {}}' > "$S2/.claude/gauntlet.json"
+
+OUT2=$(VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
+       CLAUDE_PROJECT_DIR="$S2" bash "$SETUP" --sync --dry-run 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+grep -q 'regulated' <<<"$OUT2" \
+  && ok "--sync сохраняет профиль, заданный человеком" \
+  || bad "--sync профиль" "regulated" "переопределён автоопределением"
+
+OUT3=$(VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
+       CLAUDE_PROJECT_DIR="$S2" bash "$SETUP" --dry-run 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+grep -q 'regulated' <<<"$OUT3" \
+  && bad "setup без --sync определяет заново" "не regulated" "regulated" \
+  || ok "setup без --sync определяет профиль заново"
+
 echo
 printf 'Пройдено: \033[32m%d\033[0m   Провалено: \033[31m%d\033[0m\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] || exit 1

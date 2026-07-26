@@ -6,8 +6,10 @@
 # останавливается: человек сделал первый шаг, отвлёкся и не вернулся.
 #
 #   std-setup.sh                определить всё и настроить
+#   std-setup.sh --sync         перечитать проект и доустановить недостающее
 #   std-setup.sh --profile team явно задать профиль
 #   std-setup.sh --dry-run      показать, что будет сделано, ничего не меняя
+#   std-setup.sh --no-install   не ставить плагины, только правила и конфиг
 set -uo pipefail
 export LC_NUMERIC=C
 
@@ -17,14 +19,22 @@ PROFILES="$HERE/../profiles/profiles.json"
 CFG_DIR="$PROJECT_DIR/.claude"
 CFG="$CFG_DIR/gauntlet.json"
 
-FORCE_PROFILE=""; DRY=0
+FORCE_PROFILE=""; DRY=0; NO_INSTALL=0; SYNC=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --profile) FORCE_PROFILE="${2:-}"; shift 2 ;;
-    --dry-run) DRY=1; shift ;;
+    --profile)    FORCE_PROFILE="${2:-}"; shift 2 ;;
+    --dry-run)    DRY=1; shift ;;
+    --no-install) NO_INSTALL=1; shift ;;
+    --sync)       SYNC=1; shift ;;
     *) shift ;;
   esac
 done
+
+MARKETPLACE_NAME="${VIBE_RULES_MARKETPLACE:-vibe-rules}"
+# Путь переопределяем: иначе тест зависел бы от того, что установлено
+# на конкретной машине, и был бы то зелёным, то красным.
+INSTALLED_DB="${VIBE_RULES_INSTALLED_DB:-$HOME/.claude/plugins/installed_plugins.json}"
+STANDARDS_HOME=$(bash "$HERE/std-link.sh" --home 2>/dev/null || true)
 
 b()   { printf '\033[1m%s\033[0m\n' "$*"; }
 grn() { printf '\033[32m%s\033[0m\n' "$*"; }
@@ -32,18 +42,28 @@ ylw() { printf '\033[33m%s\033[0m\n' "$*"; }
 red() { printf '\033[31m%s\033[0m\n' "$*"; }
 
 # ── 1. Профиль ────────────────────────────────────────────────────────────────
-b "▸ 1/4  Состояние проекта"
+b "▸ 1/5  Состояние проекта"
 FACTS=$(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$HERE/std-profile.sh" --json 2>/dev/null)
 if [[ -z "$FACTS" ]]; then
   red "  не удалось собрать факты о проекте"; exit 1
 fi
 
-PROFILE="${FORCE_PROFILE:-$(jq -r '.profile' <<<"$FACTS")}"
+# При --sync профиль берётся из конфигурации проекта: его мог задать человек,
+# и повторный запуск не должен молча вернуть автоопределённый.
+EXISTING_PROFILE=""
+[[ -f "$CFG" ]] && EXISTING_PROFILE=$(jq -r '.profile // empty' "$CFG" 2>/dev/null)
+if [[ $SYNC -eq 1 && -n "$EXISTING_PROFILE" && -z "$FORCE_PROFILE" ]]; then
+  PROFILE="$EXISTING_PROFILE"
+else
+  PROFILE="${FORCE_PROFILE:-$(jq -r '.profile' <<<"$FACTS")}"
+fi
 WHY=$(jq -r '.why' <<<"$FACTS")
 jq -r '.facts | "  коммитов: \(.commits)   авторов: \(.activeAuthors)   тесты: \(.testFiles)/\(.sourceFiles) (\(.testRatio))   CI: \(if .hasCi then "есть" else "нет" end)"' <<<"$FACTS"
 
 if [[ -n "$FORCE_PROFILE" ]]; then
   printf '  профиль: \033[1m%s\033[0m (задан вручную)\n' "$PROFILE"
+elif [[ $SYNC -eq 1 && -n "$EXISTING_PROFILE" ]]; then
+  printf '  профиль: \033[1m%s\033[0m (из конфигурации проекта)\n' "$PROFILE"
 else
   printf '  профиль: \033[1m%s\033[0m — %s\n' "$PROFILE" "$WHY"
 fi
@@ -55,8 +75,70 @@ if ! jq -e --arg p "$PROFILE" '.profiles[$p]' "$PROFILES" >/dev/null 2>&1; then
 fi
 P=$(jq -c --arg p "$PROFILE" '.profiles[$p]' "$PROFILES")
 
-# ── 2. Правила стека ──────────────────────────────────────────────────────────
-echo; b "▸ 2/4  Правила стека"
+# ── 2. Плагины ────────────────────────────────────────────────────────────────
+# Модуль, состоящий только из правил, ставить не нужно: правила приезжают
+# симлинками. Установка требуется там, где есть хуки, скиллы, команды или
+# агенты — их Claude Code берёт только у установленного плагина.
+echo; b "▸ 2/5  Плагины"
+
+module_needs_plugin() { # <slug>
+  local d="$STANDARDS_HOME/plugins/std-$1"
+  [[ -f "$d/hooks/hooks.json" ]] && return 0
+  local sub
+  for sub in skills commands agents workflows; do
+    [[ -d "$d/$sub" ]] && [[ -n "$(ls -A "$d/$sub" 2>/dev/null)" ]] && return 0
+  done
+  return 1
+}
+
+plugin_installed() { # <slug>
+  [[ -f "$INSTALLED_DB" ]] || return 1
+  jq -e --arg k "std-$1@$MARKETPLACE_NAME" '.plugins | has($k)' "$INSTALLED_DB" >/dev/null 2>&1
+}
+
+DETECTED=()
+if [[ -n "$STANDARDS_HOME" ]]; then
+  mapfile -t DETECTED < <(CLAUDE_PROJECT_DIR="$PROJECT_DIR" bash "$HERE/std-link.sh" --detect 2>/dev/null \
+                          | sed 's/^ *//;s/^std-//')
+fi
+
+TO_INSTALL=(); ALREADY=(); RULES_ONLY=()
+for m in "${DETECTED[@]}"; do
+  [[ -z "$m" ]] && continue
+  if module_needs_plugin "$m"; then
+    if plugin_installed "$m"; then ALREADY+=("$m"); else TO_INSTALL+=("$m"); fi
+  else
+    RULES_ONLY+=("$m")
+  fi
+done
+
+if [[ ${#ALREADY[@]} -gt 0 ]]; then
+  printf '  уже установлены: %s\n' "${ALREADY[*]}"
+fi
+if [[ ${#RULES_ONLY[@]} -gt 0 ]]; then
+  printf '  только правила (установка не нужна): %s\n' "${RULES_ONLY[*]}"
+fi
+
+INSTALL_FAILED=0
+if [[ ${#TO_INSTALL[@]} -eq 0 ]]; then
+  [[ ${#ALREADY[@]} -gt 0 ]] && grn "  доустанавливать нечего"
+elif [[ $DRY -eq 1 ]]; then
+  ylw "  (dry-run) установил бы: ${TO_INSTALL[*]}"
+elif [[ $NO_INSTALL -eq 1 ]]; then
+  ylw "  требуют установки, но --no-install: ${TO_INSTALL[*]}"
+else
+  for m in "${TO_INSTALL[@]}"; do
+    printf '  ставлю std-%s… ' "$m"
+    if claude plugin install "std-$m@$MARKETPLACE_NAME" --scope user >/dev/null 2>&1; then
+      grn "готово"
+    else
+      red "не удалось"; INSTALL_FAILED=1
+    fi
+  done
+fi
+
+# ── 3. Правила стека ──────────────────────────────────────────────────────────
+echo; b "▸ 3/5  Правила стека"
 if [[ $DRY -eq 1 ]]; then
   ylw "  (dry-run) была бы выполнена линковка модулей по стеку"
 else
@@ -65,7 +147,7 @@ else
 fi
 
 # ── 3. Гейты ──────────────────────────────────────────────────────────────────
-echo; b "▸ 3/4  Гейты качества"
+echo; b "▸ 4/5  Гейты качества"
 
 have() { [[ -e "$PROJECT_DIR/$1" ]]; }
 gate_cmd() { # <имя гейта> -> команда или пусто
@@ -134,7 +216,7 @@ if [[ "$MUT_ON" == "true" ]]; then
 fi
 
 # ── 4. Конфигурация ───────────────────────────────────────────────────────────
-echo; b "▸ 4/4  Конфигурация"
+echo; b "▸ 5/5  Конфигурация"
 NEW_CFG=$(jq -n \
   --arg profile "$PROFILE" \
   --argjson gates "$GATES_JSON" \
@@ -178,4 +260,9 @@ if [[ "$MUT_ON" == "true" ]] && ! jq -e '.facts.hasMutation' <<<"$FACTS" >/dev/n
   echo "  Готовые конфиги: plugins/std-gauntlet/configs/"
 fi
 echo
+if [[ ${#TO_INSTALL[@]} -gt 0 && $DRY -eq 0 && $NO_INSTALL -eq 0 && $INSTALL_FAILED -eq 0 ]]; then
+  ylw "  Установлены новые плагины — выполни /reload-plugins,"
+  echo "  иначе их хуки и команды не появятся в текущей сессии."
+  echo
+fi
 echo "  Дальше: /std-gauntlet:run --fast  — убедиться, что гейты запускаются"
