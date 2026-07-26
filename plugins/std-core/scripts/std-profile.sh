@@ -29,10 +29,19 @@ JSON=0
 COMMITS=0; AUTHORS=0; AGE_DAYS=0; RECENT_AUTHORS=0
 if git rev-parse --git-dir >/dev/null 2>&1; then
   COMMITS=$(git rev-list --count HEAD 2>/dev/null || echo 0)
-  AUTHORS=$(git log --format='%ae' 2>/dev/null | sort -u | wc -l)
+  MAILS_ALL=$(git log --format='%ae' 2>/dev/null | sort -u | wc -l)
+  NAMES_ALL=$(git log --format='%an' 2>/dev/null | sort -u | wc -l)
+  AUTHORS=$(( MAILS_ALL < NAMES_ALL ? MAILS_ALL : NAMES_ALL ))
   # Активные за полгода важнее исторических: ушедший два года назад коллега
-  # не делает проект командным сегодня
-  RECENT_AUTHORS=$(git log --since='6 months ago' --format='%ae' 2>/dev/null | sort -u | wc -l)
+  # не делает проект командным сегодня.
+  #
+  # Считаем и по адресам, и по именам, берём меньшее: один человек, коммитящий
+  # с двух машин под разными адресами, — это не команда, а типовая ситуация.
+  # Ошибка в эту сторону выдаёт соло-проекту требования командного.
+  RECENT_MAILS=$(git log --since='6 months ago' --format='%ae' 2>/dev/null | sort -u | wc -l)
+  RECENT_NAMES=$(git log --since='6 months ago' --format='%an' 2>/dev/null | sort -u | wc -l)
+  RECENT_AUTHORS=$(( RECENT_MAILS < RECENT_NAMES ? RECENT_MAILS : RECENT_NAMES ))
+  [[ $RECENT_AUTHORS -lt 1 ]] && RECENT_AUTHORS=$RECENT_MAILS
   FIRST=$(git log --reverse --format='%at' 2>/dev/null | head -1)
   if [[ -n "$FIRST" ]]; then
     NOW=$(date +%s)

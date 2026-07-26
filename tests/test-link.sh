@@ -96,6 +96,10 @@ case_detect "compose в подкаталоге тоже находится" \
   'mkdir -p deploy; printf "services:\n  app:\n    build: .\n" > deploy/docker-compose.yml' \
   "std-core std-gauntlet std-ops-containers std-ops-observability"
 
+case_detect "compose.prod.yml распознаётся, а не только compose.yml" \
+  'mkdir -p deploy; printf "services:\n  app:\n    image: nginx\n" > deploy/compose.prod.yml' \
+  "std-core std-gauntlet std-ops-containers std-ops-observability"
+
 case_detect "манифесты Kubernetes" \
   'mkdir -p k8s; printf "apiVersion: apps/v1\nkind: Deployment\n" > k8s/app.yaml' \
   "std-core std-gauntlet std-ops-k8s std-ops-observability"

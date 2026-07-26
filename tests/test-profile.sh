@@ -62,6 +62,22 @@ for d in proto solo team legacy; do
 done
 ok "regulated никогда не выбирается автоматически"
 
+# Регрессия: один человек, коммитящий с двух адресов, определялся как команда,
+# и соло-проект получал требования командного.
+S1="$TMP/two-mails"; mkdir -p "$S1/src"
+( cd "$S1" && git init -q 2>/dev/null
+  echo "x" > src/a.php && git add -A >/dev/null 2>&1
+  git -c user.email=me@home -c user.name="Один Человек" commit -qm c1 >/dev/null 2>&1
+  echo "y" >> src/a.php && git add -A >/dev/null 2>&1
+  git -c user.email=me@work -c user.name="Один Человек" commit -qm c2 >/dev/null 2>&1
+  for i in $(seq 3 20); do
+    echo "$i" >> src/a.php && git add -A >/dev/null 2>&1
+    git -c user.email=me@work -c user.name="Один Человек" commit -qm "c$i" >/dev/null 2>&1
+  done ) >/dev/null 2>&1
+mkdir -p "$S1/tests"; echo '<?php' > "$S1/tests/ATest.php"
+got=$(profile_of "$S1")
+[[ "$got" == "solo" ]] && ok "два адреса одного человека — это не команда" || bad "два адреса" solo "$got"
+
 echo "== факты о проекте =="
 F=$(CLAUDE_PROJECT_DIR="$TMP/team" bash "$PROF" --json 2>/dev/null)
 [[ "$(jq -r '.facts.activeAuthors' <<<"$F")" == "3" ]] && ok "авторы посчитаны верно" \

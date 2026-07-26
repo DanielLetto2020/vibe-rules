@@ -15,6 +15,7 @@
 #   std-link.sh --auto              определить стек по файлам проекта и слинковать
 #   std-link.sh php-laravel sql-postgres
 #   std-link.sh --check             только проверить (ничего не меняет), для CI
+#   std-link.sh --detect            показать, что подключилось бы, не меняя проект
 #   std-link.sh --unlink            убрать все симлинки стандартов
 set -uo pipefail
 
@@ -160,7 +161,7 @@ detect_modules() {
      || find "$PROJECT_DIR" -maxdepth 3 \
           \( -path '*/node_modules' -o -path '*/vendor' -o -path '*/.git' \) -prune -o \
           \( -name 'Dockerfile*' -o -name 'Containerfile*' \
-             -o -name 'docker-compose*.y*ml' -o -name 'compose.y*ml' \) \
+             -o -name '*compose*.y*ml' \) \
           -type f -print -quit 2>/dev/null | grep -q .; then
     mods+=("ops-containers")
   fi
@@ -257,12 +258,22 @@ do_check() {
 main() {
   local mode="link" modules=()
   case "${1:-}" in
+    --detect) mode="detect" ;;
     --check)  mode="check" ;;
     --unlink) mode="unlink" ;;
     --auto)   mode="link"; mapfile -t modules < <(detect_modules) ;;
     "")       red "Укажи модули или --auto. Пример: std-link.sh --auto"; exit 2 ;;
     *)        modules=("$@") ;;
   esac
+
+  # Сухой прогон: только показать результат детекта. Каталог правил не
+  # создаётся — команда безопасна для чужого проекта, который ещё не решили
+  # подключать.
+  if [[ "$mode" == "detect" ]]; then
+    local m
+    for m in $(detect_modules); do printf '  %s\n' "std-$m"; done
+    exit 0
+  fi
 
   mkdir -p "$RULES_DIR"
   [[ "$mode" == "unlink" ]] && { do_unlink; exit 0; }
