@@ -168,7 +168,7 @@ Fields:
 | `requireBeforeCommit` | run gates before committing |
 | `guardTests` | `off` / `ask` / `deny` when an existing test is edited |
 | `gates` | which checks are required: `style`, `types`, `test`, `security` |
-| `mutation` | `ratchet` from a floor, `absolute` with a threshold, or off |
+| `mutation` | [ratchet](RATCHET.md) from a floor, `absolute` with a threshold, or off |
 | `rationale` | **why it is this way** — required |
 
 `rationale` is not a formality. In six months nobody will remember why this
@@ -206,8 +206,7 @@ the profile requires a spec, it knows without reading the file.
 
 ---
 
-## Where to go next
+## Next
 
-- [The basics in plain words](START.md) — what a gate, ratchet and lock are
-- [Writing your own rule](WRITING-RULES.md) — rules and profiles are unrelated
-- [The gauntlet](../plugins/std-gauntlet/docs/GAUNTLET.md) 🇷🇺 — the five stages
+- **the mutation gate** → [Ratchet](RATCHET.md)
+- **rules, not checks** → [Writing a rule](WRITING-RULES.md)

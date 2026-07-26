@@ -267,10 +267,8 @@ grows, not swell.
 
 ---
 
-## Where to go next
+## Next
 
-- [The basics in plain words](START.md)
-- [Profiles](PROFILES.md) — where check strictness is configured
-- [Examples](EXAMPLES.md) — the fifth walkthrough covers a project rule
-- [Rule or lock](ENFORCEMENT.md) 🇷🇺 — more on the boundary
-- [Adding a module](../CONTRIBUTING.md) — if you need a whole new stack
+- **the rule-versus-lock boundary** → [ENFORCEMENT.md](ENFORCEMENT.md) 🇷🇺
+- **a project rule in action** → [Examples, walkthrough 5](EXAMPLES.md)
+- **a whole new stack** → [CONTRIBUTING.md](../CONTRIBUTING.md)

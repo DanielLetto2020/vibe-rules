@@ -162,7 +162,8 @@ run 4:  30%  → FAILS — new code is verified worse than what already exists
 ```
 
 That is what makes the gate usable on legacy from day one, at any starting
-point.
+point. Settings, history and how to change the logic — [the ratchet
+page](docs/RATCHET.md).
 
 ## Organisation policy
 
@@ -468,15 +469,18 @@ grows. That's expected.
 
 🇷🇺 marks a document that is currently Russian-only.
 
-- [How this works, in plain words](docs/START.md) — start here
-- [Writing your own rule](docs/WRITING-RULES.md) — step by step
-- [Profiles: where they live and how to change them](docs/PROFILES.md)
-- [Examples](docs/EXAMPLES.md) — five walkthroughs from install to daily use
-- [Architecture](docs/ARCHITECTURE.md) 🇷🇺 — why it's built this way
-- [Enforcement](docs/ENFORCEMENT.md) 🇷🇺 — the rule-versus-lock boundary
-- [The gauntlet](plugins/std-gauntlet/docs/GAUNTLET.md) 🇷🇺 — the five stages in detail
-- [Contributing](CONTRIBUTING.md) — adding modules and rules
-- [Security](SECURITY.md) — trust model and how to report a vulnerability
+| Document | About |
+|---|---|
+| **[How this works, in plain words](docs/START.md)** | **start here** — no jargon, with a glossary |
+| [Examples](docs/EXAMPLES.md) | five walkthroughs from install to daily use |
+| [Writing your own rule](docs/WRITING-RULES.md) | step by step: where a requirement belongs, how to phrase it |
+| [Profiles](docs/PROFILES.md) | where they live, how to pick and adapt strictness |
+| [The ratchet](docs/RATCHET.md) | the mutation gate: logic, settings, resetting the bar |
+| [The gauntlet](plugins/std-gauntlet/docs/GAUNTLET.md) 🇷🇺 | the five stages in detail |
+| [Architecture](docs/ARCHITECTURE.md) 🇷🇺 | why it's built this way |
+| [Enforcement](docs/ENFORCEMENT.md) 🇷🇺 | the boundary between a request and a guarantee |
+| [Contributing](CONTRIBUTING.md) | adding a module or rule to the shared repo |
+| [Security](SECURITY.md) | trust model and how to report a vulnerability |
 
 ## License
 

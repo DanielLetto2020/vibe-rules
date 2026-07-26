@@ -131,6 +131,9 @@ project that really sits at 30% and the build is red from day one — the check
 gets switched off within a week. Set 20% and it catches nothing. A ratchet
 works from any starting point, including zero.
 
+Settings, history, resetting the bar and changing the logic itself —
+[a page of its own](RATCHET.md).
+
 ### Profile
 
 A set of requirements matched to the state of the project. A throwaway
@@ -239,11 +242,10 @@ is expected and by design.
 
 ## Where to go next
 
-- [Writing your own rule](WRITING-RULES.md) — step by step, with examples
-- [Profiles](PROFILES.md) — where they live, how to pick and adapt one
-- [Examples](EXAMPLES.md) — five walkthroughs: onboarding, a new feature,
-  legacy code, removal, a project-specific rule
-- [Architecture](ARCHITECTURE.md) 🇷🇺 — why it is built this way
-- [Rule or lock](ENFORCEMENT.md) 🇷🇺 — deciding where a requirement belongs
-- [The gauntlet](../plugins/std-gauntlet/docs/GAUNTLET.md) 🇷🇺 — the five
-  stages in detail
+You have the basics — continue as needed:
+
+- **want to see it working** → [Examples](EXAMPLES.md)
+- **need to write your own rule** → [Writing a rule](WRITING-RULES.md)
+- **the strictness doesn't fit** → [Profiles](PROFILES.md)
+
+The full list of documents is in the [README](../README.md).
