@@ -11,5 +11,6 @@
     "hooks",
     "core"
   ],
-  "hooks": "./hooks/hooks.json"
+  "hooks": "./hooks/hooks.json",
+  "version": "0.4.1"
 }

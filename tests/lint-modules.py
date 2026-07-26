@@ -239,13 +239,27 @@ def main() -> int:
     for plugin_dir in sorted(p for p in PLUGINS.iterdir() if p.is_dir()):
         check_plugin(plugin_dir)
 
-    with_v = [n for n, v in VERSIONED if v]
-    without_v = [n for n, v in VERSIONED if not v]
-    if with_v and without_v:
-        err(f"версии заданы у части модулей ({len(with_v)} из {len(VERSIONED)}): "
-            f"{', '.join(with_v[:3])}… Обновления доезжают до пользователей "
-            f"по-разному, и понять, что применилось, невозможно. "
-            f"Либо задать версии всем, либо убрать у всех.")
+    # Версия должна быть у всех и одна: модули публикуются вместе, а обновление
+    # доезжает до пользователя только при её изменении. Разнобой означает, что
+    # часть модулей у людей свежая, часть нет, и понять что где невозможно.
+    without_v = [n for n, ver in VERSIONED if not ver]
+    if without_v:
+        err(f"версия не задана у модулей: {', '.join(without_v[:5])}. "
+            f"Без неё обновление до пользователя не доедет, а `claude plugin "
+            f"validate --strict` не проходит. Поднять всем: tools/bump.sh")
+    versions = {ver for _, ver in VERSIONED if ver}
+    if len(versions) > 1:
+        err(f"версии модулей различаются: {', '.join(sorted(versions)[:4])}. "
+            f"Набор публикуется целиком — версия должна быть одна. "
+            f"Выровнять: tools/bump.sh <версия>")
+    mp_ver = None
+    try:
+        mp_ver = json.loads(MARKETPLACE.read_text()).get("metadata", {}).get("version")
+    except Exception:
+        pass
+    if mp_ver and versions and mp_ver not in versions:
+        err(f"версия каталога ({mp_ver}) не совпадает с версией модулей "
+            f"({sorted(versions)[0]}). Обновить: tools/bump.sh")
 
     print("=" * 66)
     print(f"Модулей: {stats['modules']}   Правил: {stats['rules']}   Скиллов: {stats['skills']}")

@@ -14,5 +14,6 @@
     "std-core",
     "std-gauntlet"
   ],
-  "hooks": "./hooks/hooks.json"
+  "hooks": "./hooks/hooks.json",
+  "version": "0.4.1"
 }

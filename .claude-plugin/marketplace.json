@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Модульные стандарты разработки для Claude Code: замки (hooks), правила (rules), процедуры (skills), конвейер проверок (gauntlet)",
-    "version": "0.4.0"
+    "version": "0.4.1"
   },
   "plugins": [
     {
@@ -16,7 +16,8 @@
         "standards",
         "hooks",
         "core"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-gauntlet",
@@ -27,7 +28,8 @@
         "mutation",
         "atdd",
         "quality-gates"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-policy",
@@ -36,7 +38,8 @@
       "keywords": [
         "policy",
         "governance"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-php-base",
@@ -45,7 +48,8 @@
       "keywords": [
         "php",
         "language"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-js-base",
@@ -55,7 +59,8 @@
         "js",
         "ts",
         "language"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-py-base",
@@ -64,7 +69,8 @@
       "keywords": [
         "python",
         "language"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-php-laravel",
@@ -73,7 +79,8 @@
       "keywords": [
         "php",
         "laravel"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-php-yii2",
@@ -82,7 +89,8 @@
       "keywords": [
         "php",
         "yii2"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-web-html",
@@ -92,7 +100,8 @@
         "html",
         "a11y",
         "web"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-web-css",
@@ -102,7 +111,8 @@
         "css",
         "web",
         "styling"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-js-typescript",
@@ -111,7 +121,8 @@
       "keywords": [
         "typescript",
         "types"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-js-vue3",
@@ -120,7 +131,8 @@
       "keywords": [
         "js",
         "vue"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-js-nuxt",
@@ -130,7 +142,8 @@
         "js",
         "nuxt",
         "ssr"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-js-playwright",
@@ -140,7 +153,8 @@
         "js",
         "e2e",
         "playwright"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-py-fastapi",
@@ -149,7 +163,8 @@
       "keywords": [
         "python",
         "fastapi"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-py-parsers",
@@ -158,7 +173,8 @@
       "keywords": [
         "python",
         "parsing"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-sql-postgres",
@@ -167,7 +183,8 @@
       "keywords": [
         "sql",
         "postgres"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-sql-sqlite",
@@ -176,7 +193,8 @@
       "keywords": [
         "sql",
         "sqlite"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-msg-rabbitmq",
@@ -185,7 +203,8 @@
       "keywords": [
         "queue",
         "rabbitmq"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-msg-kafka",
@@ -194,7 +213,8 @@
       "keywords": [
         "queue",
         "kafka"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-cache-redis",
@@ -203,7 +223,8 @@
       "keywords": [
         "cache",
         "redis"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-ops-containers",
@@ -212,7 +233,8 @@
       "keywords": [
         "docker",
         "podman"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-ops-k8s",
@@ -221,7 +243,8 @@
       "keywords": [
         "k8s",
         "kubernetes"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-ops-ansible",
@@ -230,7 +253,8 @@
       "keywords": [
         "ansible",
         "iac"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-api-http",
@@ -240,7 +264,8 @@
         "api",
         "http",
         "rest"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-arch-services",
@@ -249,7 +274,8 @@
       "keywords": [
         "architecture",
         "microservices"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-arch-approach",
@@ -258,7 +284,8 @@
       "keywords": [
         "architecture",
         "ddd"
-      ]
+      ],
+      "version": "0.4.1"
     },
     {
       "name": "std-ops-observability",
@@ -267,7 +294,8 @@
       "keywords": [
         "observability",
         "monitoring"
-      ]
+      ],
+      "version": "0.4.1"
     }
   ]
 }

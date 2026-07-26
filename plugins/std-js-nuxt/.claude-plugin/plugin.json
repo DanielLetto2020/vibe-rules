@@ -15,5 +15,6 @@
   "dependencies": [
     "std-core",
     "std-gauntlet"
-  ]
+  ],
+  "version": "0.4.1"
 }
