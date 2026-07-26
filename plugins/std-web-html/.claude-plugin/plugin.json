@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-web-html",
+  "displayName": "Стандарты: HTML",
+  "version": "0.1.0",
+  "description": "Семантика, доступность, формы, загрузка ресурсов",
+  "author": { "name": "DanielLetto2020" },
+  "keywords": ["html", "a11y", "web"],
+  "dependencies": ["std-core", "std-gauntlet"]
+}

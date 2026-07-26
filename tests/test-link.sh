@@ -58,6 +58,24 @@ case_detect "Playwright" \
   'echo "{\"devDependencies\":{\"@playwright/test\":\"^1.49\"}}" > package.json' \
   "std-core std-gauntlet std-js-base std-js-playwright"
 
+case_detect "чистая статика: html + css + js без сборки" \
+  'printf "<!doctype html><html lang=ru><body><h1>x</h1></body></html>" > index.html;
+   printf "body { color: var(--c); }" > style.css;
+   printf "const x = 1;\nfunction go() { return x; }" > app.js' \
+  "std-core std-gauntlet std-js-base std-web-css std-web-html"
+
+case_detect "только разметка, без стилей" \
+  'printf "<!doctype html><html lang=ru><body>x</body></html>" > index.html' \
+  "std-core std-gauntlet std-web-html"
+
+case_detect "TypeScript без package.json" \
+  'mkdir -p src; echo "{\"compilerOptions\":{}}" > tsconfig.json; echo "export const a: number = 1;" > src/a.ts' \
+  "std-core std-gauntlet std-js-base std-js-typescript"
+
+case_detect "JS без TypeScript не получает модуль типов" \
+  'echo "{\"dependencies\":{}}" > package.json; echo "const a = 1;" > app.js' \
+  "std-core std-gauntlet std-js-base"
+
 case_detect "FastAPI + Redis" \
   'printf "[project]\ndependencies = [\"fastapi\", \"redis\"]\n" > pyproject.toml' \
   "std-cache-redis std-core std-gauntlet std-py-base std-py-fastapi"

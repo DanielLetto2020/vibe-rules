@@ -3,7 +3,7 @@
 [![gates](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml/badge.svg)](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml)
 [![release](https://img.shields.io/github/v/release/DanielLetto2020/vibe-rules?color=blue)](https://github.com/DanielLetto2020/vibe-rules/releases)
 [![license](https://img.shields.io/github/license/DanielLetto2020/vibe-rules?color=blue)](LICENSE)
-[![modules](https://img.shields.io/badge/%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D0%B5%D0%B9-20-blue)](#%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D0%B8)
+[![modules](https://img.shields.io/badge/%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D0%B5%D0%B9-23-blue)](#%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D0%B8)
 
 > 🇬🇧 [English version](README.md)
 
@@ -101,10 +101,13 @@
 | `std-core` | замки, линковка правил, диагностика — ставится всем |
 | `std-gauntlet` | строй проверок: спека, тесты, мутации, метрики, гейты — ставится всем |
 | `std-php-base` | PHP как язык: strict_types, типы, строгие сравнения, исключения |
-| `std-js-base` | JS/TS как язык: запрет `any`, промисы, `??` вместо `\|\|` |
+| `std-js-base` | JS/TS во время выполнения: промисы, сравнения, даты, деньги |
 | `std-py-base` | Python как язык: аннотации, изменяемые аргументы, ресурсы |
 | `std-php-laravel` | HTTP-слой, Eloquent, тесты |
 | `std-php-yii2` | контроллеры, ActiveRecord, типы из БД |
+| `std-web-html` | семантика, доступность, формы, загрузка ресурсов |
+| `std-web-css` | каскад, специфичность, единицы, адаптивность |
+| `std-js-typescript` | строгость типов, границы данных, размеченные объединения |
 | `std-js-vue3` | SFC, композиция, типизация пропсов |
 | `std-js-nuxt` | SSR, загрузка данных, серверные роуты |
 | `std-js-playwright` | E2E: селекторы, ожидания, борьба с флаками |

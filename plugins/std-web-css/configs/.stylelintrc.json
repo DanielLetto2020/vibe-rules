@@ -1,0 +1,21 @@
+{
+  "_comment": "stylelint: npm i -D stylelint stylelint-config-standard. Правила соответствуют rules/10-styles.md.",
+  "extends": ["stylelint-config-standard"],
+  "rules": {
+    "declaration-no-important": true,
+    "selector-max-id": 0,
+    "selector-max-compound-selectors": 3,
+    "selector-max-specificity": "0,3,1",
+    "max-nesting-depth": 2,
+    "color-no-hex": [true, {
+      "message": "Цвет задаётся переменной, а не хардкодом — иначе его нельзя поменять разом"
+    }],
+    "declaration-property-unit-disallowed-list": {
+      "font-size": ["px"],
+      "line-height": ["px"]
+    },
+    "property-disallowed-list": ["float"],
+    "no-descending-specificity": true,
+    "comment-no-empty": true
+  }
+}

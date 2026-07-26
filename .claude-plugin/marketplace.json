@@ -83,6 +83,38 @@
       ]
     },
     {
+      "name": "std-web-html",
+      "source": "./plugins/std-web-html",
+      "description": "HTML: семантика, доступность, формы, загрузка ресурсов",
+      "version": "0.1.0",
+      "keywords": [
+        "html",
+        "a11y",
+        "web"
+      ]
+    },
+    {
+      "name": "std-web-css",
+      "source": "./plugins/std-web-css",
+      "description": "CSS: каскад, специфичность, единицы, адаптивность",
+      "version": "0.1.0",
+      "keywords": [
+        "css",
+        "web",
+        "styling"
+      ]
+    },
+    {
+      "name": "std-js-typescript",
+      "source": "./plugins/std-js-typescript",
+      "description": "TypeScript: строгость типов, границы данных, размеченные объединения",
+      "version": "0.1.0",
+      "keywords": [
+        "typescript",
+        "types"
+      ]
+    },
+    {
       "name": "std-js-vue3",
       "source": "./plugins/std-js-vue3",
       "description": "Vue 3: SFC, композиция, типизация пропсов",

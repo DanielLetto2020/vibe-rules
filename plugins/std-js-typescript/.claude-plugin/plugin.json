@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-js-typescript",
+  "displayName": "Стандарты: TypeScript",
+  "version": "0.1.0",
+  "description": "Система типов: строгость, границы, дженерики",
+  "author": { "name": "DanielLetto2020" },
+  "keywords": ["typescript", "types"],
+  "dependencies": ["std-core", "std-gauntlet"]
+}

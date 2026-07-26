@@ -85,8 +85,20 @@ detect_modules() {
     has_in '"yiisoft/yii2"'      composer.json && mods+=("php-yii2")
   fi
 
+  # --- Веб-разметка и стили ---
+  # Ищем по файлам, а не по package.json: лендинг, виджет или статический сайт
+  # часто вообще не имеют сборки, и по манифесту их не видно.
+  has_tree '<' '*.html' . && mods+=("web-html")
+  if find "$PROJECT_DIR" -maxdepth 3 \
+       \( -path '*/node_modules' -o -path '*/vendor' -o -path '*/.git' -o -path '*/dist' \) -prune -o \
+       \( -name '*.css' -o -name '*.scss' -o -name '*.sass' -o -name '*.less' \) \
+       -type f -print -quit 2>/dev/null | grep -q .; then
+    mods+=("web-css")
+  fi
+
   # --- JS/TS: Nuxt поглощает Vue, отдельный модуль Vue тогда не нужен ---
-  if [[ -f "$PROJECT_DIR/package.json" ]]; then
+  if [[ -f "$PROJECT_DIR/package.json" ]] \
+     || has_tree 'function|const |=>' '*.js' . ; then
     mods+=("js-base")
     if has_in '"nuxt"' package.json || [[ -f "$PROJECT_DIR/nuxt.config.ts" || -f "$PROJECT_DIR/nuxt.config.js" ]]; then
       mods+=("js-nuxt")
@@ -96,6 +108,19 @@ detect_modules() {
     if has_in '@playwright/test' package.json || [[ -f "$PROJECT_DIR/playwright.config.ts" || -f "$PROJECT_DIR/playwright.config.js" ]]; then
       mods+=("js-playwright")
     fi
+  fi
+
+  # TypeScript — отдельный модуль от js-base: система типов не нужна проекту
+  # на чистом JavaScript, а проверять её там не на чем.
+  if [[ -f "$PROJECT_DIR/tsconfig.json" ]] \
+     || find "$PROJECT_DIR" -maxdepth 3 \
+          \( -path '*/node_modules' -o -path '*/.git' -o -path '*/dist' \) -prune -o \
+          \( -name '*.ts' -o -name '*.tsx' \) ! -name '*.d.ts' \
+          -type f -print -quit 2>/dev/null | grep -q .; then
+    mods+=("js-typescript")
+    # Проект может быть на TypeScript без package.json — тогда базовые
+    # правила языка тоже нужны, а выше их не добавили
+    printf '%s\n' "${mods[@]}" | grep -qx 'js-base' || mods+=("js-base")
   fi
 
   # --- Python ---

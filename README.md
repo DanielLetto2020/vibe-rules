@@ -3,7 +3,7 @@
 [![gates](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml/badge.svg)](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml)
 [![release](https://img.shields.io/github/v/release/DanielLetto2020/vibe-rules?color=blue)](https://github.com/DanielLetto2020/vibe-rules/releases)
 [![license](https://img.shields.io/github/license/DanielLetto2020/vibe-rules?color=blue)](LICENSE)
-[![modules](https://img.shields.io/badge/modules-20-blue)](#modules)
+[![modules](https://img.shields.io/badge/modules-23-blue)](#modules)
 
 > 🇷🇺 [Русская версия](README.ru.md)
 
@@ -141,10 +141,13 @@ point.
 | `std-core` | locks, rule linking, diagnostics — install everywhere |
 | `std-gauntlet` | the gauntlet: spec, tests, mutation, metrics, gates — install everywhere |
 | `std-php-base` | PHP as a language: `strict_types`, types, strict comparison |
-| `std-js-base` | JS/TS as a language: no `any`, promises, `??` over `\|\|` |
+| `std-js-base` | JS/TS runtime behaviour: promises, comparison, dates, money |
 | `std-py-base` | Python as a language: annotations, mutable defaults, resources |
 | `std-php-laravel` | HTTP layer, Eloquent, tests |
 | `std-php-yii2` | controllers, ActiveRecord, driver type pitfalls |
+| `std-web-html` | semantics, accessibility, forms, resource loading |
+| `std-web-css` | cascade, specificity, units, responsive layout |
+| `std-js-typescript` | type strictness, runtime boundaries, discriminated unions |
 | `std-js-vue3` | SFC, composition, typed props |
 | `std-js-nuxt` | SSR, data fetching, server routes |
 | `std-js-playwright` | E2E: selectors, waits, flake control |

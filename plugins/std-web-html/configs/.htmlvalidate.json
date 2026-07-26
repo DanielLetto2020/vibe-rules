@@ -1,0 +1,24 @@
+{
+  "_comment": "html-validate: npm i -D html-validate. Проверяет то, что в rules/10-markup.md.",
+  "extends": ["html-validate:recommended", "html-validate:a11y"],
+  "rules": {
+    "require-sri": "off",
+    "no-inline-style": "error",
+    "input-missing-label": "error",
+    "empty-heading": "error",
+    "heading-level": "error",
+    "wcag/h30": "error",
+    "wcag/h32": "error",
+    "wcag/h36": "error",
+    "wcag/h37": "error",
+    "wcag/h63": "error",
+    "wcag/h67": "error",
+    "wcag/h71": "error",
+    "area-alt": "error",
+    "attribute-misuse": "error",
+    "no-autoplay": "error",
+    "prefer-native-element": "error",
+    "script-type": "error",
+    "long-title": "error"
+  }
+}

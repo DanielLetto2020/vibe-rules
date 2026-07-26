@@ -1,0 +1,19 @@
+{
+  "_comment": "Строгая база. Подключать через extends в tsconfig.json проекта.",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnreachableCode": false,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "target": "ES2022",
+    "moduleResolution": "bundler",
+    "isolatedModules": true
+  }
+}
