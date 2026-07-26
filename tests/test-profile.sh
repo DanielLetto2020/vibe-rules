@@ -18,21 +18,36 @@ bad() { printf '  \033[31mFAIL\033[0m %s\n     ожидали: %s\n     полу
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 
 # repo <каталог> <число коммитов> <число авторов> <число тестовых файлов>
+#
+# История создаётся пустыми коммитами: файловые операции на каждой итерации
+# делают подготовку сотен коммитов заметно медленнее, а для определения
+# профиля важно только их количество и авторы.
 repo() {
   local d="$1" commits="$2" authors="$3" tests="$4"
   mkdir -p "$d/src" "$d/tests"
-  ( cd "$d" && git init -q 2>/dev/null
-    for i in $(seq 1 "$tests"); do echo "<?php // test $i" > "tests/Case${i}Test.php"; done
-    for i in $(seq 1 5); do echo "<?php // src $i" > "src/File$i.php"; done
-    # add -A обязателен: commit -a видит только уже отслеживаемые файлы,
-    # и без него первый коммит уходит пустым, а git пишет статус в stdout
+  ( cd "$d" || exit 1
+    git init -q 2>/dev/null
+    local i
+    for ((i=1; i<=tests; i++)); do echo "<?php // test $i" > "tests/Case${i}Test.php"; done
+    for ((i=1; i<=5; i++)); do echo "<?php // src $i" > "src/File$i.php"; done
+    # add -A обязателен: commit -a видит только уже отслеживаемые файлы
     git add -A >/dev/null 2>&1
-    for i in $(seq 1 "$commits"); do
-      echo "$i" >> src/File1.php
-      local n=$(( (i % authors) + 1 ))
-      git add -A >/dev/null 2>&1
-      git -c user.email="dev$n@x" -c user.name="dev$n" commit -qm "c$i" >/dev/null 2>&1
+    git -c user.email="dev1@x" -c user.name="dev1" commit -qm "c1" >/dev/null 2>&1
+    local n
+    for ((i=2; i<=commits; i++)); do
+      n=$(( (i % authors) + 1 ))
+      git -c user.email="dev$n@x" -c user.name="dev$n" \
+          commit -q --allow-empty -m "c$i" >/dev/null 2>&1
     done ) >/dev/null 2>&1
+
+  # Подготовка должна быть проверяемой: без этого «профиль определился не так»
+  # выглядит как ошибка детектора, хотя история просто не создалась
+  local got
+  got=$(git -C "$d" rev-list --count HEAD 2>/dev/null || echo 0)
+  if [[ "$got" != "$commits" ]]; then
+    bad "подготовка репозитория $(basename "$d")" "$commits коммитов" "$got"
+    return 1
+  fi
 }
 
 profile_of() { CLAUDE_PROJECT_DIR="$1" bash "$PROF" --json 2>/dev/null | jq -r '.profile'; }
