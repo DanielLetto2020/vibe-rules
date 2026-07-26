@@ -2,7 +2,6 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "std-sql-sqlite",
   "displayName": "Стандарты: SQLite",
-  "version": "0.1.0",
   "description": "Ограничения движка, отличия от Postgres, WAL",
   "author": {
     "name": "DanielLetto2020"

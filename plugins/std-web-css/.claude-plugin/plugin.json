@@ -2,9 +2,17 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "std-web-css",
   "displayName": "Стандарты: CSS",
-  "version": "0.1.0",
   "description": "Каскад, специфичность, единицы, адаптивность",
-  "author": { "name": "DanielLetto2020" },
-  "keywords": ["css", "web", "styling"],
-  "dependencies": ["std-core", "std-gauntlet"]
+  "author": {
+    "name": "DanielLetto2020"
+  },
+  "keywords": [
+    "css",
+    "web",
+    "styling"
+  ],
+  "dependencies": [
+    "std-core",
+    "std-gauntlet"
+  ]
 }

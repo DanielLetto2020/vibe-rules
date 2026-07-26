@@ -2,9 +2,16 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "std-arch-services",
   "displayName": "Стандарты: Межсервисное",
-  "version": "0.1.0",
   "description": "Границы сервисов, авторизация, gateway, схемы сообщений",
-  "author": { "name": "DanielLetto2020" },
-  "keywords": ["architecture", "microservices"],
-  "dependencies": ["std-core", "std-gauntlet"]
+  "author": {
+    "name": "DanielLetto2020"
+  },
+  "keywords": [
+    "architecture",
+    "microservices"
+  ],
+  "dependencies": [
+    "std-core",
+    "std-gauntlet"
+  ]
 }

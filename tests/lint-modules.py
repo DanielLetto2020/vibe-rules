@@ -29,6 +29,7 @@ MAX_ALWAYS_ON_LINES = 60  # для правил без paths: они грузя�
 
 errors: list[str] = []
 warnings: list[str] = []
+VERSIONED: list[tuple[str, str | None]] = []
 stats = {"rules": 0, "prose": 0, "skills": 0, "modules": 0}
 
 
@@ -126,8 +127,11 @@ def check_plugin(plugin_dir: Path) -> None:
     if manifest:
         if manifest.get("name") != name:
             err(f"{name}: plugin.json.name='{manifest.get('name')}' не совпадает с именем папки")
-        if not manifest.get("version"):
-            warn(f"{name}: не задан version — каждый коммит будет считаться новой версией")
+        # Версии либо у всех модулей, либо ни у одного. Смесь опаснее обоих
+        # вариантов: часть модулей обновляется у пользователей при каждом
+        # коммите, часть — только при ручном бампе, и понять, что доехало,
+        # а что нет, невозможно.
+        VERSIONED.append((name, manifest.get("version")))
 
     check_rules(plugin_dir, name)
     check_skills(plugin_dir, name)
@@ -234,6 +238,14 @@ def main() -> int:
     check_marketplace()
     for plugin_dir in sorted(p for p in PLUGINS.iterdir() if p.is_dir()):
         check_plugin(plugin_dir)
+
+    with_v = [n for n, v in VERSIONED if v]
+    without_v = [n for n, v in VERSIONED if not v]
+    if with_v and without_v:
+        err(f"версии заданы у части модулей ({len(with_v)} из {len(VERSIONED)}): "
+            f"{', '.join(with_v[:3])}… Обновления доезжают до пользователей "
+            f"по-разному, и понять, что применилось, невозможно. "
+            f"Либо задать версии всем, либо убрать у всех.")
 
     print("=" * 66)
     print(f"Модулей: {stats['modules']}   Правил: {stats['rules']}   Скиллов: {stats['skills']}")

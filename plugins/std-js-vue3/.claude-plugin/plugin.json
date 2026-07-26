@@ -2,7 +2,6 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "std-js-vue3",
   "displayName": "Стандарты: Vue 3/Nuxt",
-  "version": "0.1.0",
   "description": "SFC, composables, состояние, типизация",
   "author": {
     "name": "DanielLetto2020"

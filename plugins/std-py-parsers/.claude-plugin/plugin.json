@@ -2,7 +2,6 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "std-py-parsers",
   "displayName": "Стандарты: Python-парсеры",
-  "version": "0.1.0",
   "description": "Сеть, ретраи, типы, структура парсеров",
   "author": {
     "name": "DanielLetto2020"

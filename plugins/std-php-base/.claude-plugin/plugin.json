@@ -2,7 +2,6 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "std-php-base",
   "displayName": "Стандарты: PHP (язык)",
-  "version": "0.1.0",
   "description": "Типизация, исключения, сравнения — независимо от фреймворка",
   "author": {
     "name": "DanielLetto2020"

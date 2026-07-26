@@ -2,9 +2,16 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "std-ops-observability",
   "displayName": "Стандарты: Наблюдаемость",
-  "version": "0.1.0",
   "description": "Логи, метрики, алертинг, бэкапы, восстановление",
-  "author": { "name": "DanielLetto2020" },
-  "keywords": ["observability", "monitoring"],
-  "dependencies": ["std-core", "std-gauntlet"]
+  "author": {
+    "name": "DanielLetto2020"
+  },
+  "keywords": [
+    "observability",
+    "monitoring"
+  ],
+  "dependencies": [
+    "std-core",
+    "std-gauntlet"
+  ]
 }

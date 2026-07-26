@@ -2,7 +2,6 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "std-ops-ansible",
   "displayName": "Стандарты: Ansible",
-  "version": "0.1.0",
   "description": "Идемпотентность, инвентарь, секреты, проверка",
   "author": {
     "name": "DanielLetto2020"

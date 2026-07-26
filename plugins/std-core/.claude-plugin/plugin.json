@@ -2,7 +2,6 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "std-core",
   "displayName": "Стандарты: ядро",
-  "version": "0.1.0",
   "description": "Замки (hooks), линковка правил модулей в проект, диагностика загрузки контекста",
   "author": {
     "name": "DanielLetto2020"

@@ -2,7 +2,6 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "std-ops-containers",
   "displayName": "Стандарты: Docker/Podman",
-  "version": "0.1.0",
   "description": "Образы, слои, секреты, non-root, healthcheck",
   "author": {
     "name": "DanielLetto2020"

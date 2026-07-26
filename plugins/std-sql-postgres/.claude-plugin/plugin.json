@@ -2,7 +2,6 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "std-sql-postgres",
   "displayName": "Стандарты: PostgreSQL",
-  "version": "0.1.0",
   "description": "Миграции без даунтайма, индексы, запросы",
   "author": {
     "name": "DanielLetto2020"
