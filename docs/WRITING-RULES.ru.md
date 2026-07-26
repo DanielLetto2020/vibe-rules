@@ -1,7 +1,7 @@
 # Как написать своё правило
 
 > 🇬🇧 [English version](WRITING-RULES.md) · [к README](../README.ru.md) ·
-> [начать с основ](START.ru.md)
+> [начать с основ](START.ru.md) · [все документы](README.ru.md)
 
 ---
 

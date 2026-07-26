@@ -1,7 +1,7 @@
 # Profiles: where they live and how to change them
 
 > 🇷🇺 [Русская версия](PROFILES.ru.md) · [back to README](../README.md) ·
-> [start with the basics](START.md)
+> [start with the basics](START.md) · [all docs](README.md)
 
 ---
 

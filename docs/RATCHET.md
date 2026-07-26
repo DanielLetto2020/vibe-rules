@@ -1,6 +1,6 @@
 # The ratchet: how it works and how to configure it
 
-> 🇷🇺 [Русская версия](RATCHET.ru.md) · [back to README](../README.md)
+> 🇷🇺 [Русская версия](RATCHET.ru.md) · [all docs](README.md)
 
 ---
 

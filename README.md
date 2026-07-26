@@ -467,20 +467,12 @@ grows. That's expected.
 
 ## Documentation
 
-🇷🇺 marks a document that is currently Russian-only.
+**[Documentation map](docs/README.md)** — what is where, with a "when to open
+this" note for each page and quick answers to common questions.
 
-| Document | About |
-|---|---|
-| **[How this works, in plain words](docs/START.md)** | **start here** — no jargon, with a glossary |
-| [Examples](docs/EXAMPLES.md) | five walkthroughs from install to daily use |
-| [Writing your own rule](docs/WRITING-RULES.md) | step by step: where a requirement belongs, how to phrase it |
-| [Profiles](docs/PROFILES.md) | where they live, how to pick and adapt strictness |
-| [The ratchet](docs/RATCHET.md) | the mutation gate: logic, settings, resetting the bar |
-| [The gauntlet](plugins/std-gauntlet/docs/GAUNTLET.md) 🇷🇺 | the five stages in detail |
-| [Architecture](docs/ARCHITECTURE.md) 🇷🇺 | why it's built this way |
-| [Enforcement](docs/ENFORCEMENT.md) 🇷🇺 | the boundary between a request and a guarantee |
-| [Contributing](CONTRIBUTING.md) | adding a module or rule to the shared repo |
-| [Security](SECURITY.md) | trust model and how to report a vulnerability |
+If there is time for one page only:
+**[How this works, in plain words](docs/START.md)**.
+
 
 ## License
 

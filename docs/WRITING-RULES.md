@@ -1,7 +1,7 @@
 # Writing your own rule
 
 > 🇷🇺 [Русская версия](WRITING-RULES.ru.md) · [back to README](../README.md) ·
-> [start with the basics](START.md)
+> [start with the basics](START.md) · [all docs](README.md)
 
 ---
 

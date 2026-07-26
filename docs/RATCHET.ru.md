@@ -1,6 +1,6 @@
 # Храповик: как работает и как настроить
 
-> 🇬🇧 [English version](RATCHET.md) · [к README](../README.ru.md)
+> 🇬🇧 [English version](RATCHET.md) · [все документы](README.ru.md)
 
 ---
 

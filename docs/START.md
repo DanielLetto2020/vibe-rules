@@ -248,4 +248,4 @@ You have the basics — continue as needed:
 - **need to write your own rule** → [Writing a rule](WRITING-RULES.md)
 - **the strictness doesn't fit** → [Profiles](PROFILES.md)
 
-The full list of documents is in the [README](../README.md).
+The full list is in the [documentation map](README.md).

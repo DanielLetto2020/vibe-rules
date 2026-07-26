@@ -1,7 +1,7 @@
 # Профили: где живут и как настроить
 
 > 🇬🇧 [English version](PROFILES.md) · [к README](../README.ru.md) ·
-> [начать с основ](START.ru.md)
+> [начать с основ](START.ru.md) · [все документы](README.ru.md)
 
 ---
 
