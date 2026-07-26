@@ -24,6 +24,18 @@ PLUGINS = ROOT / "plugins"
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
 
 VALID_ENFORCEMENT = {"lint", "hook", "test", "review", "prose"}
+
+# Поля, которые Claude Code понимает в plugin.json. Неизвестное поле не ломает
+# загрузку, но `claude plugin validate --strict` считает его ошибкой — а этой
+# команды нет в CI, поэтому проверяем сами. Опечатка в имени поля означает,
+# что настройка молча не применяется.
+KNOWN_MANIFEST_FIELDS = {
+    "$schema", "name", "displayName", "version", "description", "author",
+    "homepage", "repository", "license", "keywords", "defaultEnabled",
+    "skills", "commands", "agents", "workflows", "hooks", "mcpServers",
+    "outputStyles", "lspServers", "experimental", "userConfig", "channels",
+    "dependencies",
+}
 MAX_RULE_BULLETS = 15
 MAX_ALWAYS_ON_LINES = 60  # для правил без paths: они грузятся в каждую сессию
 
@@ -127,6 +139,20 @@ def check_plugin(plugin_dir: Path) -> None:
     if manifest:
         if manifest.get("name") != name:
             err(f"{name}: plugin.json.name='{manifest.get('name')}' не совпадает с именем папки")
+
+        unknown = set(manifest) - KNOWN_MANIFEST_FIELDS
+        # Ключи-комментарии допустимы: JSON не имеет комментариев, и это
+        # общепринятый способ пояснить конфигурацию
+        unknown = {k for k in unknown if not k.startswith("_")}
+        if unknown:
+            err(f"{name}: неизвестные поля в plugin.json: {', '.join(sorted(unknown))}. "
+                f"Опечатка означает, что настройка молча не применяется; "
+                f"`claude plugin validate --strict` такое отвергает")
+
+        for field, typ in (("keywords", list), ("dependencies", list), ("author", dict)):
+            if field in manifest and not isinstance(manifest[field], typ):
+                err(f"{name}: поле {field} должно быть {typ.__name__}, "
+                    f"а не {type(manifest[field]).__name__} — плагин не загрузится")
         # Версии либо у всех модулей, либо ни у одного. Смесь опаснее обоих
         # вариантов: часть модулей обновляется у пользователей при каждом
         # коммите, часть — только при ручном бампе, и понять, что доехало,
