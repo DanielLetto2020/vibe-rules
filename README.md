@@ -13,19 +13,28 @@ You explain the same conventions every session. The agent follows them most of
 the time — and the times it doesn't are the ones you catch in review, if you
 catch them at all.
 
-This repository takes a different position: **anything a machine can check
-should not live in prose.** A rule written as text is a request. A rule
-compiled into a hook is a guarantee — there is no percentage.
+There are two kinds of content here, and the second matters more:
+
+- **rules** — text the agent reads. They don't all arrive at once, only when
+  relevant: the Vue rule shows up when a `.vue` file is opened;
+- **locks** — scripts that fire before a dangerous command runs. Deleting
+  a data volume will not happen, whatever the agent decided.
+
+> A rule in prose is a request. A rule in a lock is a guarantee.
+> A request is honoured nine times out of ten. A lock has no percentage.
 
 The end goal is to reach a state where not reading the generated code is a
 defensible position rather than recklessness. Not by trusting the agent, but by
 automating the distrust.
 
-> **Note on language:** rule texts are written in Russian. The architecture,
-> tooling and tests are language-agnostic — fork it and write your own rules in
-> any language. See [Writing your own rules](#writing-your-own-rules).
+### 👉 First time here?
 
----
+**[How this works, in plain words](docs/START.md)** — no jargon, with examples
+and a glossary. Fifteen minutes, and everything after reads easily.
+
+> **On language:** rule texts are written in Russian. The architecture, tooling
+> and tests are language-agnostic — fork it and write your own rules in any
+> language.
 
 ## The problem
 
@@ -43,18 +52,25 @@ exactly when needed*.
 
 Rules are organised **by when they load**, not by topic:
 
-| Layer | Where it lives | When it enters context | Cost |
+| Layer | Analogy | When it reaches the agent | Cost |
 |---|---|---|---|
-| **Lock** | hooks, linter configs | never — it executes | 0 tokens, 100% enforced |
-| **Always-on** | project `CLAUDE.md` | every session | expensive, ≤200 lines |
-| **Path-scoped** | `rules/*.md` with `paths:` | when a matching file is opened | pay only when relevant |
-| **Task-scoped** | `skills/*/SKILL.md` | when the task matches | pay only when relevant |
-| **Reference** | `docs/*.md` | when Claude decides to read it | nearly free |
+| **Lock** | a lock on the machine | never — it simply fires | 0 tokens, 100% enforced |
+| **Always-on** | the morning briefing | every session | expensive, ≤200 lines |
+| **Path-scoped** | a label on the machine | when a matching file is opened | pay only when relevant |
+| **Task-scoped** | a manual on the shelf | when the task matches | pay only when relevant |
+| **Reference** | the library down the hall | when the agent decides to look | nearly free |
 
-Every rule declares how it is enforced — `hook`, `lint`, `test`, `review`
-or `prose`. The test suite prints the share of `prose` rules. **That number
-must go down.** A standards repository should shrink as automation grows,
-not swell.
+Explained with examples in [How this works, in plain words](docs/START.md).
+
+Every rule records **what backs it up**: a lock, a linter, a test, human
+review — or nothing but an agreement ("prose").
+
+The field is called `enforcement`, and it forces the author to answer an
+awkward question: how is this actually checked? If the answer is "it isn't, we
+hope people remember" — the rule should either be automated or dropped.
+
+The test suite prints the share of unbacked rules. **That number must go
+down.** A standards repository should shrink as automation grows, not swell.
 
 ## Quick start
 
@@ -126,7 +142,10 @@ direction is expensive.
 
 ### The ratchet
 
-An absolute threshold has a failure mode. On an existing project the real
+A ratchet turns one way only: a car jack goes up as you pump and does not drop
+back when you let go.
+
+A fixed threshold has a characteristic failure mode. On an existing project the real
 mutation score is usually 20–40%. A 70% gate is unreachable today, so it gets
 disabled on day one. A 20% gate is useless — it does not stop unverified code
 from arriving.
@@ -449,7 +468,9 @@ grows. That's expected.
 
 🇷🇺 marks a document that is currently Russian-only.
 
-- [Examples](docs/EXAMPLES.md) — four walkthroughs from install to daily use
+- [How this works, in plain words](docs/START.md) — start here
+- [Writing your own rule](docs/WRITING-RULES.md) — step by step
+- [Examples](docs/EXAMPLES.md) — five walkthroughs from install to daily use
 - [Architecture](docs/ARCHITECTURE.md) 🇷🇺 — why it's built this way
 - [Enforcement](docs/ENFORCEMENT.md) 🇷🇺 — the rule-versus-lock boundary
 - [The gauntlet](plugins/std-gauntlet/docs/GAUNTLET.md) 🇷🇺 — the five stages in detail
