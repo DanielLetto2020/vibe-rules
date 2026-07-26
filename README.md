@@ -64,12 +64,23 @@ not swell.
 /plugin install std-core@vibe-rules
 
 # in each project — one command
-/std-core:setup
+/std-core:setup --scope project
 ```
 
-`setup` reads your repository, works out what kind of project this is, links
-the matching stack modules and writes the gate configuration. Nothing to pick
-by hand.
+`setup` reads your repository, works out what kind of project this is,
+installs the plugins it needs, links the matching stack modules and writes the
+gate configuration. Nothing to pick by hand.
+
+### Bound to the project, not to your machine
+
+`--scope project` writes `.claude/settings.json` listing the marketplace and
+the required plugins. Anyone who clones the repository is offered the install
+on first open — nothing to set up by hand, and the setup cannot drift between
+teammates.
+
+Without it plugins are installed for your machine only (`--scope user`,
+the default), and the project's files stay untouched. `--scope local` is the
+same but for this project only and not committed.
 
 Stack detection reads `composer.json`, `package.json`, `pyproject.toml`,
 compose files, Kubernetes manifests and Ansible playbooks. Real output from

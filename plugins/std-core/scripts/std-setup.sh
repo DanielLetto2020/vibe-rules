@@ -10,6 +10,7 @@
 #   std-setup.sh --profile team явно задать профиль
 #   std-setup.sh --dry-run      показать, что будет сделано, ничего не меняя
 #   std-setup.sh --no-install   не ставить плагины, только правила и конфиг
+#   std-setup.sh --scope project  привязать плагины к проекту, а не к машине
 set -uo pipefail
 export LC_NUMERIC=C
 
@@ -20,12 +21,17 @@ CFG_DIR="$PROJECT_DIR/.claude"
 CFG="$CFG_DIR/gauntlet.json"
 
 FORCE_PROFILE=""; DRY=0; NO_INSTALL=0; SYNC=0
+# user    — плагины на машине, во всех проектах
+# project — в .claude/settings.json проекта: получат все, кто его склонирует
+# local   — только в этом проекте и только у тебя
+SCOPE="user"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --profile)    FORCE_PROFILE="${2:-}"; shift 2 ;;
     --dry-run)    DRY=1; shift ;;
     --no-install) NO_INSTALL=1; shift ;;
     --sync)       SYNC=1; shift ;;
+    --scope)      SCOPE="${2:-user}"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -80,6 +86,11 @@ P=$(jq -c --arg p "$PROFILE" '.profiles[$p]' "$PROFILES")
 # симлинками. Установка требуется там, где есть хуки, скиллы, команды или
 # агенты — их Claude Code берёт только у установленного плагина.
 echo; b "▸ 2/5  Плагины"
+case "$SCOPE" in
+  project) echo "  область: проект — попадёт в .claude/settings.json и достанется всей команде" ;;
+  local)   echo "  область: только этот проект и только ты" ;;
+  *)       echo "  область: машина — во всех твоих проектах" ;;
+esac
 
 module_needs_plugin() { # <slug>
   local d="$STANDARDS_HOME/plugins/std-$1"
@@ -129,13 +140,42 @@ elif [[ $NO_INSTALL -eq 1 ]]; then
 else
   for m in "${TO_INSTALL[@]}"; do
     printf '  ставлю std-%s… ' "$m"
-    if claude plugin install "std-$m@$MARKETPLACE_NAME" --scope user >/dev/null 2>&1; then
+    if claude plugin install "std-$m@$MARKETPLACE_NAME" --scope "$SCOPE" >/dev/null 2>&1; then
       grn "готово"
     else
       red "не удалось"; INSTALL_FAILED=1
     fi
   done
 fi
+
+# При scope=project записываем настройки в сам проект. Тогда коллега,
+# склонировавший репозиторий, получит предложение поставить всё нужное при первом
+# открытии — вручную ставить ничего не нужно.
+write_project_settings() {
+  local settings="$CFG_DIR/settings.json"
+  local source_json
+  source_json=$(jq -r --arg n "$MARKETPLACE_NAME" \
+    'if .[$n].source.source == "github" then {source:"github", repo:.[$n].source.repo}
+     else {source:"github", repo:"DanielLetto2020/vibe-rules"} end' \
+    "$HOME/.claude/plugins/known_marketplaces.json" 2>/dev/null) || source_json='{"source":"github","repo":"DanielLetto2020/vibe-rules"}'
+
+  local enabled='{}'
+  local m
+  for m in "${ALREADY[@]}" "${TO_INSTALL[@]}"; do
+    [[ -z "$m" ]] && continue
+    enabled=$(jq --arg k "std-$m@$MARKETPLACE_NAME" '. + {($k): true}' <<<"$enabled")
+  done
+
+  mkdir -p "$CFG_DIR"
+  local new
+  new=$(jq -n --arg n "$MARKETPLACE_NAME" --argjson src "$source_json" --argjson en "$enabled" \
+    '{extraKnownMarketplaces: {($n): {source: $src}}, enabledPlugins: $en}')
+  if [[ -f "$settings" ]]; then
+    new=$(jq -s '.[0] * .[1]' <<<"$new"$'\n'"$(cat "$settings")")
+  fi
+  printf '%s\n' "$(jq . <<<"$new")" > "$settings"
+  grn "  записан .claude/settings.json — коллеге ставить руками ничего не нужно"
+}
 
 # ── 3. Правила стека ──────────────────────────────────────────────────────────
 echo; b "▸ 3/5  Правила стека"
@@ -239,6 +279,8 @@ else
   fi
   printf '%s\n' "$(jq . <<<"$NEW_CFG")" > "$CFG"
   grn "  записан .claude/gauntlet.json"
+
+  [[ "$SCOPE" != "user" ]] && write_project_settings
 
   # Приоритет правил объявляется явно: общие модули и правила проекта имеют
   # одинаковый вес, и при противоречии выбор был бы произвольным.

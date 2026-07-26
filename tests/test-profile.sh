@@ -196,6 +196,47 @@ grep -q 'regulated' <<<"$OUT3" \
   && bad "setup без --sync определяет заново" "не regulated" "regulated" \
   || ok "setup без --sync определяет профиль заново"
 
+echo "== область установки =="
+
+SC="$TMP/scoped"; mkdir -p "$SC"
+( cd "$SC" && printf '<!doctype html><html lang=ru><body>x</body></html>' > index.html
+  git init -q 2>/dev/null; git add -A >/dev/null 2>&1
+  git -c user.email=a@x -c user.name=a commit -qm init >/dev/null 2>&1 ) >/dev/null 2>&1
+
+VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
+  CLAUDE_PROJECT_DIR="$SC" bash "$SETUP" --scope project --no-install --profile prototype >/dev/null 2>&1
+
+SET="$SC/.claude/settings.json"
+[[ -f "$SET" ]] && ok "scope=project пишет .claude/settings.json" || bad "settings.json" "файла нет"
+
+jq -e '.extraKnownMarketplaces["vibe-rules"]' "$SET" >/dev/null 2>&1 \
+  && ok "маркетплейс объявлен в настройках проекта" || bad "маркетплейс" "нет в settings.json"
+
+# Локальный путь в проектный файл попадать не должен: у коллеги его не будет
+[[ "$(jq -r '.extraKnownMarketplaces["vibe-rules"].source.source' "$SET")" == "github" ]] \
+  && ok "источник записан как github, а не путь на диске" \
+  || bad "источник" "$(jq -r '.extraKnownMarketplaces["vibe-rules"].source.source' "$SET")"
+
+jq -e '.enabledPlugins | has("std-core@vibe-rules")' "$SET" >/dev/null 2>&1 \
+  && ok "нужные плагины перечислены для автоустановки" || bad "enabledPlugins" "пусто"
+
+# scope=user не должен трогать файлы проекта
+SU="$TMP/userscope"; mkdir -p "$SU"
+( cd "$SU" && printf '<!doctype html><html lang=ru><body>x</body></html>' > index.html
+  git init -q 2>/dev/null; git add -A >/dev/null 2>&1
+  git -c user.email=a@x -c user.name=a commit -qm init >/dev/null 2>&1 ) >/dev/null 2>&1
+VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
+  CLAUDE_PROJECT_DIR="$SU" bash "$SETUP" --no-install --profile prototype >/dev/null 2>&1
+[[ ! -f "$SU/.claude/settings.json" ]] \
+  && ok "scope=user не пишет настройки в проект" || bad "scope=user" "settings.json создан"
+
+# Существующие настройки проекта не затираются
+printf '{"env":{"MY_VAR":"1"}}' > "$SC/.claude/settings.json"
+VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
+  CLAUDE_PROJECT_DIR="$SC" bash "$SETUP" --scope project --no-install --profile prototype >/dev/null 2>&1
+jq -e '.env.MY_VAR == "1"' "$SET" >/dev/null 2>&1 \
+  && ok "чужие настройки проекта сохраняются" || bad "слияние настроек" "MY_VAR потерян"
+
 echo
 printf 'Пройдено: \033[32m%d\033[0m   Провалено: \033[31m%d\033[0m\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] || exit 1
