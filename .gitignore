@@ -10,6 +10,11 @@
 # в списке запрещённых. Образец: tests/private-patterns.example
 /tests/.private-patterns
 
+# Тестовые проекты. Лежат уровнем выше (../sandbox/), но правило есть и здесь:
+# если песочницу однажды создадут внутри репозитория, она не уедет в публикацию.
+/sandbox/
+**/sandbox/
+
 # Журналы фактических загрузок инструкций (пишет хук InstructionsLoaded)
 .std-trace.jsonl
 **/.std-trace.jsonl
