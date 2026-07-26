@@ -211,6 +211,29 @@ grep -q 'regulated' <<<"$OUT3" \
   && bad "setup без --sync определяет заново" "не regulated" "regulated" \
   || ok "setup без --sync определяет профиль заново"
 
+echo "== требования профиля доходят до модели =="
+SC0="$TMP/ctx"; mkdir -p "$SC0/.claude/rules"
+ln -sfn "$ROOT/plugins/std-core/rules" "$SC0/.claude/rules/std-core"
+ctx() { printf '{}' | CLAUDE_PROJECT_DIR="$SC0" bash "$ROOT/plugins/std-core/scripts/session-check.sh" 2>/dev/null \
+        | jq -r '.hookSpecificOutput.additionalContext // ""' 2>/dev/null; }
+
+echo '{"profile":"prototype","specFirst":false,"requireBeforeCommit":false}' > "$SC0/.claude/gauntlet.json"
+[[ -z "$(ctx)" ]] && ok "прототип: лишнего в контекст не добавляется" || bad "prototype" "пусто" "$(ctx)"
+
+echo '{"profile":"solo","specFirst":true,"requireBeforeCommit":true}' > "$SC0/.claude/gauntlet.json"
+grep -q 'критерий приёмки' <<<"$(ctx)" \
+  && ok "specFirst доносится до модели, а не только до скриптов" \
+  || bad "specFirst" "требование спеки в контексте" "нет"
+grep -q 'std-gauntlet:run' <<<"$(ctx)" \
+  && ok "требование гейтов перед коммитом попадает в контекст" || bad "requireBeforeCommit" "есть" "нет"
+
+echo '{"profile":"legacy","specFirst":false,"requireBeforeCommit":false}' > "$SC0/.claude/gauntlet.json"
+grep -q 'эталон' <<<"$(ctx)" \
+  && ok "легаси: сначала зафиксировать поведение" || bad "legacy" "упоминание эталона" "нет"
+
+rm -f "$SC0/.claude/gauntlet.json"
+[[ -z "$(ctx)" ]] && ok "без конфигурации проекта хук молчит" || bad "без конфига" "пусто" "$(ctx)"
+
 echo "== область установки =="
 
 SC="$TMP/scoped"; mkdir -p "$SC"
