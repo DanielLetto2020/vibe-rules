@@ -149,6 +149,24 @@ def check_plugin(plugin_dir: Path) -> None:
                 f"Опечатка означает, что настройка молча не применяется; "
                 f"`claude plugin validate --strict` такое отвергает")
 
+        # Стандартные пути подхватываются автоматически. Указание их в
+        # манифесте создаёт дубль, и Claude Code отказывается загружать
+        # компонент: плагин ставится, а хуки молча не действуют.
+        # `claude plugin validate` этого не видит — ошибка возникает только
+        # при загрузке, поэтому проверяем сами.
+        DEFAULT_PATHS = {
+            "hooks": ("./hooks/hooks.json", "hooks/hooks.json"),
+            "skills": ("./skills/", "./skills", "skills/", "skills"),
+            "commands": ("./commands/", "./commands", "commands/", "commands"),
+            "agents": ("./agents/", "./agents", "agents/", "agents"),
+        }
+        for field, defaults in DEFAULT_PATHS.items():
+            val = manifest.get(field)
+            if isinstance(val, str) and val in defaults:
+                err(f"{name}: поле '{field}' указывает на стандартный путь '{val}'. "
+                    f"Он подхватывается автоматически, а явное указание создаёт "
+                    f"дубль — компонент не загрузится. Убери поле из манифеста")
+
         for field, typ in (("keywords", list), ("dependencies", list), ("author", dict)):
             if field in manifest and not isinstance(manifest[field], typ):
                 err(f"{name}: поле {field} должно быть {typ.__name__}, "
