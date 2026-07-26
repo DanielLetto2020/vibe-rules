@@ -169,6 +169,48 @@ Two properties matter more than the feature list:
 The `corporate` profile pairs with this: the required gate set comes from the
 policy and a project cannot weaken it, only add to it.
 
+## Rules for one project only
+
+Shared modules describe a technology. Every project also has things true only
+here: team agreements, traps in this codebase, deviations from a shared rule
+with a reason.
+
+Those live next to the shared ones and **are committed with the code**:
+
+```
+.claude/rules/
+  00-precedence.md     ← declares which source wins, in git
+  std-php-laravel      ← shared module, a symlink, gitignored
+  std-web-css          ← shared module
+  billing-legacy.md    ← this project's rule, in git
+```
+
+```bash
+/std-core:rule new billing-legacy backend   # create from a template
+/std-core:rule list                         # what is where
+/std-core:rule override php-laravel         # switch a shared module off here
+```
+
+A project rule loads exactly like a shared one — by file path. The only
+difference is where it comes from and that it never reaches the shared
+repository.
+
+### Why precedence has to be declared
+
+Claude Code loads every rule with **equal weight**. There is no automatic
+"the project wins". If a project rule and a shared module contradict each
+other, the model picks one arbitrarily and nobody finds out which.
+
+`00-precedence.md` states it plainly: the project rule wins, **and the
+contradiction must be reported rather than silently resolved**. The second
+half matters more — a contradiction means either the shared rule needs
+refining or the local deviation is obsolete, and both are decisions for
+a human.
+
+Switching a shared module off records the deviation in that same file and
+marks the reason as mandatory. A deviation without a reason is
+indistinguishable from an oversight six months later.
+
 ## Modules
 
 | Module | Covers |
@@ -328,7 +370,12 @@ as a blocking CI gate:
 5. **Profiles, ratchet and setup** — 20 cases: profile inference from a
    synthetic git history, ratchet raising and holding the bar, profile
    controlling lock strictness, repeated setup preserving manual edits.
-6. **`claude plugin validate --strict`** on every module.
+6. **Stack policy** — 20 cases, including: an exempt project keeps its safety
+   locks, and a project without a policy file is left alone.
+7. **Project-level rules** — 19 cases: template, precedence file, deviation
+   recording, and the split between committed project rules and gitignored
+   shared symlinks.
+8. **`claude plugin validate --strict`** on every module.
 
 Separately, `tests/test-context.sh` verifies what usually stays an act of
 faith: that a rule **actually loaded** into context for the right file. It's

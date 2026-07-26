@@ -36,6 +36,9 @@ jobs:
       - name: Автодетект стека и целостность связей
         run: bash tests/test-link.sh
 
+      - name: Правила уровня проекта
+        run: bash tests/test-rule.sh
+
       - name: Политика стека
         run: bash tests/test-policy.sh
 

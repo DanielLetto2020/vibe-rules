@@ -2,7 +2,7 @@
 
 > 🇷🇺 [Русская версия](EXAMPLES.ru.md) · [back to README](../README.md)
 
-Four walkthroughs covering what actually happens once the standards are wired
+Five walkthroughs covering what actually happens once the standards are wired
 into a project.
 
 ---
@@ -12,29 +12,34 @@ into a project.
 A Laravel project that already has its own `CLAUDE.md`. Ten minutes.
 
 ```bash
-/std-core:link --auto
+/std-core:setup
 ```
 
 ```
-Standards repository: ~/.claude/plugins/marketplaces/vibe-rules
-  + std-core        -> .../std-core/rules
-  + std-gauntlet    -> .../std-gauntlet/rules
-  + std-php-base    -> .../std-php-base/rules
-  + std-php-laravel -> .../std-php-laravel/rules
-  + std-js-base     -> .../std-js-base/rules
-  + std-js-vue3     -> .../std-js-vue3/rules
-  + std-sql-postgres -> .../std-sql-postgres/rules
+▸ 1/5  Project state
+  commits: 340   authors: 4   tests: 62/180 (0.34)   CI: yes
+  profile: team — 4 authors in the last six months
+
+▸ 2/5  Plugins
+  already installed: core gauntlet
+  rules only (no install needed): php-base php-laravel js-base sql-postgres
+
+▸ 3/5  Stack rules
+  + std-core, std-gauntlet, std-php-base, std-php-laravel, std-js-base, std-sql-postgres
   + .gitignore: added .claude/rules/std-*
+
+▸ 4/5  Quality gates
+  ✓ style   ✓ types   ✓ test   – mutation (not installed)
+
+▸ 5/5  Configuration
+  wrote .claude/gauntlet.json
+  created .claude/rules/00-precedence.md
 ```
 
-Then configure the gates:
+One command: it worked out the project state, installed the missing plugins,
+linked the stack modules and wrote the configuration. Nothing to pick by hand.
 
-```bash
-/std-gauntlet:init
-```
-
-This reads the project, finds the real test and lint commands, and reports the
-**actual mutation score**. Expect an unpleasant number next to a healthy
+It also reports the **actual mutation score** when the tool is installed. Expect an unpleasant number next to a healthy
 coverage figure — that number is the argument for everything else.
 
 ### The one manual step
@@ -54,16 +59,12 @@ Rules from `.claude/rules/` and your `CLAUDE.md` carry **equal weight**. There
 is no automatic "project wins". If they contradict each other, the model picks
 one arbitrarily and you won't know which.
 
-So state it explicitly. Add to the project `CLAUDE.md`:
+That is why `setup` writes `00-precedence.md`: it states that the project rule
+wins **and that a contradiction must be reported rather than silently
+resolved**. The second half matters more — it turns a silent conflict into a
+signal that the shared rule needs refining.
 
-```markdown
-## Rule precedence
-Rules in this file take precedence over the shared ones in `.claude/rules/std-*`.
-If you see a contradiction — follow this file and **tell me about it**.
-```
-
-The second sentence matters more than the first: it turns a silent conflict
-into a signal that the shared rule needs fixing.
+More on project rules — [example 5](#example-5--a-rule-for-this-project-only).
 
 ---
 
@@ -203,11 +204,51 @@ deleted.
 
 ---
 
+## Example 5 — A rule for this project only
+
+> "In this project validation stays in controllers — the legacy billing module
+> hasn't been migrated to FormRequest yet."
+
+That contradicts the shared Laravel module, which says validation belongs in
+FormRequest. Writing it into `CLAUDE.md` would burn context in every session;
+editing the shared module would break it for every other project.
+
+```bash
+/std-core:rule new billing-legacy backend
+```
+
+Creates `.claude/rules/billing-legacy.md` from a template with `paths`, `owner`
+and `enforcement` already in place. Fill in the rule and the reason, commit it —
+project rules live in git, unlike the `std-*` symlinks.
+
+Then make the precedence explicit:
+
+```bash
+/std-core:rule precedence
+```
+
+This writes `00-precedence.md`, which states that the project rule wins **and
+that a contradiction must be reported rather than silently resolved**. Without
+it, both rules carry equal weight and the model picks one arbitrarily.
+
+If a whole shared module doesn't fit:
+
+```bash
+/std-core:rule override php-laravel
+```
+
+The module is unlinked and the deviation is recorded with the reason marked as
+mandatory. Before doing that, check whether only one rule from the module
+conflicts — then describing the deviation is better than dropping the module.
+
+---
+
 ## What you run by hand, ever
 
 ```bash
-/std-core:link --auto     once per project
-/std-gauntlet:init        once per project
+/std-core:setup           once per project — detects, installs, links, configures
+/std-core:sync            when the stack gains something new
+/std-core:rule new <name> when this project needs its own rule
 /std-gauntlet:run         before committing (the lock reminds you anyway)
 ```
 
