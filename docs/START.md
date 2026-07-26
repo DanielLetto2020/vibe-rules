@@ -240,6 +240,7 @@ is expected and by design.
 ## Where to go next
 
 - [Writing your own rule](WRITING-RULES.md) — step by step, with examples
+- [Profiles](PROFILES.md) — where they live, how to pick and adapt one
 - [Examples](EXAMPLES.md) — five walkthroughs: onboarding, a new feature,
   legacy code, removal, a project-specific rule
 - [Architecture](ARCHITECTURE.md) 🇷🇺 — why it is built this way

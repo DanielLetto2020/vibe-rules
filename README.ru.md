@@ -330,6 +330,7 @@ tests/run.sh
 
 **Начать отсюда:** [Как это работает простыми словами](docs/START.ru.md) ·
 [Как написать своё правило](docs/WRITING-RULES.ru.md) ·
+[Профили: где живут и как настроить](docs/PROFILES.ru.md) ·
 [Сквозные примеры](docs/EXAMPLES.ru.md)
 
 Подробнее: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),

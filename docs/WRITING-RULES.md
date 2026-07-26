@@ -270,6 +270,7 @@ grows, not swell.
 ## Where to go next
 
 - [The basics in plain words](START.md)
+- [Profiles](PROFILES.md) — where check strictness is configured
 - [Examples](EXAMPLES.md) — the fifth walkthrough covers a project rule
 - [Rule or lock](ENFORCEMENT.md) 🇷🇺 — more on the boundary
 - [Adding a module](../CONTRIBUTING.md) — if you need a whole new stack

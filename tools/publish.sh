@@ -63,6 +63,7 @@ fi
 
 # ── 3. Что вошло ──────────────────────────────────────────────────────────────
 echo; b "▸ 3/5  Изменения с прошлого релиза"
+git fetch --tags -q 2>/dev/null || true
 LAST_TAG=$(git tag --sort=-v:refname | head -1)
 if [[ -n "$LAST_TAG" ]]; then
   CHANGES=$(git log "$LAST_TAG..HEAD" --format='- %s' 2>/dev/null | grep -v '^- version ' || true)
@@ -119,6 +120,9 @@ RESP=$(ghapi POST "/repos/$REPO/releases" "$(jq -n \
 
 if jq -e '.html_url' <<<"$RESP" >/dev/null 2>&1; then
   grn "  $(jq -r '.html_url' <<<"$RESP")"
+  # Тег создан на стороне GitHub — подтягиваем, иначе pre-push будет сравнивать
+  # с устаревшим локальным тегом и пропустит забытый бамп
+  git fetch --tags -q 2>/dev/null || true
 else
   red "  релиз не создан: $(jq -r '.message // "неизвестная ошибка"' <<<"$RESP")"
   exit 1

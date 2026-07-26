@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# pre-push — не дать опубликовать код без поднятой версии.
+#
+# Claude Code доставляет обновление плагина только когда меняется его version.
+# Забытый бамп выглядит у пользователя как «обновление не работает»: команда
+# отрабатывает, изменений нет. Проверять это глазами не получилось — забывалось
+# дважды подряд, поэтому проверка здесь.
+#
+# Включить (один раз на клон):
+#   git config core.hooksPath .githooks
+#
+# Обойти осознанно:
+#   git push --no-verify
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+MP="$ROOT/.claude-plugin/marketplace.json"
+[[ -f "$MP" ]] || exit 0
+command -v jq >/dev/null 2>&1 || exit 0
+
+CURRENT=$(jq -r '.metadata.version // empty' "$MP")
+[[ -z "$CURRENT" ]] && exit 0
+
+LAST_TAG=$(git tag --sort=-v:refname | head -1)
+[[ -z "$LAST_TAG" ]] && exit 0
+LAST_VER="${LAST_TAG#v}"
+
+[[ "$CURRENT" != "$LAST_VER" ]] && exit 0
+
+# Версия совпадает с последним релизом. Это нормально, если код с тех пор
+# не менялся, — например, пушится только документация вне пакета.
+CHANGED=$(git diff --name-only "$LAST_TAG..HEAD" -- plugins/ tools/ tests/ 2>/dev/null | head -1)
+[[ -z "$CHANGED" ]] && exit 0
+
+printf '\033[31mПуш остановлен: версия не поднята\033[0m\n' >&2
+cat >&2 <<MSG
+
+Текущая версия $CURRENT совпадает с последним релизом $LAST_TAG,
+но с тех пор менялись файлы модулей.
+
+Пользователь такое обновление не получит: Claude Code доставляет плагин
+только при смене версии.
+
+  tools/publish.sh          проверки, бамп, пуш и релиз одной командой
+
+Если версия и правда не нужна (например, правится только документация
+вне пакета):
+
+  git push --no-verify
+
+MSG
+exit 1

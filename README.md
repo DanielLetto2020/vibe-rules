@@ -470,6 +470,7 @@ grows. That's expected.
 
 - [How this works, in plain words](docs/START.md) — start here
 - [Writing your own rule](docs/WRITING-RULES.md) — step by step
+- [Profiles: where they live and how to change them](docs/PROFILES.md)
 - [Examples](docs/EXAMPLES.md) — five walkthroughs from install to daily use
 - [Architecture](docs/ARCHITECTURE.md) 🇷🇺 — why it's built this way
 - [Enforcement](docs/ENFORCEMENT.md) 🇷🇺 — the rule-versus-lock boundary
