@@ -1,11 +1,20 @@
 ---
 paths:
+  # Playbook нельзя опознать по имени файла: он называется как угодно —
+  # deploy-preview.yml, provision.yml, main.yml. Поэтому кроме привычных имён
+  # берём каталоги, где playbook'и лежат по соглашению, и соседей ansible.cfg.
   - "ansible/**/*.y*ml"
   - "playbooks/**/*.y*ml"
   - "roles/**/*.y*ml"
+  - "deploy/**/*.y*ml"
+  - "provision/**/*.y*ml"
+  - "infra/**/*.y*ml"
   - "**/playbook*.y*ml"
   - "**/site.y*ml"
+  - "**/group_vars/**"
+  - "**/host_vars/**"
   - "**/inventory*"
+  - "**/ansible.cfg"
 owner: "@platform"
 enforcement: review
 since: "2026-07-26"

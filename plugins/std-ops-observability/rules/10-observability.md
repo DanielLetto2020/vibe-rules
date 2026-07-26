@@ -6,6 +6,9 @@ paths:
   - "**/*[Mm]etric*.{php,py,ts,js}"
   - "**/[Hh]ealth*.{php,py,ts,js}"
   - "**/alert*.y*ml"
+  - "**/nginx*.conf"
+  - "**/prometheus*.y*ml"
+  - "**/grafana/**"
 owner: "@platform"
 enforcement: review
 since: "2026-07-26"
