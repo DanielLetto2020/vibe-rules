@@ -61,6 +61,22 @@ touching the shared repository, and how to create your own. Plus what you
 What the percentages mean, why the bar rises by itself, where the state is
 kept, every setting, what to do when it fails and how to legitimately reset it.
 
+### My project has specifics the shared rules don't cover
+
+**[Project-level rules](CUSTOMIZATION.md)** · ~10 min
+
+Four levels of customization: a project rule, a recorded departure from a
+shared rule, your own gate commands, opting out of a module entirely. What of
+it goes into git and what does not, and how to confirm a rule actually loads.
+
+### I'm rewriting legacy or running a large refactor
+
+**[Legacy and refactoring](LEGACY.md)** · ~10 min
+
+Three modes: a transition period with two contours, a freeze zone, moving an
+area across step by step. Ready-made rule templates, plus the mistake that
+gets checks switched off on legacy by day two.
+
 ### I want to understand why it's built this way
 
 - **[Architecture](ARCHITECTURE.md)** 🇷🇺 — three decisions that look odd
@@ -95,6 +111,8 @@ take a claim on trust.
 | [Plain words](START.md) | everyone, start here | 15 min |
 | [Examples](EXAMPLES.md) | anyone who wants to see it work | 15 min |
 | [Writing a rule](WRITING-RULES.md) | whoever keeps standards in a team | 10 min |
+| [Project-level rules](CUSTOMIZATION.md) | whoever has project specifics | 10 min |
+| [Legacy and refactoring](LEGACY.md) | whoever rewrites old code | 10 min |
 | [Profiles](PROFILES.md) | whoever configures a project | 10 min |
 | [The ratchet](RATCHET.md) | whoever deals with the quality gate | 10 min |
 | [The gauntlet](../plugins/std-gauntlet/docs/GAUNTLET.md) 🇷🇺 | whoever rolls out the full pipeline | 10 min |
@@ -116,7 +134,10 @@ When you need one fact rather than a read:
 | What is `enforcement` and what do I put there? | [writing a rule](WRITING-RULES.md#enforcement--what-backs-it-up) |
 | How do I switch off the pre-commit check? | [profiles → adapting](PROFILES.md#adapting-a-profile-to-your-project) |
 | Where is the quality bar stored? | [ratchet → where things live](RATCHET.md#where-things-live) |
-| My project is legacy — where do I start? | [examples, walkthrough 3](EXAMPLES.md) |
-| A shared rule gets in my project's way | [writing a rule → when it doesn't fit](WRITING-RULES.md#when-a-shared-rule-doesnt-fit-your-project) |
+| My project is legacy — where do I start? | [legacy](LEGACY.md) |
+| A shared rule gets in my project's way | [project rules → departures](CUSTOMIZATION.md#when-a-project-rule-contradicts-a-shared-one) |
+| How do I add a rule without touching the shared repo? | [project-level rules](CUSTOMIZATION.md) |
+| How do I mark an area as off-limits? | [legacy → freeze zone](LEGACY.md#mode-2-a-freeze-zone) |
+| Tests are green — but do they check the spec? | [spec data mutation](../plugins/std-gauntlet/docs/GAUNTLET.md) |
 | What can't be overridden? | [profiles → what cannot](PROFILES.md#what-cannot-be-overridden) |
 | What does this system not do? | [plain words → what this does not do](START.md#what-this-does-not-do) |

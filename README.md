@@ -285,6 +285,8 @@ constraints. Five stages, each verifying the one before it:
 2. **Tests** derived from the spec, written in a session separate from the
    implementation.
 3. **Mutation testing** — the only stage that verifies the tests themselves.
+   Its second form is **corrupting values in the spec**: change a number in a
+   scenario, and if the test stays green it is not checking what was ordered.
 4. **Metrics** instead of reading diffs.
 5. **A list for human eyes** — what nothing else can catch.
 
