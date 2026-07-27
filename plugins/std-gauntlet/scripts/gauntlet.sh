@@ -16,6 +16,10 @@ set -uo pipefail
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 CFG="$PROJECT_DIR/.claude/gauntlet.json"
+# Команды гейтов могут ссылаться на скрипты модуля — например мутация данных
+# спецификации. Путь подставляется здесь, чтобы в конфигурации проекта его
+# не хардкодили: при обновлении плагина он меняется.
+export STD_GAUNTLET_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="full"; ONLY=""
 
 while [[ $# -gt 0 ]]; do
@@ -33,6 +37,12 @@ red()  { printf '\033[31m%s\033[0m\n' "$*"; }
 ylw()  { printf '\033[33m%s\033[0m\n' "$*"; }
 
 have() { [[ -e "$PROJECT_DIR/$1" ]]; }
+
+# Мутация КОДА (infection, stryker, mutmut) — к ней применяется храповик
+# и ограничение изменёнными файлами. Мутация ДАННЫХ спецификации живёт
+# по другому правилу: выживший мутант там означает, что тест не связан
+# с требованием, и послаблений на этот счёт не бывает.
+is_code_mutation() { [[ "$1" == *mutation* && "$1" != spec-* ]]; }
 
 # --- Дефолты по стеку ---------------------------------------------------------
 # Порядок гейтов не случаен: дешёвые и быстрые идут первыми, чтобы очевидная
@@ -122,7 +132,7 @@ for g in "${GATES[@]}"; do
 
   # На большом проекте полный мутационный прогон идёт часами. Ограничение
   # изменёнными файлами превращает его в проверку, которую реально запускают.
-  if [[ "$name" == *mutation* && "$MUT_CHANGED_ONLY" == "true" ]]; then
+  if is_code_mutation "$name" && [[ "$MUT_CHANGED_ONLY" == "true" ]]; then
     case "$cmd_expanded" in
       *infection*) cmd_expanded="$cmd_expanded --git-diff-filter=AM" ;;
       *stryker*)   cmd_expanded="$cmd_expanded --since" ;;
@@ -133,7 +143,7 @@ for g in "${GATES[@]}"; do
   rc=$?
 
   # --- Храповик вместо порога инструмента -------------------------------------
-  if [[ "$name" == *mutation* && "$MUT_MODE" == "ratchet" ]]; then
+  if is_code_mutation "$name" && [[ "$MUT_MODE" == "ratchet" ]]; then
     # Формат вывода различается: Infection печатает «MSI: 63%»,
     # Stryker — «Mutation score: 63.45%», mutmut — свою сводку.
     score=$(grep -oiE '(mutation score indicator \(msi\)|mutation score|msi)[^0-9]{0,12}[0-9]+([.,][0-9]+)?' \

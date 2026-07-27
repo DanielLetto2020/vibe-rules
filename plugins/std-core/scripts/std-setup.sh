@@ -190,6 +190,23 @@ fi
 echo; b "▸ 4/5  Гейты качества"
 
 have() { [[ -e "$PROJECT_DIR/$1" ]]; }
+
+# Каталог со спецификациями. Имя не универсально: behat и pytest-bdd кладут
+# в features/, Cucumber в JS — часто в tests/features. Найденный путь пишется
+# в конфиг, чтобы гейт не искал заново.
+FEATURES_DIR=""
+has_features() {
+  [[ -n "$FEATURES_DIR" ]] && return 0
+  local d
+  for d in features tests/features spec/features src/test/resources/features; do
+    if [[ -d "$PROJECT_DIR/$d" ]] && \
+       [[ -n "$(find "$PROJECT_DIR/$d" -name '*.feature' -print -quit 2>/dev/null)" ]]; then
+      FEATURES_DIR="$d"; return 0
+    fi
+  done
+  return 1
+}
+
 gate_cmd() { # <имя гейта> -> команда или пусто
   case "$1" in
     style)
@@ -218,6 +235,16 @@ gate_cmd() { # <имя гейта> -> команда или пусто
     security)
       have composer.lock && { echo 'composer audit'; return; }
       have package-lock.json && { echo 'npm audit --audit-level=high'; return; } ;;
+    spec-mutation)
+      # Мутация данных спецификации: имеет смысл только там, где сценарии есть
+      # и тесты из них порождаются. Команда прогона берётся из гейта test.
+      if has_features; then
+        local tcmd; tcmd=$(gate_cmd test)
+        # STD_GAUNTLET_ROOT остаётся переменной: путь модуля содержит версию
+        # и меняется при обновлении, его подставляет gauntlet.sh. А каталог
+        # спецификаций подставляется значением — он свойство проекта.
+        [[ -n "$tcmd" ]] && { echo "python3 \"\$STD_GAUNTLET_ROOT/scripts/gherkin-mutate.py\" --features $FEATURES_DIR --run '$tcmd'"; return; }
+      fi ;;
     mutation)
       have artisan && { echo './vendor/bin/infection --threads=max --min-msi=$MSI --no-progress'; return; }
       have composer.json && { echo './vendor/bin/infection --threads=max --min-msi=$MSI --no-progress'; return; }
@@ -227,7 +254,14 @@ gate_cmd() { # <имя гейта> -> команда или пусто
 }
 
 GATES_JSON='{}'; MISSING=()
-for g in $(jq -r '.gates[]' <<<"$P"); do
+PROFILE_GATES=$(jq -r '.gates[]' <<<"$P")
+# Спецификации в проекте есть — добавляем гейт мутации данных, даже если
+# профиль его не перечисляет: без него Gherkin остаётся украшением, а связь
+# тестов с требованием никем не проверяется.
+if has_features && [[ "$PROFILE_GATES" != *spec-mutation* ]]; then
+  PROFILE_GATES="$PROFILE_GATES"$'\n'"spec-mutation"
+fi
+for g in $PROFILE_GATES; do
   c=$(gate_cmd "$g")
   if [[ -n "$c" ]]; then
     GATES_JSON=$(jq --arg k "$g" --arg v "$c" '. + {($k): $v}' <<<"$GATES_JSON")
