@@ -137,6 +137,22 @@ grep -qxF '.claude/rules/std-*' "$P/.gitignore" \
   && ok "симлинки добавлены в .gitignore (в git им нельзя: путь абсолютный)" \
   || bad ".gitignore" "строка .claude/rules/std-*" "её нет"
 
+# Планка храповика зависит от прогонов на конкретной машине. Попав в git,
+# она даёт конфликт в каждом втором коммите и «поднимается» чужим прогоном.
+# Документация обещает, что состояние не коммитится, — проверяем обещание.
+for st in '.claude/.ratchet.json' '.claude/.std-trace.jsonl' '.claude/.gauntlet-pass'; do
+  grep -qxF "$st" "$P/.gitignore" \
+    && ok "локальное состояние вне git: $st" \
+    || bad ".gitignore" "строка $st" "её нет"
+done
+
+# Повторная установка не должна размножать строки
+VIBE_RULES_HOME="$ROOT" CLAUDE_PROJECT_DIR="$P" bash "$LINK" --auto >/dev/null 2>&1
+DUPS=$(sort "$P/.gitignore" | grep -c '^\.claude/\.ratchet\.json$')
+[[ "$DUPS" -eq 1 ]] \
+  && ok "повторная установка не дублирует строки .gitignore" \
+  || bad ".gitignore идемпотентность" "1 строка" "$DUPS"
+
 ln -sfn /nonexistent/path "$P/.claude/rules/std-broken"
 VIBE_RULES_HOME="$ROOT" CLAUDE_PROJECT_DIR="$P" bash "$LINK" --check >/dev/null 2>&1 \
   && bad "--check ловит битую ссылку" "ненулевой код" "код 0" \

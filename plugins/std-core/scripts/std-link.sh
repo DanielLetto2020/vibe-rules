@@ -218,12 +218,27 @@ detect_modules() {
 # у коллеги путь другой, и правило молча перестанет грузиться.
 ensure_gitignore() {
   local gi="$PROJECT_DIR/.gitignore"
-  local line=".claude/rules/${LINK_PREFIX}*"
   [[ -f "$gi" ]] || touch "$gi"
+
+  local line=".claude/rules/${LINK_PREFIX}*"
   grep -qxF "$line" "$gi" || {
     printf '\n# Симлинки на общие стандарты (у каждого свой абсолютный путь)\n%s\n' "$line" >> "$gi"
     grn "  + .gitignore: добавлен $line"
   }
+
+  # Локальное состояние: планка храповика зависит от того, что прогонялось
+  # на этой машине, журнал загрузки правил — тем более. В git это дало бы
+  # конфликт в каждом втором коммите и планку, «поднятую» чужим прогоном.
+  local state hdr_written=0
+  for state in ".claude/.ratchet.json" ".claude/.std-trace.jsonl" ".claude/.gauntlet-pass"; do
+    grep -qxF "$state" "$gi" && continue
+    [[ $hdr_written -eq 0 ]] && {
+      printf '\n# Локальное состояние проверок (планка, журналы) — не в git\n' >> "$gi"
+      hdr_written=1
+    }
+    printf '%s\n' "$state" >> "$gi"
+    grn "  + .gitignore: добавлен $state"
+  done
 }
 
 # --- 4. Основные операции -----------------------------------------------------
