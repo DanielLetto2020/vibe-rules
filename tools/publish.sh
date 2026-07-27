@@ -23,10 +23,32 @@ grn() { printf '\033[32m%s\033[0m\n' "$*"; }
 red() { printf '\033[31m%s\033[0m\n' "$*"; }
 ylw() { printf '\033[33m%s\033[0m\n' "$*"; }
 
-DRY=0
-[[ "${1:-}" == "--dry-run" ]] && { DRY=1; shift; }
-BUMP="${1:-patch}"
-TITLE="${2:-}"
+# Разбор в любом порядке. Раньше --dry-run распознавался только первым
+# аргументом: переданный после заголовка, он молча игнорировался, и «покажи,
+# что будет» публиковало по-настоящему. Неизвестный аргумент теперь тоже
+# ошибка — скрипт, который пушит наружу, не имеет права молча пропускать
+# то, чего не понял.
+DRY=0; BUMP=""; TITLE=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) DRY=1 ;;
+    -h|--help) sed -n '9,12p' "$0"; exit 0 ;;
+    --*)       red "неизвестный аргумент: $1"; exit 2 ;;
+    *)
+      if [[ -z "$BUMP" ]]; then BUMP="$1"
+      elif [[ -z "$TITLE" ]]; then TITLE="$1"
+      else red "лишний аргумент: $1"; exit 2
+      fi ;;
+  esac
+  shift
+done
+BUMP="${BUMP:-patch}"
+
+case "$BUMP" in
+  patch|minor|major|[0-9]*.[0-9]*.[0-9]*) ;;
+  *) red "непонятный вид версии: $BUMP"
+     echo "ожидается patch, minor, major или точная версия вида 1.2.3"; exit 2 ;;
+esac
 
 # ── 1. Проверки ───────────────────────────────────────────────────────────────
 b "▸ 1/5  Проверки"
@@ -43,9 +65,12 @@ if [[ -n "$DIRTY" && $DRY -eq 0 ]]; then
   echo "  Скрипт добавляет только бамп версии поверх готовой истории."
   exit 1
 fi
-if ! bash tests/run.sh >/tmp/publish-tests.log 2>&1; then
+# Предсказуемое имя в /tmp — чужой симлинк с тем же именем перенаправит запись
+TESTLOG=$(mktemp)
+trap 'rm -f "$TESTLOG"' EXIT
+if ! bash tests/run.sh >"$TESTLOG" 2>&1; then
   red "  прогон красный — публикация отменена"
-  tail -25 /tmp/publish-tests.log | sed 's/^/    /'
+  tail -25 "$TESTLOG" | sed 's/^/    /'
   exit 1
 fi
 grn "  все тесты зелёные"
@@ -108,24 +133,42 @@ if ! command -v ghapi >/dev/null 2>&1; then
   exit 0
 fi
 
+# Описание двуязычное. Список изменений собирается из сообщений коммитов —
+# он приводится один раз и не переводится: перевод, сделанный скриптом, был бы
+# выдумкой. Двуязычны заголовки и всё, что читателю нужно сделать.
 BODY="${TITLE:+$TITLE
 
-}## Что изменилось
+}## What changed · Что изменилось
 
 $CHANGES
 
-Полный список: https://github.com/$REPO/compare/$LAST_TAG...v$NEW
+Full list · полный список: https://github.com/$REPO/compare/$LAST_TAG...v$NEW
 
 ---
 
-Обновиться:
+### English
+
+Update an existing install:
 
 \`\`\`
 /plugin marketplace update vibe-rules
 /plugin update
 \`\`\`
 
-Начать с основ: [START.ru.md](https://github.com/$REPO/blob/main/docs/START.ru.md)"
+New here? Start with [START.md](https://github.com/$REPO/blob/main/docs/START.md)
+— what this is, in plain words.
+
+### 🇷🇺 По-русски
+
+Обновить установленное:
+
+\`\`\`
+/plugin marketplace update vibe-rules
+/plugin update
+\`\`\`
+
+Впервые здесь? Начните с [START.ru.md](https://github.com/$REPO/blob/main/docs/START.ru.md)
+— что это такое, простыми словами."
 
 RESP=$(ghapi POST "/repos/$REPO/releases" "$(jq -n \
   --arg t "v$NEW" --arg n "v$NEW${TITLE:+ — $TITLE}" --arg b "$BODY" \

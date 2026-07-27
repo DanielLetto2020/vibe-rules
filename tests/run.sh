@@ -7,38 +7,41 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RC=0
 hdr() { printf '\n\033[1m▸ %s\033[0m\n' "$1"; }
 
-hdr "1/10 Страж приватных данных"
+hdr "1/11 Страж приватных данных"
 python3 "$ROOT/tests/no-private-data.py" || RC=1
 
-hdr "2/10 Права на исполнение скриптов"
+hdr "2/11 Права на исполнение скриптов"
 missing=0
 while IFS= read -r s; do
   [[ -x "$s" ]] || { printf '  не исполняемый: %s\n' "${s#$ROOT/}"; missing=1; }
 done < <(find "$ROOT/plugins" "$ROOT/tests" -name '*.sh' -type f)
 [[ $missing -eq 0 ]] && echo "  ok" || { echo "  почини: chmod +x"; RC=1; }
 
-hdr "3/10 Структура модулей и frontmatter"
+hdr "3/11 Структура модулей и frontmatter"
 python3 "$ROOT/tests/lint-modules.py" || RC=1
 
-hdr "4/10 Замки (unit-тесты хуков)"
+hdr "4/11 Замки (unit-тесты хуков)"
 bash "$ROOT/tests/test-hooks.sh" || RC=1
 
-hdr "5/10 Автодетект стека и целостность связей"
+hdr "5/11 Автодетект стека и целостность связей"
 bash "$ROOT/tests/test-link.sh" || RC=1
 
-hdr "6/10 Профили, храповик, единая настройка"
+hdr "6/11 Профили, храповик, единая настройка"
 bash "$ROOT/tests/test-profile.sh" || RC=1
 
-hdr "7/10 Политика стека"
+hdr "7/11 Политика стека"
 bash "$ROOT/tests/test-policy.sh" || RC=1
 
-hdr "8/10 Правила уровня проекта"
+hdr "8/11 Правила уровня проекта"
 bash "$ROOT/tests/test-rule.sh" || RC=1
 
-hdr "9/10 Мутация данных спецификации"
+hdr "9/11 Мутация данных спецификации"
 bash "$ROOT/tests/test-gherkin-mutate.sh" || RC=1
 
-hdr "10/10 Валидация манифестов средствами Claude Code"
+hdr "10/11 Публикация"
+bash "$ROOT/tests/test-publish.sh" || RC=1
+
+hdr "11/11 Валидация манифестов средствами Claude Code"
 if command -v claude >/dev/null 2>&1; then
   for p in "$ROOT"/plugins/*/; do
     out=$(claude plugin validate "$p" --strict 2>&1)
