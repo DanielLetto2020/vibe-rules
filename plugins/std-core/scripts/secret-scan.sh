@@ -9,7 +9,28 @@
 set -uo pipefail
 
 INPUT=$(cat)
-FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+
+# --- std:jq-guard — «не проверено» должно быть слышно -------------------------
+# Молчаливый выход здесь означал бы, что записанный файл никто не смотрел,
+# а выглядело бы это как пройденная проверка.
+read_field() { # <поле в tool_input>
+  if command -v jq >/dev/null 2>&1; then
+    printf '%s' "$INPUT" | jq -r --arg f "$1" '.tool_input[$f] // empty' 2>/dev/null; return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    printf '%s' "$INPUT" | python3 -c 'import json,sys
+try:
+    print(json.load(sys.stdin).get("tool_input", {}).get(sys.argv[1], "") or "", end="")
+except Exception:
+    pass' "$1" 2>/dev/null; return 0
+  fi
+  return 1
+}
+
+if ! FILE=$(read_field file_path); then
+  printf '%s\n' "Файл записан, но на секреты не проверен: на машине нет ни jq, ни python3. Поставь jq — до тех пор этот слой защиты не работает." >&2
+  exit 2
+fi
 [[ -z "$FILE" || ! -f "$FILE" ]] && exit 0
 
 case "$FILE" in

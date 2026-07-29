@@ -25,7 +25,31 @@ set -uo pipefail
 [[ "${STD_RECHECK:-1}" == "0" ]] && exit 0
 
 INPUT=$(cat)
-FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+
+# Разбор входа тем же способом, что и в замках. Этот хук не защищает, а
+# напоминает, поэтому при полном отсутствии разборщика он молчит: блокировать
+# работу из-за пропущенного напоминания несоразмерно. О самой поломке скажет
+# session-check при старте сессии — там это видно один раз и в нужном месте.
+read_field() { # <поле в tool_input>
+  if command -v jq >/dev/null 2>&1; then
+    printf '%s' "$INPUT" | jq -r --arg f "$1" '.tool_input[$f] // empty' 2>/dev/null; return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    printf '%s' "$INPUT" | python3 -c 'import json,sys
+try:
+    print(json.load(sys.stdin).get("tool_input", {}).get(sys.argv[1], "") or "", end="")
+except Exception:
+    pass' "$1" 2>/dev/null; return 0
+  fi
+  return 1
+}
+json_escape() {
+  local s="$1"; s=${s//\\/\\\\}; s=${s//\"/\\\"}
+  s=${s//$'\n'/\\n}; s=${s//$'\r'/\\r}; s=${s//$'\t'/\\t}
+  printf '%s' "$s"
+}
+
+FILE=$(read_field file_path) || exit 0
 [[ -z "$FILE" ]] && exit 0
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
@@ -40,7 +64,16 @@ esac
 
 # Один раз на файл за сессию. Файл состояния привязан к сессии: новая сессия
 # начинает заново, потому что контекст к тому моменту уже другой.
-SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "nosession"' 2>/dev/null)
+SESSION="nosession"
+if command -v jq >/dev/null 2>&1; then
+  SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "nosession"' 2>/dev/null)
+elif command -v python3 >/dev/null 2>&1; then
+  SESSION=$(printf '%s' "$INPUT" | python3 -c 'import json,sys
+try:
+    print(json.load(sys.stdin).get("session_id") or "nosession", end="")
+except Exception:
+    print("nosession", end="")' 2>/dev/null)
+fi
 SEEN="${TMPDIR:-/tmp}/std-recheck-${SESSION}"
 if [[ -f "$SEEN" ]] && grep -qxF "$REL" "$SEEN" 2>/dev/null; then
   exit 0
@@ -128,10 +161,5 @@ printf '%s\n' "$REL" >> "$SEEN" 2>/dev/null
 
 CTX="Файл $REL подпадает под правила: $LIST. Сверь с ними написанное — целиком файл, а не только новые строки. Несоответствия в границах своей правки исправь сразу; если файл расходится с правилами шире правки, назови расхождения человеку и спроси, чинить ли сейчас — молча переписывать чужой код не нужно."
 
-jq -n --arg c "$CTX" '{
-  hookSpecificOutput: {
-    hookEventName: "PostToolUse",
-    additionalContext: $c
-  }
-}'
+printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$(json_escape "$CTX")"
 exit 0

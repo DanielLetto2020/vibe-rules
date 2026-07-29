@@ -20,7 +20,29 @@ set -uo pipefail
 [[ "${STD_DESIGN:-1}" == "0" ]] && exit 0
 
 INPUT=$(cat)
-FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+
+# Разбор входа как в замках: jq, иначе python3. Хук не защищает, а подсказывает,
+# поэтому при отсутствии обоих он молчит — о поломке скажет session-check.
+read_field() { # <поле в tool_input>
+  if command -v jq >/dev/null 2>&1; then
+    printf '%s' "$INPUT" | jq -r --arg f "$1" '.tool_input[$f] // empty' 2>/dev/null; return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    printf '%s' "$INPUT" | python3 -c 'import json,sys
+try:
+    print(json.load(sys.stdin).get("tool_input", {}).get(sys.argv[1], "") or "", end="")
+except Exception:
+    pass' "$1" 2>/dev/null; return 0
+  fi
+  return 1
+}
+json_escape() {
+  local s="$1"; s=${s//\\/\\\\}; s=${s//\"/\\\"}
+  s=${s//$'\n'/\\n}; s=${s//$'\r'/\\r}; s=${s//$'\t'/\\t}
+  printf '%s' "$s"
+}
+
+FILE=$(read_field file_path) || exit 0
 [[ -z "$FILE" ]] && exit 0
 
 case "$FILE" in
@@ -33,7 +55,16 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 
 # Один раз за сессию: палитра не меняется от файла к файлу, а повтор на каждую
 # правку — шум, который отключают вместе с проверкой.
-SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "nosession"' 2>/dev/null)
+SESSION="nosession"
+if command -v jq >/dev/null 2>&1; then
+  SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "nosession"' 2>/dev/null)
+elif command -v python3 >/dev/null 2>&1; then
+  SESSION=$(printf '%s' "$INPUT" | python3 -c 'import json,sys
+try:
+    print(json.load(sys.stdin).get("session_id") or "nosession", end="")
+except Exception:
+    print("nosession", end="")' 2>/dev/null)
+fi
 STAMP="${TMPDIR:-/tmp}/std-design-${SESSION}"
 [[ -f "$STAMP" ]] && exit 0
 
@@ -91,10 +122,5 @@ else
   CTX="Оформление, уже принятое в проекте — ${JOINED%; }. Бери значения отсюда, а не подбирай новые: разнобой вредит интерфейсу сильнее, чем скучное решение. Нужного значения действительно нет — добавь его в общий набор токенов и скажи об этом человеку, а не вписывай по месту."
 fi
 
-jq -n --arg c "$CTX" '{
-  hookSpecificOutput: {
-    hookEventName: "PostToolUse",
-    additionalContext: $c
-  }
-}'
+printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$(json_escape "$CTX")"
 exit 0

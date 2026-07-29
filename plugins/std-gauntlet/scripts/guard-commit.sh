@@ -12,8 +12,49 @@
 set -uo pipefail
 
 INPUT=$(cat)
-CMD=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
-[[ -z "$CMD" ]] && exit 0
+
+# --- std:jq-guard — решение печатается своими силами --------------------------
+# Без этого отсутствие jq выключало замок молча, и «работа сделана» переставало
+# означать «проверки пройдены» — ровно то, ради чего замок и заведён.
+json_escape() {
+  local s="$1"; s=${s//\\/\\\\}; s=${s//\"/\\\"}
+  s=${s//$'\n'/\\n}; s=${s//$'\r'/\\r}; s=${s//$'\t'/\\t}
+  printf '%s' "$s"
+}
+emit() { # <deny|ask> <причина>
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"%s","permissionDecisionReason":"%s"}}\n' \
+    "$1" "$(json_escape "$2")"
+  exit 0
+}
+read_field() { # <поле в tool_input>
+  if command -v jq >/dev/null 2>&1; then
+    printf '%s' "$INPUT" | jq -r --arg f "$1" '.tool_input[$f] // empty' 2>/dev/null; return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    printf '%s' "$INPUT" | python3 -c 'import json,sys
+try:
+    print(json.load(sys.stdin).get("tool_input", {}).get(sys.argv[1], "") or "", end="")
+except Exception:
+    pass' "$1" 2>/dev/null; return 0
+  fi
+  return 1
+}
+read_cfg() { # <файл> <ключ> — с отличием пустого от отсутствующего
+  [[ -f "$1" ]] || return 0
+  if command -v jq >/dev/null 2>&1; then
+    jq -r --arg k "$2" 'if has($k) then .[$k] else "" end' "$1" 2>/dev/null; return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import json,sys
+try:
+    d = json.load(open(sys.argv[1]))
+    v = d.get(sys.argv[2], "")
+    print("" if v == "" else json.dumps(v).strip(chr(34)), end="")
+except Exception:
+    pass' "$1" "$2" 2>/dev/null; return 0
+  fi
+  return 0
+}
 
 # Проект подключён к стандартам? Признак — конфигурация гейтов или слинкованные
 # правила. Плагин ставится на машину и виден во всех проектах, но вмешиваться
@@ -28,6 +69,11 @@ project_uses_standards() {
 
 project_uses_standards || exit 0
 
+if ! CMD=$(read_field command); then
+  emit ask "Замок на коммит не может прочитать запрос: нет ни jq, ни python3. Подтверди, что гейты пройдены, или поставь jq."
+fi
+[[ -z "$CMD" ]] && exit 0
+
 # Интересует только фиксация изменений
 printf '%s' "$CMD" | grep -qE '(^|[;&|[:space:]])git[[:space:]]+commit' || exit 0
 
@@ -35,19 +81,12 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 CFG="$PROJECT_DIR/.claude/gauntlet.json"
 MARK="$PROJECT_DIR/.claude/.gauntlet-pass"
 
-if [[ -f "$CFG" ]] && command -v jq >/dev/null 2>&1; then
-  # has() вместо `// true`: оператор // в jq считает пустым не только null,
-  # но и false, поэтому `.requireBeforeCommit // true` для false вернул бы true
-  # и настройка молча не работала бы.
-  if [[ "$(jq -r 'if has("requireBeforeCommit") then .requireBeforeCommit else true end' "$CFG" 2>/dev/null)" == "false" ]]; then
-    exit 0
-  fi
-fi
+# has() вместо `// true`: оператор // в jq считает пустым не только null,
+# но и false, поэтому `.requireBeforeCommit // true` для false вернул бы true
+# и настройка молча не работала бы.
+[[ "$(read_cfg "$CFG" requireBeforeCommit)" == "false" ]] && exit 0
 
-ask() {
-  jq -n --arg r "$1" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"ask",permissionDecisionReason:$r}}'
-  exit 0
-}
+ask() { emit ask "$1"; }
 
 [[ -f "$MARK" ]] || ask "Гейты ни разу не прогонялись в этом проекте. Запусти /std-gauntlet:run — коммит без прохождения проверок означает, что качество кода никем не подтверждено."
 
