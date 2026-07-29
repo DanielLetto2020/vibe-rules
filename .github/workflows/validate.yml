@@ -2,54 +2,48 @@ name: validate-standards
 
 # Гейт на каждый PR. Ни один шаг не запускает модель и не тратит токены,
 # поэтому проверка идёт секунды и может быть блокирующей.
+#
+# Здесь запускается ровно то же, что запускает человек локально: tests/run.sh
+# целиком. Раньше шаги перечислялись вручную, и список разъехался — мутация
+# данных спецификации, тесты публикации и валидация манифестов в CI не
+# попадали. Прогон, который проверяет меньше заявленного, хуже отсутствующего:
+# зелёная галочка означала не то, что все думали.
 on:
   pull_request:
   push:
     branches: [main]
 
+# По умолчанию токену не нужно ничего, кроме чтения кода.
+permissions:
+  contents: read
+
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Две версии: часть найденных дефектов была не в коде, а в среде —
+        # версия git, локаль, набор программ.
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+
     steps:
-      - uses: actions/checkout@v4
+      # Action запинен на полный SHA, а не на тег: тег подвижен, и его владелец
+      # может изменить содержимое задним числом.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Установить jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Страж приватных данных
-        run: python3 tests/no-private-data.py
-
-      - name: Права на исполнение хуков
-        run: |
-          bad=0
-          while IFS= read -r s; do
-            [ -x "$s" ] || { echo "не исполняемый: $s"; bad=1; }
-          done < <(find plugins tests -name '*.sh' -type f)
-          exit $bad
-
-      - name: Структура модулей и frontmatter
-        run: python3 tests/lint-modules.py
-
-      - name: Замки (unit-тесты хуков)
-        run: bash tests/test-hooks.sh
-
-      - name: Обходы замков и ложные срабатывания
-        run: python3 tests/test-hook-corpus.py
-
-      - name: Автодетект стека и целостность связей
-        run: bash tests/test-link.sh
-
-      - name: Правила уровня проекта
-        run: bash tests/test-rule.sh
-
-      - name: Политика стека
-        run: bash tests/test-policy.sh
-
-      - name: Профили, храповик, единая настройка
+      - name: Настроить git для тестов, создающих репозитории
         run: |
           git config --global user.email ci@example.com
           git config --global user.name CI
-          bash tests/test-profile.sh
+
+      - name: Полный прогон
+        env:
+          LC_ALL: C.UTF-8
+        run: bash tests/run.sh
 
       # test-context.sh не запускается в CI: он поднимает модель.
       # Прогоняйте его локально перед релизом модуля.
