@@ -1,5 +1,5 @@
 {
-  "_comment": "stylelint: npm i -D stylelint stylelint-config-standard. Правила соответствуют rules/10-styles.md.",
+  "_comment": "stylelint: npm i -D stylelint stylelint-config-standard. Правила соответствуют rules/10-styles.md и rules/20-architecture.md.",
   "extends": ["stylelint-config-standard"],
   "rules": {
     "declaration-no-important": true,
@@ -16,6 +16,26 @@
     },
     "property-disallowed-list": ["float"],
     "no-descending-specificity": true,
-    "comment-no-empty": true
-  }
+    "comment-no-empty": true,
+    "selector-max-type": [1, {
+      "message": "Правило пишется на класс: стиль на тег в общем файле выстрелит там, где про него не думали"
+    }],
+    "selector-class-pattern": ["^[a-z][a-z0-9]*(-[a-z0-9]+)*(__[a-z0-9-]+)?(--[a-z0-9-]+)?$", {
+      "message": "Именование по одной схеме на проект — важна не схема, а её единственность"
+    }],
+    "custom-property-pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+    "declaration-property-value-allowed-list": {
+      "z-index": ["/^var\\(--/", "auto", "0", "1", "2", "3"]
+    },
+    "color-named": "never",
+    "shorthand-property-no-redundant-values": true,
+    "media-feature-range-notation": "context"
+  },
+  "overrides": [
+    {
+      "_comment": "В файле токенов hex-значения и есть содержимое — запрет там бессмыслен",
+      "files": ["**/tokens.css", "**/tokens/**/*.css", "**/variables.{css,scss}"],
+      "rules": { "color-no-hex": null, "color-named": null }
+    }
+  ]
 }

@@ -2,6 +2,8 @@
 paths:
   - "**/*.{js,mjs,cjs}"
   - "**/*.{ts,mts,cts}"
+  - "**/*.vue"
+  - "**/*.svelte"
 owner: "@frontend"
 enforcement: lint
 since: "2026-07-26"

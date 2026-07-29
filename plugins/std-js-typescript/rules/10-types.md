@@ -4,6 +4,7 @@ paths:
   - "**/*.tsx"
   - "**/*.mts"
   - "**/*.cts"
+  - "**/*.vue"
   - "**/tsconfig*.json"
 owner: "@frontend"
 enforcement: lint

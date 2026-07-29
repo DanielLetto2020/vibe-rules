@@ -1,0 +1,35 @@
+# Заготовка PHPStan для правил std-php-base.
+#
+# Копируется в корень проекта. Уровень 8 — не максимальный (есть 9 и 10),
+# но первый, на котором проверяется всё, что описано в правилах модуля:
+# типы везде, отсутствие mixed, недостижимый код.
+#
+#   composer require --dev phpstan/phpstan phpstan/extension-installer
+#   vendor/bin/phpstan analyse
+parameters:
+    level: 8
+    paths:
+        - src
+        - app
+
+    # 10-language: отсутствие типа — это mixed, то есть отказ от проверки
+    checkMissingCallableSignature: true
+    checkTooWideReturnTypesInProtectedAndPublicMethods: true
+    reportMaybesInMethodSignatures: true
+
+    # 20-structure: магические методы отключают статический анализ
+    checkDynamicProperties: true
+
+    # 10-language: ошибка сообщается исключением, а не возвратом null.
+    # Проверка ловит обратное: функция, объявленная как возвращающая объект,
+    # но фактически способная вернуть null.
+    checkExplicitMixed: true
+    checkImplicitMixed: false
+
+    # Игнорировать нечего: каждое исключение из правила должно быть видно
+    # в списке, а не растворяться в общем послаблении уровня.
+    ignoreErrors: []
+
+    # Ошибки, которые перестали воспроизводиться, обязаны исчезать из базлайна:
+    # иначе он растёт и превращается в способ не чинить.
+    reportUnmatchedIgnoredErrors: true

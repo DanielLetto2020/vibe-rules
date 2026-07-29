@@ -1,5 +1,5 @@
 {
-  "_comment": "html-validate: npm i -D html-validate. Проверяет то, что в rules/10-markup.md.",
+  "_comment": "html-validate: npm i -D html-validate. Проверяет то, что в rules/10-markup.md, 20-head.md и 30-forms.md.",
   "extends": ["html-validate:recommended", "html-validate:a11y"],
   "rules": {
     "require-sri": "off",
@@ -19,6 +19,13 @@
     "no-autoplay": "error",
     "prefer-native-element": "error",
     "script-type": "error",
-    "long-title": "error"
+    "long-title": "error",
+    "valid-autocomplete": "error",
+    "no-implicit-input-type": "error",
+    "form-dup-name": "error",
+    "unique-landmark": "error",
+    "no-redundant-role": "error",
+    "meta-refresh": "error",
+    "element-required-attributes": "error"
   }
 }
