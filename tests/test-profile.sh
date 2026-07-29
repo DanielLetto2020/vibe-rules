@@ -7,7 +7,7 @@ set -uo pipefail
 export LC_NUMERIC=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-. "$ROOT/tests/require.sh"; require_tools jq git
+. "$ROOT/tests/require.sh"; require_tools jq git python3
 PROF="$ROOT/plugins/std-core/scripts/std-profile.sh"
 SETUP="$ROOT/plugins/std-core/scripts/std-setup.sh"
 RATCHET="$ROOT/plugins/std-gauntlet/scripts/ratchet.sh"
@@ -20,9 +20,9 @@ TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 
 # repo <каталог> <число коммитов> <число авторов> <число тестовых файлов>
 #
-# История создаётся пустыми коммитами: файловые операции на каждой итерации
-# делают подготовку сотен коммитов заметно медленнее, а для определения
-# профиля важно только их количество и авторы.
+# Для определения профиля важны только количество коммитов и авторы, поэтому
+# история создаётся одним потоком fast-import: 250 коммитов появляются за один
+# запуск git вместо 250 запусков подряд.
 repo() {
   local d="$1" commits="$2" authors="$3" tests="$4"
   # Вывод git копится в файл, а не выбрасывается. Раньше здесь стояло
@@ -31,31 +31,80 @@ repo() {
   # проверка ничем не лучше отсутствующей, в том числе своя собственная.
   local log="$d.setup.log"
   mkdir -p "$d/src" "$d/tests"
-  ( cd "$d" || exit 1
-    git init -q
+  # История создаётся одним процессом через fast-import, а не сотнями вызовов
+  # git подряд. Прежний цикл на 250 коммитов дважды падал в CI, оставляя ноль
+  # коммитов и пустой лог: ни один шаг об ошибке не сообщал. Причину так и не
+  # удалось установить, но 250 форков ради истории — сама по себе хрупкость,
+  # и здесь она не нужна: fast-import делает то же за один запуск.
+  #
+  # Даты фиксированные: тест обязан давать один результат при каждом прогоне.
+  ( cd "$d" || { echo "ШАГ cd: не удалось перейти в $d"; exit 1; }
+    git init -q || { echo "ШАГ git init: код $?"; exit 1; }
     local i
     for ((i=1; i<=tests; i++)); do echo "<?php // test $i" > "tests/Case${i}Test.php"; done
     for ((i=1; i<=5; i++)); do echo "<?php // src $i" > "src/File$i.php"; done
-    # add -A обязателен: commit -a видит только уже отслеживаемые файлы
-    git add -A
-    git -c user.email="dev1@x" -c user.name="dev1" commit -qm "c1"
-    local n
-    for ((i=2; i<=commits; i++)); do
-      n=$(( (i % authors) + 1 ))
-      git -c user.email="dev$n@x" -c user.name="dev$n" \
-          commit -q --allow-empty -m "c$i" || exit 1
-    done ) >"$log" 2>&1
+
+    python3 - "$commits" "$authors" "$tests" <<'PY' | git fast-import --quiet \
+      || { echo "ШАГ fast-import: код $?"; exit 1; }
+import sys
+
+commits, authors, tests = (int(a) for a in sys.argv[1:4])
+out = sys.stdout.write
+base_ts = 1750000000          # фиксированная точка отсчёта
+
+def blob(mark, content):
+    data = content.encode()
+    out(f"blob\nmark :{mark}\ndata {len(data)}\n{content}\n")
+
+files = []
+mark = 1
+for i in range(1, tests + 1):
+    blob(mark, f"<?php // test {i}")
+    files.append((f"tests/Case{i}Test.php", mark)); mark += 1
+for i in range(1, 6):
+    blob(mark, f"<?php // src {i}")
+    files.append((f"src/File{i}.php", mark)); mark += 1
+
+for c in range(1, commits + 1):
+    n = (c % authors) + 1 if c > 1 else 1
+    msg = f"c{c}"
+    ts = base_ts + c * 60
+    out(f"commit refs/heads/main\nmark :{mark}\n")
+    out(f"author dev{n} <dev{n}@x> {ts} +0000\n")
+    out(f"committer dev{n} <dev{n}@x> {ts} +0000\n")
+    out(f"data {len(msg)}\n{msg}\n")
+    if c > 1:
+        out(f"from :{mark - 1}\n")
+    else:
+        for path, m in files:
+            out(f"M 644 :{m} {path}\n")
+    mark += 1
+out("done\n")
+PY
+
+    git reset -q --hard main || { echo "ШАГ reset на импортированную ветку: код $?"; exit 1; }
+  ) >"$log" 2>&1
 
   # Подготовка должна быть проверяемой: без этого «профиль определился не так»
   # выглядит как ошибка детектора, хотя история просто не создалась
-  local got
-  got=$(git -C "$d" rev-list --count HEAD 2>/dev/null || echo 0)
+  local got err
+  # stderr не глушим: именно он объясняет, почему счёт не удался — «не
+  # репозиторий», «сомнительное владение каталогом» и прочее. Раньше он уходил
+  # в /dev/null, и диагностика обрывалась на самом интересном месте.
+  err=$(git -C "$d" rev-list --count HEAD 2>&1 >/dev/null)
+  got=$(git -C "$d" rev-list --count HEAD 2>/dev/null) || got=0
+  [[ -z "$got" ]] && got=0
   if [[ "$got" != "$commits" ]]; then
     bad "подготовка репозитория $(basename "$d")" "$commits коммитов" "$got"
     printf '     git: %s\n' "$(git --version 2>&1)"
+    [[ -n "$err" ]] && printf '     rev-list сказал: %s\n' "$err"
+    printf '     каталог: %s\n' "$(ls -ld "$d" 2>&1)"
+    printf '     .git: %s\n' "$(ls -ld "$d/.git" 2>&1)"
+    printf '     свободно в %s: %s\n' "${TMPDIR:-/tmp}" \
+           "$(df -h "${TMPDIR:-/tmp}" 2>/dev/null | tail -1)"
     printf '     что сказал git при подготовке:\n'
     sed 's/^/       /' "$log" 2>/dev/null | tail -15
-    [[ -s "$log" ]] || printf '       (пусто — git отработал молча)\n'
+    [[ -s "$log" ]] || printf '       (пусто — ни один шаг не сообщил об ошибке)\n'
     return 1
   fi
 }
