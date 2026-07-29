@@ -19,8 +19,11 @@ linter config or a hook is a guarantee.
 | Cost of error not covered by tests | rule text, explicit list | `review` |
 | None of the above | rule text | `prose` |
 
-A module made entirely of `prose` is a bad module. The test suite prints the
-prose share on every run — it is expected to fall over time.
+A module made entirely of `prose` is a bad module. The test suite prints, on
+every run, how many rules a machine backs (`lint`, `hook`, `test`) and how many
+rest on a person (`review`, `prose`). The second number is the metric, and it is
+expected to fall over time: `review` means "a human will read the code" — the
+very thing this repository is meant to reduce.
 
 ## When to add a rule at all
 

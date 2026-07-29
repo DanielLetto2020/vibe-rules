@@ -5,9 +5,14 @@ lint-modules.py — структурная валидация репозитор
 Проверяет то, что можно проверить без модели и без токенов: манифесты,
 frontmatter правил, размеры, живость хуков, согласованность каталога.
 
-Главная проверяемая метрика — доля правил с enforcement: prose.
-Она должна падать со временем: правило, оставшееся прозой, соблюдается
-с некоторой вероятностью, а вбитое в линтер или хук — всегда.
+Главная проверяемая метрика — доля правил, за которыми не стоит машина.
+Это prose и review вместе: prose соблюдается с некоторой вероятностью,
+review означает «человек прочитает код» — то самое чтение, от которого
+репозиторий обещает избавить. Считать одну prose было приятнее и неверно:
+получалось 4% там, где неавтоматизировано две трети набора.
+
+Цифра должна падать со временем. Правило, вбитое в линтер, хук или тест,
+работает всегда; остальное работает, пока о нём помнят.
 
 Коды возврата: 0 — чисто, 1 — есть ошибки.
 """
@@ -42,7 +47,8 @@ MAX_ALWAYS_ON_LINES = 60  # для правил без paths: они грузя�
 errors: list[str] = []
 warnings: list[str] = []
 VERSIONED: list[tuple[str, str | None]] = []
-stats = {"rules": 0, "prose": 0, "skills": 0, "modules": 0}
+stats = {"rules": 0, "prose": 0, "review": 0, "lint": 0, "hook": 0, "test": 0,
+         "skills": 0, "modules": 0}
 
 
 def err(msg: str) -> None:
@@ -205,8 +211,8 @@ def check_rules(plugin_dir: Path, name: str) -> None:
             err(f"{rel}: не указан enforcement (lint|hook|test|review|prose)")
         elif enf not in VALID_ENFORCEMENT:
             err(f"{rel}: enforcement='{enf}' вне допустимых значений {sorted(VALID_ENFORCEMENT)}")
-        elif enf == "prose":
-            stats["prose"] += 1
+        else:
+            stats[enf] += 1
 
         if not fm.get("since"):
             warn(f"{rel}: нет since — не видно, когда правило появилось")
@@ -326,9 +332,15 @@ def main() -> int:
     print("=" * 66)
     print(f"Модулей: {stats['modules']}   Правил: {stats['rules']}   Скиллов: {stats['skills']}")
     if stats["rules"]:
-        share = stats["prose"] / stats["rules"] * 100
-        print(f"Доля prose-правил: {stats['prose']}/{stats['rules']} ({share:.0f}%) "
-              f"— эта цифра должна снижаться от квартала к кварталу")
+        machine = stats["lint"] + stats["hook"] + stats["test"]
+        human = stats["prose"] + stats["review"]
+        share = human / stats["rules"] * 100
+        print(f"Чем подкреплены правила: машиной {machine} "
+              f"(lint {stats['lint']}, hook {stats['hook']}, test {stats['test']}), "
+              f"человеком {human} (review {stats['review']}, prose {stats['prose']})")
+        print(f"Не автоматизировано: {human}/{stats['rules']} ({share:.0f}%) "
+              f"— review это «человек прочитает», то есть ровно то, "
+              f"от чего репозиторий обещает избавить. Цифра должна снижаться.")
     print("=" * 66)
 
     for w in warnings:
