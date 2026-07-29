@@ -7,6 +7,7 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$ROOT/tests/require.sh"; require_tools jq git python3
 SCRIPTS="$ROOT/plugins/std-core/scripts"
 PASS=0; FAIL=0
 
@@ -103,6 +104,18 @@ infra_case "файл окружения"              "$TMP/.env"               
 infra_case "правка существующей миграции" "$TMP/database/migrations/2024_create_orders.php" ask
 infra_case "новая миграция разрешена"    "$TMP/database/migrations/2026_add_index.php" allow
 infra_case "обычный код разрешён"        "$TMP/app/Order.php"                          allow
+
+# Периметр обязан охранять собственные ворота: правка настроек хуков или самого
+# скрипта замка отключает всё остальное разом, и ни один тест этого не заметит —
+# проверять станет некому, а зелёный прогон останется зелёным.
+mkdir -p "$TMP/.githooks" "$TMP/.claude/rules"
+touch "$TMP/.claude/settings.json" "$TMP/.githooks/pre-push" \
+      "$TMP/.claude/rules/50-project.md" "$TMP/.claude/policy.json"
+infra_case "настройки хуков и разрешений" "$TMP/.claude/settings.json"      ask
+infra_case "конфигурация гейтов"          "$TMP/.claude/gauntlet.json"      ask
+infra_case "политика стека"               "$TMP/.claude/policy.json"        ask
+infra_case "правило уровня проекта"       "$TMP/.claude/rules/50-project.md" ask
+infra_case "git-хук"                      "$TMP/.githooks/pre-push"         ask
 
 echo "== guard-deps: обход через прямую правку файла зависимостей =="
 printf '{"require":{"php":"^8.3"}}' > "$TMP/composer.json"
@@ -314,7 +327,9 @@ grep -q 'system-ui' <<<"$got" && bad "запасные шрифты не нуж�
 EP="$TMP/design-empty"; mkdir -p "$EP/.claude/rules"; touch "$EP/index.html"
 got=$(design_ctx "$EP" "index.html")
 grep -q 'с нуля' <<<"$got" && ok "пустой проект: сказано, что вёрстка с нуля" || bad "пустой" "с нуля" "$got"
-grep -qi 'градиент' <<<"$got" && ok "названы приметы оформления по умолчанию" || bad "приметы" "градиент" "$got"
+# Без -i: приведение регистра кириллицы зависит от локали, и на машине с LANG=C
+# проверка молча проходила бы мимо. В тексте хука слово строчными.
+grep -q 'градиент' <<<"$got" && ok "названы приметы оформления по умолчанию" || bad "приметы" "градиент" "$got"
 
 # Регрессия: `grep -c` при нуле совпадений возвращает 1, и `|| echo 0`
 # дописывал второй ноль — сравнение падало с синтаксической ошибкой
@@ -341,6 +356,79 @@ f=$(one); s=$(one)
 
 got=$(STD_DESIGN=0 design_ctx "$DP" "index.html")
 [[ -z "$got" ]] && ok "STD_DESIGN=0 отключает напоминание" || bad "выключатель" "молчание" "$got"
+
+echo "== отсутствие jq не открывает ворота =="
+# Самая дорогая из найденных дыр: jq не объявлен зависимостью, а без него
+# разбор входа давал пустую строку и тихий выход — все замки выключались,
+# и снаружи это выглядело как «проверки пройдены». Проверяем оба случая:
+# есть запасной разборщик (работаем как обычно) и нет никакого (не молчим).
+sandbox_path() { # <каталог> <список программ> -> PATH только из них
+  local dir="$1"; shift
+  mkdir -p "$dir"
+  local b p
+  for b in "$@"; do p=$(command -v "$b" 2>/dev/null) && ln -sf "$p" "$dir/$b"; done
+  printf '%s' "$dir"
+}
+
+BASE_TOOLS=(bash sh grep sed awk cat printf basename dirname find head tail tr sort
+            uniq mktemp rm mkdir touch date stat ls env chmod paste comm wc cut expr id)
+NOJQ=$(sandbox_path "$TMP/bin-nojq" "${BASE_TOOLS[@]}")
+BARE=$(sandbox_path "$TMP/bin-bare" "${BASE_TOOLS[@]}")
+# Ссылку на python3 берём по sys.executable, а не по `command -v`: на машинах
+# с pyenv или asdf в PATH лежит обёртка, которая ищет свой менеджер версий
+# в том же PATH и в песочнице не запускается. Тест проверял бы не то.
+PY_REAL=$(python3 -c 'import sys; print(sys.executable)' 2>/dev/null)
+[[ -n "$PY_REAL" ]] && ln -sf "$PY_REAL" "$NOJQ/python3"
+
+nojq_decision() { # <PATH> <скрипт> <json> -> решение
+  local out d
+  out=$(printf '%s' "$3" | PATH="$1" bash "$2" 2>/dev/null)
+  # Пустой вывод — это «решения нет», то есть обычный поток разрешений.
+  # jq на пустом входе вернул бы пустую строку, и «прошло» стало бы
+  # неотличимо от «хук упал».
+  d=$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision // empty' 2>/dev/null)
+  printf '%s' "${d:-allow}"
+}
+
+VOL=$(jq -n '{tool_name:"Bash",tool_input:{command:"podman volume rm data"}}')
+SAFE=$(jq -n '{tool_name:"Bash",tool_input:{command:"podman ps -a"}}')
+
+got=$(nojq_decision "$NOJQ" "$SCRIPTS/guard-bash.sh" "$VOL")
+[[ "$got" == "deny" ]] && ok "без jq, но с python3 замок работает как обычно" \
+  || bad "запасной разборщик" deny "$got"
+
+got=$(nojq_decision "$NOJQ" "$SCRIPTS/guard-bash.sh" "$SAFE")
+[[ "$got" == "allow" ]] && ok "без jq безобидная команда по-прежнему проходит" \
+  || bad "запасной разборщик, безобидное" allow "$got"
+
+got=$(nojq_decision "$BARE" "$SCRIPTS/guard-bash.sh" "$SAFE")
+[[ "$got" == "deny" ]] && ok "без разборщика вовсе — отказ, а не тихий пропуск" \
+  || bad "нет ни jq, ни python3" deny "$got"
+
+out=$(printf '%s' "$SAFE" | PATH="$BARE" bash "$SCRIPTS/guard-bash.sh" 2>/dev/null)
+grep -q 'jq' <<<"$out" && ok "в отказе сказано, чего не хватает" \
+  || bad "текст отказа" "упоминание jq" "$out"
+
+# Замки, работающие только в подключённых проектах, ведут себя так же
+STDP="$TMP/подключённый"; mkdir -p "$STDP/.claude/rules/std-core" "$STDP/tests"
+echo '{}' > "$STDP/.claude/gauntlet.json"; echo '<?php' > "$STDP/tests/BTest.php"
+got=$(printf '%s' "$(jq -n --arg p "$STDP/tests/BTest.php" '{tool_name:"Edit",tool_input:{file_path:$p}}')" \
+      | PATH="$BARE" CLAUDE_PROJECT_DIR="$STDP" bash "$SCRIPTS/guard-tests.sh" 2>/dev/null \
+      | jq -r '.hookSpecificOutput.permissionDecision // "allow"')
+[[ "$got" == "ask" ]] && ok "правка теста без разборщика эскалируется" \
+  || bad "guard-tests без разборщика" ask "$got"
+
+# Человек должен узнать о поломке в начале сессии, а не по факту пропущенной
+# команды: сообщение печатается без jq, иначе предупреждать было бы нечем
+out=$(printf '{}' | PATH="$BARE" CLAUDE_PROJECT_DIR="$STDP" bash "$SCRIPTS/session-check.sh" 2>/dev/null)
+grep -q 'jq' <<<"$out" && ok "старт сессии сообщает, что защита не работает" \
+  || bad "session-check без jq" "предупреждение" "${out:-<пусто>}"
+
+# Мутационный гейт без jq обязан падать: пустая планка читалась как нулевая,
+# и любой результат проходил
+PATH="$BARE" bash "$ROOT/plugins/std-gauntlet/scripts/ratchet.sh" check 5 >/dev/null 2>&1
+[[ $? -ne 0 ]] && ok "храповик без jq падает, а не пропускает" \
+  || bad "ratchet без jq" "ненулевой код" "0"
 
 echo
 printf 'Пройдено: \033[32m%d\033[0m   Провалено: \033[31m%d\033[0m\n' "$PASS" "$FAIL"
