@@ -51,18 +51,25 @@ fi
 [[ "$RECENT_AUTHORS" -gt 0 ]] && EFFECTIVE_AUTHORS=$RECENT_AUTHORS || EFFECTIVE_AUTHORS=$AUTHORS
 
 # --- Факты о тестах ----------------------------------------------------------
+# Отсекаемое объявляется до первого использования: count_files читает PRUNE,
+# и объявление ниже вызова оставляло бы массив пустым.
+#
+# Шаблон `*/node_modules`, а не `./node_modules`: второй совпадает только
+# с папкой в корне репозитория. В монорепозитории зависимости лежат глубже
+# (./client-app/node_modules), фильтр их не видел, и в статистику попадали
+# чужие библиотеки — 872 «теста» проекта, где нет ни одного своего.
+PRUNE=( -path '*/node_modules' -o -path '*/vendor' -o -path '*/.git'
+        -o -path '*/.venv' -o -path '*/venv' -o -path '*/dist' -o -path '*/build'
+        -o -path '*/.nuxt' -o -path '*/.output' -o -path '*/target' )
+
 count_files() { # <маска>...
   local n=0 pat
   for pat in "$@"; do
-    n=$(( n + $(find . \( -path ./node_modules -o -path ./vendor -o -path ./.git \
-          -o -path ./.venv -o -path ./dist -o -path ./build \) -prune -o \
+    n=$(( n + $(find . \( "${PRUNE[@]}" \) -prune -o \
           -name "$pat" -type f -print 2>/dev/null | wc -l) ))
   done
   echo "$n"
 }
-
-PRUNE=( -path ./node_modules -o -path ./vendor -o -path ./.git
-        -o -path ./.venv -o -path ./dist -o -path ./build )
 
 # Тестом считается файл, подходящий по имени ИЛИ лежащий в тестовом каталоге.
 # Только по именам мало: bash- и python-тесты часто называются иначе

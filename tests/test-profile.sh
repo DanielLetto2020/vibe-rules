@@ -105,6 +105,28 @@ mkdir -p "$S1/tests"; echo '<?php' > "$S1/tests/ATest.php"
 got=$(CLAUDE_PROJECT_DIR="$S1" bash "$PROF" --json 2>/dev/null | jq -r '.facts.activeAuthors')
 [[ "$got" == "1" ]] && ok "два адреса одного человека — это один автор" || bad "два адреса" 1 "$got"
 
+# Регрессия: `-path ./node_modules` совпадает только с папкой в корне.
+# В монорепозитории зависимости лежат глубже (client-app/node_modules), и в
+# статистику попадали чужие библиотеки: проект без единого своего теста
+# показывал 872 теста и покрытие 0.11. Поймано на живом проекте.
+MONO="$TMP/monorepo"; mkdir -p "$MONO/src" "$MONO/client-app/node_modules/lib/__tests__" "$MONO/api/vendor/pkg/tests"
+for i in 1 2 3; do echo "x" > "$MONO/src/file$i.ts"; done
+for i in $(seq 1 30); do
+  echo "x" > "$MONO/client-app/node_modules/lib/__tests__/a$i.spec.ts"
+  echo "x" > "$MONO/client-app/node_modules/lib/m$i.js"
+done
+for i in $(seq 1 10); do echo "x" > "$MONO/api/vendor/pkg/tests/T$i.php"; done
+( cd "$MONO" && git init -q 2>/dev/null
+  git -c user.email=a@x -c user.name=a add -A >/dev/null 2>&1
+  git -c user.email=a@x -c user.name=a commit -qm init >/dev/null 2>&1 ) >/dev/null 2>&1
+
+F=$(CLAUDE_PROJECT_DIR="$MONO" bash "$PROF" --json 2>/dev/null)
+got=$(jq -r '.facts.testFiles' <<<"$F")
+[[ "$got" == "0" ]] && ok "вложенные node_modules и vendor не считаются тестами" \
+  || bad "монорепо: тесты" 0 "$got"
+got=$(jq -r '.facts.sourceFiles' <<<"$F")
+[[ "$got" == "3" ]] && ok "в исходники попадает только свой код" || bad "монорепо: исходники" 3 "$got"
+
 echo "== факты о проекте =="
 F=$(CLAUDE_PROJECT_DIR="$TMP/team" bash "$PROF" --json 2>/dev/null)
 [[ "$(jq -r '.facts.activeAuthors' <<<"$F")" == "3" ]] && ok "авторы посчитаны верно" \
