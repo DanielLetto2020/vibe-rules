@@ -105,6 +105,11 @@ V_BEFORE=$(jq -r '.metadata.version' .claude-plugin/marketplace.json)
 OUT=$($P patch 2>&1); RC=$?
 [[ $RC -ne 0 ]] && ok "при красном прогоне публикация обрывается" \
                 || bad "красный CI" "ненулевой код возврата" "$RC"
+# Версия двигается последней. Иначе main остаётся с новым номером и без релиза:
+# состояние, из которого снаружи непонятно, что выпущено, а что нет.
+[[ "$(jq -r '.metadata.version' .claude-plugin/marketplace.json)" == "$V_BEFORE" ]] \
+  && ok "при красном прогоне версия не поднята" \
+  || bad "красный CI" "версия осталась $V_BEFORE" "$(jq -r '.metadata.version' .claude-plugin/marketplace.json)"
 [[ -f "$TMP/release-body.json" ]] && bad "красный CI" "релиз не должен создаваться" "создан" \
                                   || ok "релиз при красном прогоне не создан"
 grep -q 'actions' <<<"$OUT" && ok "сказано, где смотреть прогон" \
