@@ -20,25 +20,33 @@ bad() { printf '  \033[31mFAIL\033[0m %s\n     %s\n' "$1" "$2"; FAIL=$((FAIL+1))
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 
 # ── Изолированный стенд ───────────────────────────────────────────────────────
+#
+# Стенд собирается с нуля, а не клонированием репозитория. Причина найдена
+# в CI: actions/checkout оставляет shallow-копию, клон такой копии тоже
+# shallow, а из shallow нельзя пушить — «shallow update not allowed». Тесты
+# публикации падали только там и молчали о причине. Заодно так проверяется
+# рабочее дерево целиком, а не то, что успели закоммитить.
 git init -q --bare "$TMP/remote.git"
-git clone -q "$ROOT" "$TMP/work" 2>/dev/null || { echo "  клон не удался"; exit 0; }
+mkdir -p "$TMP/work"
+tar -C "$ROOT" --exclude=./.git --exclude=./sandbox -cf - . | tar -C "$TMP/work" -xf -
 cd "$TMP/work" || exit 1
-git remote set-url origin "$TMP/remote.git"
+git init -q .
+git checkout -q -B main 2>/dev/null
+git remote add origin "$TMP/remote.git"
 git config user.email "test@example.invalid"
 git config user.name "test"
 # Хуки включены, как на машине автора. Без этого тесты не заметили, что
 # публикация перестала проходить собственный pre-push: он требует поднятой
 # версии, а версия теперь двигается последней — уже после пуша кода.
 git config core.hooksPath .githooks
-git push -q origin HEAD:main 2>/dev/null
 
-# Клон содержит только закоммиченное, а проверять надо рабочую копию:
-# иначе тест зеленеет на старом скрипте и правку никто не проверяет.
-# Хук — по той же причине: публикация обязана проходить через него, и правка
-# хука без правки публикации (или наоборот) должна валить тест здесь, а не
-# на настоящем пуше.
-cp "$ROOT/tools/publish.sh" tools/publish.sh
-cp "$ROOT/.githooks/pre-push" .githooks/pre-push
+# Базовое состояние и тег на нём. Тег обязателен: без него pre-push молчит
+# (нечего сравнивать с версией), и проверка «публикация проходит собственный
+# хук» стала бы фиктивной. Он же служит точкой отсчёта для списка изменений.
+git add -A >/dev/null 2>&1
+git commit -q -m "Базовое состояние стенда" 2>/dev/null
+git tag "v$(jq -r '.metadata.version' .claude-plugin/marketplace.json)" 2>/dev/null
+git push -q origin HEAD:main 2>/dev/null
 
 # Прогон настоящих тестов занял бы минуты и проверяет не то, что здесь важно
 cat > tests/run.sh <<'EOF'
@@ -64,8 +72,16 @@ EOF
 chmod +x "$TMP/bin/ghapi"
 export PATH="$TMP/bin:$PATH"
 
+# Коммит поверх тега: версия совпадает с последним релизом, а файлы менялись —
+# ровно то состояние, на котором pre-push останавливает ручной пуш.
 git add -A >/dev/null 2>&1
 git commit -q -m "Стенд для тестов публикации" 2>/dev/null
+
+# Стенд обязан быть полноценным репозиторием: из shallow пуш не проходит,
+# и тест краснел бы по причине, к публикации отношения не имеющей.
+[[ "$(git rev-parse --is-shallow-repository)" == "false" ]] \
+  && ok "стенд — полноценный репозиторий, а не shallow" \
+  || bad "стенд" "shallow-копия: пуш из неё невозможен, тест проверял бы не то"
 
 BEFORE=$(git rev-parse HEAD)
 P="bash $TMP/work/tools/publish.sh"
@@ -129,8 +145,14 @@ OLD_V=$(jq -r '.metadata.version' .claude-plugin/marketplace.json)
 OUT=$($P minor "Проверка выпуска" 2>&1)
 NEW_V=$(jq -r '.metadata.version' .claude-plugin/marketplace.json)
 
-[[ "$NEW_V" != "$OLD_V" ]] && ok "версия поднята: $OLD_V -> $NEW_V" \
-                           || bad "бамп версии" "версия не изменилась"
+if [[ "$NEW_V" != "$OLD_V" ]]; then
+  ok "версия поднята: $OLD_V -> $NEW_V"
+else
+  # Печатаем вывод публикации: без него «версия не изменилась» не говорит,
+  # на каком шаге всё встало, и причину приходится искать вслепую.
+  bad "бамп версии" "версия не изменилась"
+  sed 's/^/       /' <<<"$OUT" | tail -20
+fi
 
 # minor обязан обнулить патч: 0.7.3 -> 0.8.0, а не 0.8.3
 [[ "$NEW_V" == *".0" ]] && ok "minor обнуляет патч-компоненту" \
