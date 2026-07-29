@@ -58,6 +58,29 @@ case_detect "Playwright" \
   'echo "{\"devDependencies\":{\"@playwright/test\":\"^1.49\"}}" > package.json' \
   "std-core std-gauntlet std-js-base std-js-playwright"
 
+# Регрессия: манифесты искались только в корне репозитория. В монорепозитории
+# nuxt.config.ts лежит в client-app/, и проект на Nuxt получал правила
+# TypeScript, но не получал правил Nuxt. Поймано на живом проекте.
+case_detect "монорепо: Nuxt в подкаталоге приложения" \
+  'mkdir -p client-app;
+   echo "{\"dependencies\":{\"nuxt\":\"^3.14\",\"vue\":\"^3.5\"}}" > client-app/package.json;
+   echo "export default defineNuxtConfig({})" > client-app/nuxt.config.ts' \
+  "std-core std-gauntlet std-js-base std-js-nuxt std-js-typescript"
+
+case_detect "монорепо: два стека в разных каталогах" \
+  'mkdir -p client-app api;
+   echo "{\"dependencies\":{\"vue\":\"^3.5\"}}" > client-app/package.json;
+   printf "fastapi\n" > api/requirements.txt' \
+  "std-core std-gauntlet std-js-base std-js-vue3 std-py-base std-py-fastapi"
+
+# Чужие зависимости стеком проекта не являются, даже если их манифест
+# выглядит убедительно
+case_detect "манифест внутри node_modules не влияет на стек" \
+  'mkdir -p node_modules/pkg;
+   echo "{\"dependencies\":{\"nuxt\":\"^3.14\"}}" > node_modules/pkg/package.json;
+   printf "<?php\necho 1;\n" > index.php' \
+  "std-core std-gauntlet std-php-base"
+
 case_detect "чистая статика: html + css + js без сборки" \
   'printf "<!doctype html><html lang=ru><body><h1>x</h1></body></html>" > index.html;
    printf "body { color: var(--c); }" > style.css;

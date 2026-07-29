@@ -46,14 +46,52 @@ resolve_standards_home() {
 
 # --- 2. Автодетект стека по файлам проекта -----------------------------------
 
+# Каталоги, которые не участвуют в определении стека ни при каких условиях:
+# чужие зависимости и результаты сборки. Шаблон со звёздочкой, а не './x',
+# потому что второй совпадает только с папкой в корне.
+DETECT_PRUNE=( -path '*/node_modules' -o -path '*/vendor' -o -path '*/.git'
+               -o -path '*/.venv' -o -path '*/venv' -o -path '*/dist'
+               -o -path '*/build' -o -path '*/.nuxt' -o -path '*/.output' )
+
+# Ищет файл по имени в корне, а если там нет — в подкаталогах приложения.
+#
+# Монорепозиторий держит манифест не в корне: nuxt.config.ts лежит
+# в client-app/, composer.json — в api/. Проверка только корня означала,
+# что проект на Nuxt получал правила TypeScript и не получал правил Nuxt.
+find_file() { # <имя>... -> путь первого найденного
+  local name p
+  for name in "$@"; do
+    [[ -f "$PROJECT_DIR/$name" ]] && { printf '%s' "$PROJECT_DIR/$name"; return 0; }
+  done
+  for name in "$@"; do
+    p=$(find "$PROJECT_DIR" -maxdepth 3 \( "${DETECT_PRUNE[@]}" \) -prune -o \
+          -name "$name" -type f -print 2>/dev/null | head -1)
+    [[ -n "$p" ]] && { printf '%s' "$p"; return 0; }
+  done
+  return 1
+}
+
+has_file() { # <имя>... -> 0, если хоть один нашёлся
+  find_file "$@" >/dev/null
+}
+
 # Ищет регулярку в перечисленных файлах проекта. Файлы перебираются по одному:
 # grep со списком, где часть путей не существует, возвращает код 2, и при
 # set -o pipefail это неотличимо от «не найдено» — так уже терялся модуль.
 has_in() { # <регулярка> <файл>...
   local re="$1"; shift
-  local f
+  local f p
   for f in "$@"; do
     [[ -f "$PROJECT_DIR/$f" ]] && grep -qiE "$re" "$PROJECT_DIR/$f" 2>/dev/null && return 0
+  done
+  # Тот же файл глубже: все совпадения, а не первое — в монорепозитории
+  # манифестов несколько, и нужный может оказаться не первым.
+  for f in "$@"; do
+    while IFS= read -r p; do
+      [[ -n "$p" ]] || continue
+      grep -qiE "$re" "$p" 2>/dev/null && return 0
+    done < <(find "$PROJECT_DIR" -maxdepth 3 \( "${DETECT_PRUNE[@]}" \) -prune -o \
+               -name "$f" -type f -print 2>/dev/null)
   done
   return 1
 }
@@ -85,7 +123,7 @@ detect_modules() {
   # Язык и фреймворк — разные модули: PHP не всегда Laravel, и правила
   # уровня языка нужны в любом случае. Фреймворковый модуль добавляется
   # сверх базового, а не вместо него.
-  if [[ -f "$PROJECT_DIR/composer.json" ]] || has_tree '<\?php' '*.php' .; then
+  if has_file composer.json || has_tree '<\?php' '*.php' .; then
     mods+=("php-base")
     has_in '"laravel/framework"' composer.json && mods+=("php-laravel")
     has_in '"yiisoft/yii2"'      composer.json && mods+=("php-yii2")
@@ -106,22 +144,22 @@ detect_modules() {
   fi
 
   # --- JS/TS: Nuxt поглощает Vue, отдельный модуль Vue тогда не нужен ---
-  if [[ -f "$PROJECT_DIR/package.json" ]] \
+  if has_file package.json \
      || has_tree 'function|const |=>' '*.js' . ; then
     mods+=("js-base")
-    if has_in '"nuxt"' package.json || [[ -f "$PROJECT_DIR/nuxt.config.ts" || -f "$PROJECT_DIR/nuxt.config.js" ]]; then
+    if has_in '"nuxt"' package.json || has_file nuxt.config.ts nuxt.config.js nuxt.config.mjs; then
       mods+=("js-nuxt")
     elif has_in '"vue"' package.json; then
       mods+=("js-vue3")
     fi
-    if has_in '@playwright/test' package.json || [[ -f "$PROJECT_DIR/playwright.config.ts" || -f "$PROJECT_DIR/playwright.config.js" ]]; then
+    if has_in '@playwright/test' package.json || has_file playwright.config.ts playwright.config.js; then
       mods+=("js-playwright")
     fi
   fi
 
   # TypeScript — отдельный модуль от js-base: система типов не нужна проекту
   # на чистом JavaScript, а проверять её там не на чем.
-  if [[ -f "$PROJECT_DIR/tsconfig.json" ]] \
+  if has_file tsconfig.json \
      || find "$PROJECT_DIR" -maxdepth 3 \
           \( -path '*/node_modules' -o -path '*/.git' -o -path '*/dist' \) -prune -o \
           \( -name '*.ts' -o -name '*.tsx' \) ! -name '*.d.ts' \
@@ -133,7 +171,7 @@ detect_modules() {
   fi
 
   # --- Python ---
-  if [[ -f "$PROJECT_DIR/pyproject.toml" || -f "$PROJECT_DIR/requirements.txt" ]] \
+  if has_file pyproject.toml requirements.txt \
      || has_tree 'import |def ' '*.py' .; then
     mods+=("py-base")
     if has_in 'fastapi' pyproject.toml requirements.txt; then
@@ -160,7 +198,7 @@ detect_modules() {
 
   # --- Контейнеры ---
   # Ищем не только в корне: compose-файлы часто лежат в docker/, compose/, deploy/
-  if [[ -f "$PROJECT_DIR/Dockerfile" || -f "$PROJECT_DIR/Containerfile" ]] \
+  if has_file Dockerfile Containerfile \
      || find "$PROJECT_DIR" -maxdepth 3 \
           \( -path '*/node_modules' -o -path '*/vendor' -o -path '*/.git' \) -prune -o \
           \( -name 'Dockerfile*' -o -name 'Containerfile*' \
@@ -176,11 +214,11 @@ detect_modules() {
       mods+=("ops-k8s"); break
     fi
   done
-  [[ -f "$PROJECT_DIR/Chart.yaml" ]] && mods+=("ops-k8s")
+  has_file Chart.yaml && mods+=("ops-k8s")
 
   # --- Ansible ---
-  if [[ -f "$PROJECT_DIR/ansible.cfg" || -f "$PROJECT_DIR/playbook.yml" \
-     || -f "$PROJECT_DIR/site.yml" || -d "$PROJECT_DIR/roles" || -d "$PROJECT_DIR/ansible" ]]; then
+  if has_file ansible.cfg playbook.yml site.yml \
+     || [[ -d "$PROJECT_DIR/roles" || -d "$PROJECT_DIR/ansible" ]]; then
     mods+=("ops-ansible")
   elif has_tree 'hosts:|become:|ansible\.builtin' '*.y*ml' .; then
     mods+=("ops-ansible")
