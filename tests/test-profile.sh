@@ -7,6 +7,7 @@ set -uo pipefail
 export LC_NUMERIC=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$ROOT/tests/require.sh"; require_tools jq git
 PROF="$ROOT/plugins/std-core/scripts/std-profile.sh"
 SETUP="$ROOT/plugins/std-core/scripts/std-setup.sh"
 RATCHET="$ROOT/plugins/std-gauntlet/scripts/ratchet.sh"
@@ -24,21 +25,26 @@ TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 # профиля важно только их количество и авторы.
 repo() {
   local d="$1" commits="$2" authors="$3" tests="$4"
+  # Вывод git копится в файл, а не выбрасывается. Раньше здесь стояло
+  # `>/dev/null 2>&1`, и когда подготовка падала в чужой среде, тест сообщал
+  # «получили 0 коммитов» — без единого слова о причине. Молчаливо сломанная
+  # проверка ничем не лучше отсутствующей, в том числе своя собственная.
+  local log="$d.setup.log"
   mkdir -p "$d/src" "$d/tests"
   ( cd "$d" || exit 1
-    git init -q 2>/dev/null
+    git init -q
     local i
     for ((i=1; i<=tests; i++)); do echo "<?php // test $i" > "tests/Case${i}Test.php"; done
     for ((i=1; i<=5; i++)); do echo "<?php // src $i" > "src/File$i.php"; done
     # add -A обязателен: commit -a видит только уже отслеживаемые файлы
-    git add -A >/dev/null 2>&1
-    git -c user.email="dev1@x" -c user.name="dev1" commit -qm "c1" >/dev/null 2>&1
+    git add -A
+    git -c user.email="dev1@x" -c user.name="dev1" commit -qm "c1"
     local n
     for ((i=2; i<=commits; i++)); do
       n=$(( (i % authors) + 1 ))
       git -c user.email="dev$n@x" -c user.name="dev$n" \
-          commit -q --allow-empty -m "c$i" >/dev/null 2>&1
-    done ) >/dev/null 2>&1
+          commit -q --allow-empty -m "c$i" || exit 1
+    done ) >"$log" 2>&1
 
   # Подготовка должна быть проверяемой: без этого «профиль определился не так»
   # выглядит как ошибка детектора, хотя история просто не создалась
@@ -46,6 +52,10 @@ repo() {
   got=$(git -C "$d" rev-list --count HEAD 2>/dev/null || echo 0)
   if [[ "$got" != "$commits" ]]; then
     bad "подготовка репозитория $(basename "$d")" "$commits коммитов" "$got"
+    printf '     git: %s\n' "$(git --version 2>&1)"
+    printf '     что сказал git при подготовке:\n'
+    sed 's/^/       /' "$log" 2>/dev/null | tail -15
+    [[ -s "$log" ]] || printf '       (пусто — git отработал молча)\n'
     return 1
   fi
 }

@@ -7,6 +7,7 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$ROOT/tests/require.sh"; require_tools git
 RULE="$ROOT/plugins/std-core/scripts/std-rule.sh"
 PASS=0; FAIL=0
 ok()  { printf '  \033[32mOK\033[0m   %s\n' "$1"; PASS=$((PASS+1)); }
@@ -90,7 +91,10 @@ M="$P/.claude/rules/billing-migration.md"
 grep -q 'Характеризационные тесты' "$M" 2>/dev/null \
   && ok "миграция требует зафиксировать поведение до правки" \
   || bad "шаблон migration" "нет шага характеризации"
-grep -qi 'заодно' "$M" 2>/dev/null \
+# Оба написания перечислены явно вместо grep -i: приведение регистра для
+# кириллицы требует UTF-8-локали, а на машине с LANG=C его нет — проверка
+# молча не срабатывала и тест краснел там, где всё в порядке.
+grep -qE '(Заодно|заодно)' "$M" 2>/dev/null \
   && ok "запрет на попутные правки старого кода в шаблоне" \
   || bad "шаблон migration" "нет запрета на правки «заодно»"
 

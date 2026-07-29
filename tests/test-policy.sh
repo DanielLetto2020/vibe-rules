@@ -9,6 +9,7 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$ROOT/tests/require.sh"; require_tools jq
 GP="$ROOT/plugins/std-policy/scripts/guard-policy.sh"
 GB="$ROOT/plugins/std-core/scripts/guard-bash.sh"
 PASS=0; FAIL=0

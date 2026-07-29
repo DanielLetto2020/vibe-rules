@@ -8,6 +8,7 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$ROOT/tests/require.sh"; require_tools jq git
 LINK="$ROOT/plugins/std-core/scripts/std-link.sh"
 PASS=0; FAIL=0
 ok()  { printf '  \033[32mOK\033[0m   %s\n' "$1"; PASS=$((PASS+1)); }
