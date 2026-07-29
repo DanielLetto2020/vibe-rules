@@ -298,6 +298,41 @@ grep -q 'профиль: team' <<<"$OUT3" \
   && bad "--fresh определяет заново" "не team" "team" \
   || ok "--fresh забывает записанный профиль и определяет заново"
 
+# Регрессия: слияние конфигов кладёт старый файл поверх нового, поэтому
+# записанный профиль перебивал явный --profile. Скрипт печатал «профиль
+# prototype», а в файл писал прежний solo — смена профиля на уже настроенном
+# проекте молча не срабатывала. Поймано на живом проекте.
+SW="$TMP/switchproj"; mkdir -p "$SW/.claude"
+printf '{"profile":"solo","gates":{"test":"МОЯ КОМАНДА"},"mutation":{"enabled":true,"mode":"ratchet","floor":50},"requireBeforeCommit":true,"guardTests":"ask","specFirst":true}' \
+  > "$SW/.claude/gauntlet.json"
+VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
+  CLAUDE_PROJECT_DIR="$SW" bash "$SETUP" --profile prototype --no-install >/dev/null 2>&1
+
+got=$(jq -r '.profile' "$SW/.claude/gauntlet.json")
+[[ "$got" == "prototype" ]] && ok "явный --profile перебивает записанный" || bad "смена профиля" prototype "$got"
+
+# Профиль — это набор требований целиком, а не одна строка в файле
+for k in specFirst:false requireBeforeCommit:false guardTests:\"off\"; do
+  key=${k%%:*}; want=${k#*:}
+  got=$(jq -c ".$key" "$SW/.claude/gauntlet.json")
+  [[ "$got" == "$want" ]] || bad "смена профиля: $key" "$want" "$got"
+done
+[[ "$(jq -c '.mutation.enabled' "$SW/.claude/gauntlet.json")" == "false" ]] \
+  || bad "смена профиля: mutation" false "$(jq -c '.mutation' "$SW/.claude/gauntlet.json")"
+ok "вместе с профилем меняются все его параметры"
+
+# Гейты правят под проект, а не под уровень строгости — они остаются ручными
+[[ "$(jq -r '.gates.test' "$SW/.claude/gauntlet.json")" == "МОЯ КОМАНДА" ]] \
+  && ok "ручные гейты переживают смену профиля" \
+  || bad "гейты при смене профиля" "МОЯ КОМАНДА" "$(jq -r '.gates.test' "$SW/.claude/gauntlet.json")"
+
+# Без явного аргумента повторный запуск профиль не трогает
+VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
+  CLAUDE_PROJECT_DIR="$SW" bash "$SETUP" --no-install >/dev/null 2>&1
+[[ "$(jq -r '.profile' "$SW/.claude/gauntlet.json")" == "prototype" ]] \
+  && ok "повторный запуск без аргумента профиль не меняет" \
+  || bad "повторный запуск" prototype "$(jq -r '.profile' "$SW/.claude/gauntlet.json")"
+
 echo "== отключение проекта от стандартов =="
 # Обратная операция живёт в той же команде: подключение и отключение —
 # одно решение, принятое в разные стороны.

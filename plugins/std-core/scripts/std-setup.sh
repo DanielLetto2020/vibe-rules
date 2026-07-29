@@ -371,6 +371,28 @@ else
     # Ручные правки важнее автогенерации: сохраняем то, что человек уже задал
     NEW_CFG=$(jq -s '.[0] * .[1]' <<<"$NEW_CFG"$'\n'"$(cat "$CFG")")
     ylw "  существующий gauntlet.json сохранён, значения слиты"
+
+    # ...но не важнее того, что человек только что попросил. Слияние кладёт
+    # старый файл поверх нового, поэтому записанный профиль перебивал явный
+    # --profile: скрипт печатал «профиль prototype», а в файл писал прежний
+    # solo. Смена профиля на любом уже настроенном проекте молча не срабатывала.
+    #
+    # Аргумент и --fresh возвращают параметры профиля обратно. Гейты при этом
+    # остаются ручными: их правят под проект, а не под уровень строгости.
+    if [[ -n "$FORCE_PROFILE" || $SYNC -eq 0 ]]; then
+      NEW_CFG=$(jq \
+        --arg profile "$PROFILE" \
+        --argjson mutation "$MUT_JSON" \
+        --argjson rbc "$(jq '.requireBeforeCommit' <<<"$P")" \
+        --arg guardTests "$(jq -r '.guardTests' <<<"$P")" \
+        --argjson specFirst "$(jq '.specFirst' <<<"$P")" \
+        '.profile = $profile
+         | .mutation = $mutation
+         | .requireBeforeCommit = $rbc
+         | .guardTests = $guardTests
+         | .specFirst = $specFirst' <<<"$NEW_CFG")
+      ylw "  профиль задан явно — его параметры применены поверх прежних"
+    fi
   fi
   printf '%s\n' "$(jq . <<<"$NEW_CFG")" > "$CFG"
   grn "  записан .claude/gauntlet.json"
