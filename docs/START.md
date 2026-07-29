@@ -148,12 +148,14 @@ a password.
 
 | Profile | For | Strictness |
 |---|---|---|
-| prototype | testing an idea, code likely thrown away | almost nothing required |
-| solo | real project, single author | moderate, without ceremony |
-| team | code is read by people who did not write it | moderate + consistency |
-| legacy | old code without tests | pin current behaviour first |
-| corporate | an organisation policy applies | required checks come from above |
-| regulated | money, personal data | maximum; editing tests is forbidden |
+| prototype | the default: rules and locks, nothing else | almost nothing required |
+| solo | opt-in: real project, single author | moderate, without ceremony |
+| team | opt-in: code is read by people who did not write it | moderate + consistency |
+| legacy | old code without tests (detected automatically) | pin current behaviour first |
+
+Strictness is never guessed from the repository: `solo` and `team` are opted
+into with `--profile`, because a requirement with nothing to enforce it
+devalues the ones that work.
 
 ### Rules and profiles are different things
 

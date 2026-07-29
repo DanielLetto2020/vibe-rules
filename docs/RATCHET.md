@@ -123,8 +123,9 @@ When quality is already high and you want a firm number:
 { "mutation": { "enabled": true, "mode": "absolute", "threshold": 80 } }
 ```
 
-That is how the `regulated` profile is set: a regulated environment needs a
-stated figure, not "no worse than yesterday".
+No ready-made profile is set this way: a stated figure is needed where an
+outside party requires it — an audit, a regulation, a contract. That is
+a person's decision, not something inferred from the repository.
 
 ### Changed files only
 

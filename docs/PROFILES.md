@@ -18,7 +18,7 @@ Three places a profile lives:
 
 | Where | What is there | Who edits it |
 |---|---|---|
-| `plugins/std-core/profiles/profiles.json` | six ready profiles | whoever maintains the standards repo |
+| `plugins/std-core/profiles/profiles.json` | four ready profiles | whoever maintains the standards repo |
 | `.claude/gauntlet.json` in the project | the chosen profile and its settings | you, in your project |
 | the `--profile` argument | which profile to pick | you, at setup |
 
@@ -32,8 +32,15 @@ When setting up a project:
 /std-core:setup --profile solo
 ```
 
-With no argument the profile is inferred — from the number of authors, the
-number of commits and whether tests exist.
+With no argument the profile is `prototype`: rules and locks work, the quality
+bar does not rise on its own. The one exception is `legacy`, detected from
+facts (200+ commits with almost no tests), because that is not a level of
+strictness but a mode of working with uncovered code.
+
+Strictness is deliberately not guessed from the repository. A single author
+used to mean `solo`, so a project without a single test was told to write specs
+and run gates it does not have. A requirement with nothing to enforce it
+devalues the ones that work.
 
 To see what would be chosen without changing anything:
 
@@ -139,7 +146,7 @@ protection off.
 
 ## Creating your own profile
 
-Useful when a team has a mode none of the six cover. For example an "internal
+Useful when a team has a mode none of the four cover. For example an "internal
 tool": tests needed, spec not, gates light.
 
 Add it to the standards repository, in
@@ -187,9 +194,9 @@ If you want the profile picked automatically, add a rule to the `detection`
 section of the same file. Think twice, though: intent is hard to infer from
 code, and getting it wrong is irritating.
 
-`corporate` and `regulated` are deliberately **never** auto-selected: deciding
-from code that a project handles money or medical data is not reliable, and the
-error is expensive.
+Today only `legacy` is auto-selected. `solo` and `team` are chosen by a person:
+the number of authors tells you how many people commit, not what quality bar
+the project is prepared to hold.
 
 ---
 

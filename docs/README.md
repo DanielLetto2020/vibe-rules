@@ -50,7 +50,7 @@ It also untangles a common confusion: **rules do not depend on profiles**.
 
 **[Profiles](PROFILES.md)** · ~10 min
 
-Where the six ready profiles live, how to choose one, how to adapt it without
+Where the ready profiles live, how to choose one, how to adapt it without
 touching the shared repository, and how to create your own. Plus what you
 **cannot** override — the safety locks.
 
