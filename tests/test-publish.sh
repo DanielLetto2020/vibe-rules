@@ -12,11 +12,10 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$ROOT/tests/require.sh"; require_tools jq git
 PASS=0; FAIL=0
 ok()  { printf '  \033[32mOK\033[0m   %s\n' "$1"; PASS=$((PASS+1)); }
 bad() { printf '  \033[31mFAIL\033[0m %s\n     %s\n' "$1" "$2"; FAIL=$((FAIL+1)); }
-
-command -v jq >/dev/null 2>&1 || { echo "  jq не найден — тесты пропущены"; exit 0; }
 
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 
@@ -40,10 +39,17 @@ echo "ВСЁ ЗЕЛЁНОЕ"; exit 0
 EOF
 chmod +x tests/run.sh
 
-# Заглушка ghapi: записывает тело релиза и отвечает как настоящий
+# Заглушка ghapi: отвечает и про прогон на GitHub, и про создание релиза.
+# Состояние прогона задаётся файлом ci-state — так проверяется главное:
+# при красном прогоне релиз не создаётся.
 mkdir -p "$TMP/bin"
+echo "success" > "$TMP/ci-state"
 cat > "$TMP/bin/ghapi" <<EOF
 #!/usr/bin/env bash
+if [[ "\${2:-}" == *"actions/runs"* ]]; then
+  printf '{"workflow_runs":[{"status":"completed","conclusion":"%s"}]}' "\$(cat "$TMP/ci-state")"
+  exit 0
+fi
 printf '%s' "\${3:-}" > "$TMP/release-body.json"
 echo '{"html_url":"https://example.invalid/releases/tag/test"}'
 EOF
@@ -90,6 +96,20 @@ $P patch >/dev/null 2>&1
   && ok "публикация при незакоммиченных правках отменяется" \
   || bad "грязное дерево" "код не 1"
 git reset -q HEAD untracked-change.txt; rm -f untracked-change.txt
+
+echo "== красный прогон на GitHub останавливает выпуск =="
+# Версия 0.9.4 ушла в релиз при красном CI, потому что проверялся только
+# локальный прогон. Теперь состояние проверок у пользователей — условие выпуска.
+echo "failure" > "$TMP/ci-state"
+V_BEFORE=$(jq -r '.metadata.version' .claude-plugin/marketplace.json)
+OUT=$($P patch 2>&1); RC=$?
+[[ $RC -ne 0 ]] && ok "при красном прогоне публикация обрывается" \
+                || bad "красный CI" "ненулевой код возврата" "$RC"
+[[ -f "$TMP/release-body.json" ]] && bad "красный CI" "релиз не должен создаваться" "создан" \
+                                  || ok "релиз при красном прогоне не создан"
+grep -q 'actions' <<<"$OUT" && ok "сказано, где смотреть прогон" \
+                            || bad "красный CI" "ссылка на прогон" "нет"
+echo "success" > "$TMP/ci-state"
 
 echo "== настоящая публикация в изолированный стенд =="
 OLD_V=$(jq -r '.metadata.version' .claude-plugin/marketplace.json)
