@@ -20,8 +20,10 @@ There are two kinds of content here, and the second matters more:
 - **locks** — scripts that fire before a dangerous command runs. Deleting
   a data volume will not happen, whatever the agent decided.
 
-> A rule in prose is a request. A rule in a lock is a guarantee.
-> A request is honoured nine times out of ten. A lock has no percentage.
+> A rule in prose is a request. A rule in a lock is a check that always runs.
+> A request is honoured nine times out of ten; a check does not depend on
+> whether anyone remembered it. It is not a sandbox — see
+> [what the locks do not catch](#what-the-locks-do-not-catch).
 
 The end goal is to reach a state where not reading the generated code is a
 defensible position rather than recklessness. Not by trusting the agent, but by
@@ -54,7 +56,7 @@ Rules are organised **by when they load**, not by topic:
 
 | Layer | Analogy | When it reaches the agent | Cost |
 |---|---|---|---|
-| **Lock** | a lock on the machine | never — it simply fires | 0 tokens, 100% enforced |
+| **Lock** | a lock on the machine | never — it simply fires | 0 tokens, runs every time |
 | **Always-on** | the morning briefing | every session | expensive, ≤200 lines |
 | **Path-scoped** | a label on the machine | when a matching file is opened | pay only when relevant |
 | **Task-scoped** | a manual on the shelf | when the task matches | pay only when relevant |
@@ -380,19 +382,63 @@ exposed a vague requirement.
 gauntlet run. Without it, gates are a good intention — run when remembered.
 With it, "work is done" and "checks passed" become the same event.
 
+**The gauntlet installs on its own.** `std-gauntlet` is a standalone plugin:
+the mutation ratchet and the test-edit lock work without any of the stack
+modules, if the per-stack rules are not what you came for.
+
+```
+/plugin install std-gauntlet@vibe-rules
+```
+
 ## What the locks actually block
 
 Locks are `PreToolUse` hooks. They execute regardless of what the model decided
-or remembered. 49 unit tests cover them.
+or remembered. 85 unit tests plus a 77-case corpus of bypasses and false
+positives cover them.
 
 | Lock | Blocks |
 |---|---|
-| `guard-bash` | container/image/volume deletion, force-push, `--no-verify`, `migrate:fresh`, `DROP DATABASE`, `rm -rf /` |
+| `guard-bash` | container/image/volume deletion, force-push (including `+refspec`), `--no-verify` and `commit -n`, `core.hooksPath` swaps, `migrate:fresh`, `DROP TABLE`/`DROP DATABASE`, `rm -rf /` and `~/`, `find / -delete`, `dd` onto a device, `mkfs`, recursive `chmod`/`chown` on system paths |
 | `guard-tests` | **editing an existing test** (creating new ones is free) |
-| `guard-infra` | edits to k8s manifests, playbooks, CI config, Dockerfiles, applied migrations, `.env` |
+| `guard-infra` | edits to k8s manifests, playbooks, CI config, Dockerfiles, applied migrations, `.env` — **and to the enforcement machinery itself**: `.claude/settings.json`, project rules, gate config, git hooks |
 | `guard-deps` | adding a dependency by editing `composer.json`/`package.json` directly |
 | `guard-commit` | committing without a green gauntlet run |
 | `secret-scan` | secrets written in plaintext (`PostToolUse`) |
+
+The command is parsed, not pattern-matched as a whole string. Wrappers are
+unwrapped (`sudo`, `env`, `timeout`, `bash -c "…"`), variables assigned in the
+same line are substituted, and text-only commands are left alone — so
+`echo "never run migrate:fresh"` and `git log --grep "drop database"` pass,
+while `bash -c "docker volume rm x"` does not.
+
+Opaque execution is escalated rather than ignored: `curl … | bash`,
+`base64 -d | sh`, `eval` and process substitution ask for confirmation, because
+their contents cannot honestly be inspected.
+
+### What the locks do not catch
+
+A lock catches the routine, unintentional destruction — forgetfulness, not
+intent. It is defence in depth, not a security boundary and not a sandbox.
+The gaps below are deliberate and pinned in `tests/hook-corpus.tsv`, so they
+stay named instead of drifting into wishful thinking.
+
+| Not caught | Why |
+|---|---|
+| `bash deploy.sh` | the contents of a script file are never read |
+| `./tools/cleanup` | your own binary is just as opaque |
+| `python3 -c "shutil.rmtree('/')"` | destruction inside a language runtime, not in the shell |
+| `$TOOL volume rm cache` | the variable came from the environment, not from this line |
+| `curl -X DELETE https://api/...` | destruction through a network call |
+| `make clean-all` | a makefile target is not visible to command parsing |
+
+The right way to read this: locks make the common accident impossible and the
+deliberate bypass visible. If you need a hard boundary, run the agent in a
+container with real permissions — the locks complement that, not replace it.
+
+`jq` is a hard dependency. Missing it used to disable every lock silently;
+now commands are blocked with an explanation and the session says so on start.
+Where `python3` is present it is used as a fallback and everything keeps
+working.
 
 `guard-tests` closes the central hole in the whole approach: when a test fails,
 the model has two options — fix the code or weaken the test. The second is
@@ -449,19 +495,32 @@ as a blocking CI gate:
 
 1. **Executable bits** — a non-executable hook fails silently.
 2. **Module structure** — manifests, frontmatter, `owner`, `enforcement`, dead
-   `paths:`, always-on context size, prose share.
-3. **Locks** — 49 cases: JSON in, `allow`/`deny`/`ask` out.
-4. **Stack detection and link integrity** — 20 cases, including regressions for
+   `paths:`, always-on context size, share of rules no machine backs.
+3. **Locks** — 85 cases: JSON in, `allow`/`deny`/`ask` out. Behaviour without
+   `jq` is tested separately: the lock must refuse, not go quiet.
+4. **Bypasses and false positives** — a 77-case corpus
+   (`tests/hook-corpus.tsv`): rewritten forms of dangerous commands, harmless
+   commands containing dangerous words, and the acknowledged gaps. The
+   false-positive rate is printed as a number — a lock that gets in the way is
+   removed along with all the others.
+5. **Stack detection and link integrity** — 33 cases, including regressions for
    bugs found during development.
-5. **Profiles, ratchet and setup** — 20 cases: profile inference from a
+6. **Profiles, ratchet and setup** — 63 cases: profile inference from a
    synthetic git history, ratchet raising and holding the bar, profile
    controlling lock strictness, repeated setup preserving manual edits.
-6. **Stack policy** — 20 cases, including: an exempt project keeps its safety
+7. **Stack policy** — 20 cases, including: an exempt project keeps its safety
    locks, and a project without a policy file is left alone.
-7. **Project-level rules** — 19 cases: template, precedence file, deviation
+8. **Project-level rules** — 26 cases: template, precedence file, deviation
    recording, and the split between committed project rules and gitignored
    shared symlinks.
-8. **`claude plugin validate --strict`** on every module.
+9. **Publishing** — 22 cases, including: no release is cut until the GitHub run
+   is green.
+10. **`claude plugin validate --strict`** on every module.
+
+The whole suite is run in a clean container under the `C` locale — tests have
+to pass on someone else's machine, not only the author's. Missing tooling is
+reported in one line up front: "nothing to check with" and "checks failed" are
+different news.
 
 Separately, `tests/test-context.sh` verifies what usually stays an act of
 faith: that a rule **actually loaded** into context for the right file. It's

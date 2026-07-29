@@ -139,8 +139,10 @@ Settings, history, resetting the bar and changing the logic itself —
 A set of requirements matched to the state of the project. A throwaway
 prototype does not need what a billing system needs.
 
-The profile is worked out automatically — from how many people commit, how many
-commits exist and whether tests exist. One command changes it.
+By default a project gets `prototype`. The one exception is `legacy`, which is
+recognised from facts (200+ commits with almost no tests) — that is a mode of
+working with uncovered code, not a level of strictness. Everything else is
+opted into with one command.
 
 **Important:** a profile moves the quality bar but **never touches the safety
 locks**. No profile allows deleting a volume, force-pushing or committing

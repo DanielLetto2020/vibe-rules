@@ -22,6 +22,11 @@ scope:
 - **A lock that can be bypassed** — `guard-bash`, `guard-tests`,
   `guard-infra`, `guard-deps`, `guard-commit`. If a destructive command passes
   a lock that should stop it, that is a vulnerability, not a feature request.
+  The exception is the gaps listed under
+  [what the locks do not catch](README.md#what-the-locks-do-not-catch) — script
+  files, your own binaries, destruction inside a language runtime. Those are
+  named on purpose and pinned in `tests/hook-corpus.tsv`; a new bypass outside
+  that list is worth reporting, and a corpus entry is welcome with it.
 - **Path traversal in `std-link.sh`** — it creates symlinks based on values
   resolved from configuration files.
 - **Secret disclosure** — `secret-scan` writes matched lines to stderr; a case
