@@ -112,6 +112,28 @@ a time, rather than in a refactor scheduled for someday. Disable with
 installs the plugins it needs, links the matching stack modules and writes the
 gate configuration. Nothing to pick by hand.
 
+### Three commands, that's it
+
+```bash
+/std-core:setup            connect a project — or re-sync one already connected
+/std-core:update           update the standards to the latest version
+/std-core:setup --remove   disconnect a project from the standards
+```
+
+`setup` is idempotent: the first run configures, every later run re-reads the
+project and installs whatever the stack has gained, keeping the profile and any
+manual edits. There is deliberately no separate sync command — remembering how
+"configure" differs from "re-sync" should not be a person's job.
+
+`update` performs three steps that each look complete on their own yet achieve
+nothing apart: it updates the marketplace catalogue, updates the plugins, and
+re-points the rule symlinks — the install path changes with the version, and
+without re-pointing the rules quietly stop loading. A session restart is
+required afterwards.
+
+Two more commands as needed: `/std-core:doctor` shows what is actually linked
+and loaded, `/std-core:rule` creates a project-level rule.
+
 ### Bound to the project, not to your machine
 
 `--scope project` writes `.claude/settings.json` listing the marketplace and

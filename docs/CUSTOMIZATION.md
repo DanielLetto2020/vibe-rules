@@ -140,7 +140,7 @@ indistinguishable from an oversight, and nobody will dare remove it.
 The symlink is removed and a stub with a place for the reason is appended to
 `00-precedence.md`. Fill it in right away — the command will remind you.
 
-To restore it: `/std-core:sync`.
+To restore it: `/std-core:setup`.
 
 This is a rare case. Usually you do not want to disable a module, only to
 disagree with one of its rules — a departure is enough for that.

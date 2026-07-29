@@ -247,7 +247,7 @@ conflicts — then describing the deviation is better than dropping the module.
 
 ```bash
 /std-core:setup           once per project — detects, installs, links, configures
-/std-core:sync            when the stack gains something new
+/std-core:setup           when the stack gains something new
 /std-core:rule new <name> when this project needs its own rule
 /std-gauntlet:run         before committing (the lock reminds you anyway)
 ```

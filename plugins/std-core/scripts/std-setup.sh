@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
-# std-setup.sh — вся настройка проекта одной командой.
+# std-setup.sh — настройка и пересинхронизация проекта одной командой.
 #
 # Заменяет последовательность link → profile → gauntlet:init → doctor.
 # Каждая дополнительная команда на старте — это место, где внедрение
 # останавливается: человек сделал первый шаг, отвлёкся и не вернулся.
 #
-#   std-setup.sh                определить всё и настроить
-#   std-setup.sh --sync         перечитать проект и доустановить недостающее
+# Команда идемпотентна: первый запуск настраивает, повторный — перечитывает
+# проект и доустанавливает появившееся, сохраняя профиль и ручные правки.
+# Отдельной команды синхронизации нет намеренно — помнить, чем «настроить»
+# отличается от «досинхронизировать», не должно быть обязанностью человека.
+#
+#   std-setup.sh                настроить или досинхронизировать
 #   std-setup.sh --profile team явно задать профиль
+#   std-setup.sh --fresh        определить профиль заново, забыв записанный
+#   std-setup.sh --remove       отключить проект от стандартов
 #   std-setup.sh --dry-run      показать, что будет сделано, ничего не меняя
 #   std-setup.sh --no-install   не ставить плагины, только правила и конфиг
 #   std-setup.sh --scope project  привязать плагины к проекту, а не к машине
@@ -20,7 +26,9 @@ PROFILES="$HERE/../profiles/profiles.json"
 CFG_DIR="$PROJECT_DIR/.claude"
 CFG="$CFG_DIR/gauntlet.json"
 
-FORCE_PROFILE=""; DRY=0; NO_INSTALL=0; SYNC=0
+# SYNC=1 по умолчанию: если проект уже настроен, его профиль сохраняется.
+# Переопределить — --fresh или явный --profile.
+FORCE_PROFILE=""; DRY=0; NO_INSTALL=0; SYNC=1; REMOVE=0
 # user    — плагины на машине, во всех проектах
 # project — в .claude/settings.json проекта: получат все, кто его склонирует
 # local   — только в этом проекте и только у тебя
@@ -30,6 +38,10 @@ while [[ $# -gt 0 ]]; do
     --profile)    FORCE_PROFILE="${2:-}"; shift 2 ;;
     --dry-run)    DRY=1; shift ;;
     --no-install) NO_INSTALL=1; shift ;;
+    --fresh)      SYNC=0; shift ;;
+    --remove)     REMOVE=1; shift ;;
+    # Принимается ради установок, где команда записана в скриптах: раньше
+    # пересинхронизация требовала явного флага, теперь это поведение по умолчанию.
     --sync)       SYNC=1; shift ;;
     --scope)      SCOPE="${2:-user}"; shift 2 ;;
     *) shift ;;
@@ -46,6 +58,55 @@ b()   { printf '\033[1m%s\033[0m\n' "$*"; }
 grn() { printf '\033[32m%s\033[0m\n' "$*"; }
 ylw() { printf '\033[33m%s\033[0m\n' "$*"; }
 red() { printf '\033[31m%s\033[0m\n' "$*"; }
+
+# ── Отключение проекта от стандартов ──────────────────────────────────────────
+# Живёт здесь, а не отдельной командой: подключение и отключение — одно решение,
+# принятое в разные стороны, и искать для второго другое имя незачем.
+#
+# Убирается только то, что создали стандарты. Правила проекта, чужие настройки
+# и история решений остаются: удалять чужое при отключении никто не просил.
+if [[ $REMOVE -eq 1 ]]; then
+  b "▸ Отключение проекта от стандартов"
+  if [[ $DRY -eq 1 ]]; then
+    ylw "  (dry-run) отвязал бы правила, убрал gauntlet.json и записи маркетплейса"
+    exit 0
+  fi
+
+  bash "$HERE/std-link.sh" --unlink 2>/dev/null || true
+
+  for f in "$CFG" "$CFG_DIR/.ratchet.json" "$CFG_DIR/.gauntlet-pass" "$CFG_DIR/.std-trace.jsonl"; do
+    [[ -e "$f" ]] && { rm -f "$f"; grn "  - удалён $(basename "$f")"; }
+  done
+
+  SETTINGS="$CFG_DIR/settings.json"
+  if [[ -f "$SETTINGS" ]] && command -v jq >/dev/null 2>&1; then
+    upd=$(jq --arg m "$MARKETPLACE_NAME" --arg suf "@$MARKETPLACE_NAME" '
+      if has("extraKnownMarketplaces") then .extraKnownMarketplaces |= del(.[$m]) else . end
+      | if (.extraKnownMarketplaces // {}) == {} then del(.extraKnownMarketplaces) else . end
+      | if has("enabledPlugins")
+          then .enabledPlugins |= with_entries(select(.key | endswith($suf) | not))
+          else . end
+      | if (.enabledPlugins // {}) == {} then del(.enabledPlugins) else . end
+    ' "$SETTINGS" 2>/dev/null)
+    if [[ -n "$upd" ]]; then
+      if [[ "$upd" == "{}" ]]; then
+        rm -f "$SETTINGS"; grn "  - удалён settings.json (в нём не было ничего своего)"
+      else
+        printf '%s\n' "$upd" > "$SETTINGS"; grn "  - из settings.json убраны записи стандартов"
+      fi
+    fi
+  fi
+
+  rmdir "$CFG_DIR/rules" 2>/dev/null && grn "  - удалён пустой .claude/rules"
+  rmdir "$CFG_DIR" 2>/dev/null && grn "  - удалён пустой .claude"
+
+  echo
+  grn "════ ПРОЕКТ ОТКЛЮЧЁН ════"
+  echo "Правила проекта и чужие настройки не тронуты."
+  echo "Плагины остались на машине — они нужны другим проектам."
+  echo "Подключить обратно: /std-core:setup --scope project"
+  exit 0
+fi
 
 # ── 1. Профиль ────────────────────────────────────────────────────────────────
 b "▸ 1/5  Состояние проекта"

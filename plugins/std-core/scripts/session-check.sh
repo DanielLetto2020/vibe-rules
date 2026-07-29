@@ -24,7 +24,7 @@ done
 shopt -u nullglob
 
 if [[ ${#broken[@]} -gt 0 ]]; then
-  msg="Битые ссылки на стандарты: ${broken[*]}. Правила НЕ загружены. Почини: /std-core:link"
+  msg="Битые ссылки на стандарты: ${broken[*]}. Правила НЕ загружены. Почини: /std-core:update"
   jq -n --arg m "$msg" '{
     systemMessage: $m,
     hookSpecificOutput: {

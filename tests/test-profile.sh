@@ -165,6 +165,69 @@ VIBE_RULES_HOME="$ROOT" CLAUDE_PROJECT_DIR="$S" bash "$SETUP" >/dev/null 2>&1
   && ok "повторный setup сохраняет ручные правки" \
   || bad "слияние конфигов" "МОЯ КОМАНДА" "$(jq -r '.gates.test' "$S/.claude/gauntlet.json")"
 
+echo "== обновление стандартов одной командой =="
+# CLI подменяем заглушкой: иначе тест зависел бы от того, что установлено
+# на машине, и от доступности сети.
+UPD="$ROOT/plugins/std-core/scripts/std-update.sh"
+FAKE="$TMP/fakecli"; mkdir -p "$FAKE"
+LOGF="$TMP/cli-calls.log"
+
+make_cli() { # <версия, которую вернёт list> — заглушка claude
+  cat > "$FAKE/claude" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$LOGF"
+case "\$1 \$2" in
+  "plugin list")
+    echo '[{"id":"std-core@vibe-rules","version":"$1","scope":"user"},
+           {"id":"std-gauntlet@vibe-rules","version":"$1","scope":"user"},
+           {"id":"other@claude-plugins-official","version":"9.9.9","scope":"user"}]' ;;
+  "plugin marketplace") exit 0 ;;
+  "plugin update")      exit 0 ;;
+esac
+exit 0
+EOF
+  chmod +x "$FAKE/claude"
+}
+
+UP="$TMP/updproj"; mkdir -p "$UP/.claude/rules"
+ln -sfn "$ROOT/plugins/std-core/rules" "$UP/.claude/rules/std-core"
+
+make_cli "0.4.6"; : > "$LOGF"
+OUT=$(VIBE_RULES_CLI="$FAKE/claude" CLAUDE_PROJECT_DIR="$UP" bash "$UPD" --check 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+grep -q '0.4.6' <<<"$OUT" && ok "--check показывает установленные версии" || bad "--check версии" "0.4.6" "$OUT"
+grep -q 'marketplace update' "$LOGF" \
+  && bad "--check ничего не меняет" "без обновления каталога" "каталог обновлён" \
+  || ok "--check каталог не трогает"
+
+# Чужие маркетплейсы обновлять не наше дело
+grep -q 'other@claude-plugins-official' <<<"$OUT" \
+  && bad "чужие плагины" "не в списке" "в списке" || ok "плагины чужих маркетплейсов не трогаются"
+
+: > "$LOGF"
+OUT=$(VIBE_RULES_CLI="$FAKE/claude" CLAUDE_PROJECT_DIR="$UP" bash "$UPD" 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+grep -q 'plugin marketplace update vibe-rules' "$LOGF" && ok "каталог обновляется" || bad "каталог" "marketplace update" "$(cat "$LOGF")"
+[[ "$(grep -c 'plugin update std-' "$LOGF")" == "2" ]] \
+  && ok "обновляется каждый плагин маркетплейса" || bad "плагины" 2 "$(grep -c 'plugin update std-' "$LOGF")"
+
+# Ничего не изменилось — так и сказано, без ложного «обновлено»
+grep -q 'УЖЕ АКТУАЛЬНО' <<<"$OUT" && ok "совпадение версий названо честно" || bad "актуально" "УЖЕ АКТУАЛЬНО" "$OUT"
+
+# Нет установленных плагинов — команда объясняет, что делать, а не падает
+cat > "$FAKE/claude" <<'EOF'
+#!/usr/bin/env bash
+[[ "$1 $2" == "plugin list" ]] && echo '[]'
+exit 0
+EOF
+chmod +x "$FAKE/claude"
+OUT=$(VIBE_RULES_CLI="$FAKE/claude" CLAUDE_PROJECT_DIR="$UP" bash "$UPD" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'); rc=$?
+[[ $rc -eq 0 ]] && grep -q 'std-core:setup' <<<"$OUT" \
+  && ok "без установленных плагинов подсказывает setup" || bad "пусто" "подсказка setup, rc=0" "rc=$rc $OUT"
+
+# CLI недоступен — понятная ошибка вместо стека
+OUT=$(VIBE_RULES_CLI="$TMP/нет-такого-cli" CLAUDE_PROJECT_DIR="$UP" bash "$UPD" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'); rc=$?
+[[ $rc -eq 1 ]] && grep -q 'plugin marketplace update' <<<"$OUT" \
+  && ok "без CLI объясняет, как обновить вручную" || bad "без CLI" "ошибка с подсказкой" "rc=$rc $OUT"
+
 echo "== автоустановка плагинов и пересинхронизация =="
 
 # Модуль из одних правил ставить не нужно — он приезжает симлинком.
@@ -207,7 +270,9 @@ grep -q 'доустанавливать нечего' <<<"$OUTF" \
   && ok "уже установленные плагины не ставятся повторно" \
   || bad "повторная установка" "«доустанавливать нечего»" "нет"
 
-# --sync берёт профиль из конфигурации, а не определяет заново
+# Повторный запуск — это пересинхронизация: профиль проекта сохраняется.
+# Раньше для этого был отдельный флаг --sync и отдельная команда; помнить,
+# чем «настроить» отличается от «досинхронизировать», человек не обязан.
 S2="$TMP/syncproj"; mkdir -p "$S2/.claude"
 ( cd "$S2" && echo '{"require":{"laravel/framework":"^11.0"}}' > composer.json
   git init -q 2>/dev/null; git add -A >/dev/null 2>&1
@@ -215,17 +280,59 @@ S2="$TMP/syncproj"; mkdir -p "$S2/.claude"
 printf '{"profile": "team", "gates": {}}' > "$S2/.claude/gauntlet.json"
 
 OUT2=$(VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
-       CLAUDE_PROJECT_DIR="$S2" bash "$SETUP" --sync --dry-run 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+       CLAUDE_PROJECT_DIR="$S2" bash "$SETUP" --dry-run 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
 # Ищем именно строку выбора: слово team встречается и в подсказке «--profile solo|team»
 grep -q 'профиль: team' <<<"$OUT2" \
-  && ok "--sync сохраняет профиль, заданный человеком" \
-  || bad "--sync профиль" "профиль: team" "переопределён автоопределением"
+  && ok "повторный запуск сохраняет профиль проекта" \
+  || bad "повторный setup" "профиль: team" "переопределён автоопределением"
+
+# Флаг остаётся принимаемым: он записан в чужих скриптах и в старых заметках
+OUT2S=$(VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
+        CLAUDE_PROJECT_DIR="$S2" bash "$SETUP" --sync --dry-run 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+grep -q 'профиль: team' <<<"$OUT2S" \
+  && ok "прежний флаг --sync принимается" || bad "--sync" "профиль: team" "$OUT2S"
 
 OUT3=$(VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
-       CLAUDE_PROJECT_DIR="$S2" bash "$SETUP" --dry-run 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+       CLAUDE_PROJECT_DIR="$S2" bash "$SETUP" --fresh --dry-run 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
 grep -q 'профиль: team' <<<"$OUT3" \
-  && bad "setup без --sync определяет заново" "не team" "team" \
-  || ok "setup без --sync определяет профиль заново"
+  && bad "--fresh определяет заново" "не team" "team" \
+  || ok "--fresh забывает записанный профиль и определяет заново"
+
+echo "== отключение проекта от стандартов =="
+# Обратная операция живёт в той же команде: подключение и отключение —
+# одно решение, принятое в разные стороны.
+RM="$TMP/removeproj"; mkdir -p "$RM/.claude/rules"
+ln -sfn "$ROOT/plugins/std-core/rules" "$RM/.claude/rules/std-core"
+printf '{"profile":"prototype","gates":{}}' > "$RM/.claude/gauntlet.json"
+printf '# правило проекта\n' > "$RM/.claude/rules/00-precedence.md"
+printf '{"env":{"MY":"1"},"extraKnownMarketplaces":{"vibe-rules":{}},"enabledPlugins":{"std-core@vibe-rules":true}}' \
+  > "$RM/.claude/settings.json"
+
+VIBE_RULES_HOME="$ROOT" CLAUDE_PROJECT_DIR="$RM" bash "$SETUP" --remove >/dev/null 2>&1
+
+[[ ! -e "$RM/.claude/rules/std-core" ]] && ok "симлинки модулей отвязаны" || bad "--remove симлинки" "отвязаны" "на месте"
+[[ ! -f "$RM/.claude/gauntlet.json" ]]  && ok "конфигурация гейтов убрана" || bad "--remove gauntlet" "удалён" "на месте"
+[[ -f "$RM/.claude/rules/00-precedence.md" ]] \
+  && ok "правила проекта не удаляются" || bad "--remove правила проекта" "сохранены" "удалены"
+jq -e '.env.MY == "1"' "$RM/.claude/settings.json" >/dev/null 2>&1 \
+  && ok "чужие настройки проекта сохраняются" || bad "--remove settings" "env.MY цел" "потерян"
+jq -e 'has("extraKnownMarketplaces") or has("enabledPlugins")' "$RM/.claude/settings.json" >/dev/null 2>&1 \
+  && bad "--remove settings" "записи стандартов убраны" "остались" \
+  || ok "записи маркетплейса и плагинов убраны"
+
+# Проект, где кроме стандартов ничего не было, не должен оставлять пустой файл
+RM2="$TMP/removeproj2"; mkdir -p "$RM2/.claude/rules"
+printf '{"extraKnownMarketplaces":{"vibe-rules":{}},"enabledPlugins":{"std-core@vibe-rules":true}}' \
+  > "$RM2/.claude/settings.json"
+VIBE_RULES_HOME="$ROOT" CLAUDE_PROJECT_DIR="$RM2" bash "$SETUP" --remove >/dev/null 2>&1
+[[ ! -e "$RM2/.claude/settings.json" ]] \
+  && ok "settings.json без своего содержимого удаляется" || bad "--remove пустой settings" "удалён" "$(cat "$RM2/.claude/settings.json" 2>/dev/null)"
+
+# --dry-run ничего не сносит
+RM3="$TMP/removeproj3"; mkdir -p "$RM3/.claude/rules"
+printf '{"profile":"prototype"}' > "$RM3/.claude/gauntlet.json"
+VIBE_RULES_HOME="$ROOT" CLAUDE_PROJECT_DIR="$RM3" bash "$SETUP" --remove --dry-run >/dev/null 2>&1
+[[ -f "$RM3/.claude/gauntlet.json" ]] && ok "--remove --dry-run ничего не удаляет" || bad "--remove dry-run" "файл цел" "удалён"
 
 # Явное указание строгости должно работать: автовыбор её больше не даёт
 OUT4=$(VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \

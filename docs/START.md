@@ -214,7 +214,7 @@ Three commands, ever:
 
 ```bash
 /std-core:setup      once per project: detects, installs, configures
-/std-core:sync       when the project gains a new technology
+/std-core:setup      again — when the project gains a new technology
 /std-gauntlet:run    before committing (a lock reminds you anyway)
 ```
 
