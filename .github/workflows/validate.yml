@@ -33,6 +33,9 @@ jobs:
       - name: Замки (unit-тесты хуков)
         run: bash tests/test-hooks.sh
 
+      - name: Обходы замков и ложные срабатывания
+        run: python3 tests/test-hook-corpus.py
+
       - name: Автодетект стека и целостность связей
         run: bash tests/test-link.sh
 
