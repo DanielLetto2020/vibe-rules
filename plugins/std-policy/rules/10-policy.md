@@ -1,6 +1,9 @@
 ---
 owner: "@platform"
 enforcement: hook
+enforcement_ref:
+  - scripts/guard-policy.sh
+  - configs/policy.example.json
 since: "2026-07-26"
 ---
 

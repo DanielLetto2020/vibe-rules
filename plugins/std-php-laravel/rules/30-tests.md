@@ -3,6 +3,8 @@ paths:
   - "tests/**/*.php"
 owner: "@backend"
 enforcement: test
+enforcement_ref:
+  - configs/phpstan.neon
 since: "2026-07-25"
 ---
 

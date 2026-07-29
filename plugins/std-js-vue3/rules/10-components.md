@@ -5,6 +5,8 @@ paths:
   - "src/components/**/*.{ts,js}"
 owner: "@frontend"
 enforcement: lint
+enforcement_ref:
+  - configs/eslint.config.js
 since: "2026-07-25"
 ---
 

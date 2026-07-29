@@ -10,6 +10,9 @@ paths:
   - "**/*.test.[tj]s"
 owner: "@platform"
 enforcement: test
+enforcement_ref:
+  - configs/ci-gates.yml
+  - scripts/gauntlet.sh
 since: "2026-07-26"
 ---
 

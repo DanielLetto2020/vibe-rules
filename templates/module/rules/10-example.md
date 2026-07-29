@@ -5,6 +5,10 @@ paths:
   - "путь/**/*.расширение"
 owner: "@команда"          # кто обновит правило, когда оно устареет
 enforcement: prose         # lint | hook | test | review | prose
+# Для lint, hook и test ссылка обязательна: файл, который можно открыть.
+# Без неё правило только называется проверяемым — прогон это отвергнет.
+# enforcement_ref:
+#   - configs/eslint.config.js
 since: "2026-07-25"
 ---
 
@@ -12,9 +16,9 @@ since: "2026-07-25"
 
 <!--
 Перед тем как писать, ответь на один вопрос: это можно проверить машиной?
-  можно линтером  -> enforcement: lint, и конфиг обязательно в configs/
-  можно хуком     -> enforcement: hook, и скрипт в std-core/scripts/
-  можно тестом    -> enforcement: test
+  можно линтером  -> enforcement: lint + enforcement_ref на конфиг в configs/
+  можно хуком     -> enforcement: hook + enforcement_ref на скрипт замка
+  можно тестом    -> enforcement: test + enforcement_ref на конфигурацию гейта
   нельзя вообще   -> enforcement: prose (и только тогда это текст)
 Правило с enforcement: prose, которое поддаётся автоматизации, — технический долг.
 -->

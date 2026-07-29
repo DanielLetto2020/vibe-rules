@@ -7,6 +7,8 @@ paths:
   - "playwright.config.*"
 owner: "@qa"
 enforcement: test
+enforcement_ref:
+  - configs/playwright.config.ts
 since: "2026-07-29"
 ---
 

@@ -8,6 +8,8 @@ paths:
   - "**/*.lock"
 owner: "@platform"
 enforcement: hook
+enforcement_ref:
+  - scripts/guard-policy.sh
 since: "2026-07-29"
 ---
 

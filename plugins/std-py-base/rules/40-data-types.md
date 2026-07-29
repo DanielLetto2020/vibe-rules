@@ -3,6 +3,8 @@ paths:
   - "**/*.py"
 owner: "@backend"
 enforcement: lint
+enforcement_ref:
+  - configs/mypy.ini
 since: "2026-07-29"
 ---
 

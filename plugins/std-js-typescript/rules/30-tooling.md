@@ -5,6 +5,8 @@ paths:
   - "**/package.json"
 owner: "@frontend"
 enforcement: lint
+enforcement_ref:
+  - configs/tsconfig.strict.json
 since: "2026-07-29"
 ---
 

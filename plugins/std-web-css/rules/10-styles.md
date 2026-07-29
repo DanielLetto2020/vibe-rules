@@ -7,6 +7,8 @@ paths:
   - "**/*.vue"
 owner: "@frontend"
 enforcement: lint
+enforcement_ref:
+  - configs/.stylelintrc.json
 since: "2026-07-26"
 ---
 

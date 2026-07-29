@@ -8,6 +8,8 @@ paths:
   - "**/templates/**/*.php"
 owner: "@frontend"
 enforcement: lint
+enforcement_ref:
+  - configs/.htmlvalidate.json
 since: "2026-07-26"
 ---
 

@@ -37,6 +37,8 @@ cp -r templates/module plugins/std-<slug>
 paths: ["app/Http/**/*.php"]     # без этого правило грузится ВСЕГДА
 owner: "@backend"                 # кто отвечает за содержимое
 enforcement: lint                 # lint | hook | test | review | prose
+enforcement_ref:                  # обязателен для lint, hook и test
+  - configs/eslint.config.js      # файл проверяется на существование
 since: "2026-07-28"
 ---
 ```

@@ -10,6 +10,8 @@ paths:
   - "**/*.twig"
 owner: "@frontend"
 enforcement: hook
+enforcement_ref:
+  - scripts/design-context.sh
 since: "2026-07-29"
 ---
 

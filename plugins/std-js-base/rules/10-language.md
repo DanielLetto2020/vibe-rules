@@ -6,6 +6,8 @@ paths:
   - "**/*.svelte"
 owner: "@frontend"
 enforcement: lint
+enforcement_ref:
+  - configs/eslint.config.js
 since: "2026-07-26"
 ---
 

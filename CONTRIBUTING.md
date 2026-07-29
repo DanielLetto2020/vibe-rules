@@ -9,7 +9,8 @@
 
 If yes, it does not belong in prose. A rule written as text is a request —
 the model reads it and follows it most of the time. A rule compiled into a
-linter config or a hook is a guarantee.
+linter config or a hook is a check that runs every time, whether or not anyone
+remembered it. Not a sandbox: see [the threat model](docs/THREAT-MODEL.md).
 
 | Answer | Where it goes | `enforcement` |
 |---|---|---|
@@ -52,13 +53,16 @@ cp -r templates/module plugins/std-<slug>
    paths: ["src/**/*.ts"]   # without this the rule loads in EVERY session
    owner: "@team"
    enforcement: lint
+   enforcement_ref:
+     - configs/eslint.config.js   # required for lint, hook and test
    since: "2026-07-26"
    ---
    ```
 
 3. Put anything automatable into `configs/` — a ready linter config the project
-   can adopt. A rule marked `enforcement: lint` **must** have a counterpart
-   there, otherwise it is prose pretending to be a check.
+   can adopt. A rule marked `lint`, `hook` or `test` **must** point at that file
+   through `enforcement_ref`; the run checks the file exists. Otherwise it is
+   prose pretending to be a check.
 4. Register the module in `.claude-plugin/marketplace.json`. Without this entry
    it cannot be installed.
 5. Run `tests/run.sh`. Red means not ready.

@@ -7,6 +7,8 @@ paths:
   - "**/ansible.cfg"
 owner: "@platform"
 enforcement: lint
+enforcement_ref:
+  - configs/.ansible-lint
 since: "2026-07-29"
 ---
 

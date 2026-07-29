@@ -159,8 +159,19 @@ Here the author answers the awkward question: **how is this checked?**
 | `review` | not automatable, a human looks |
 | `prose` | an agreement, or the reason behind a decision |
 
-A rule marked `lint` with no linter config is self-deception: it looks like a
-check and behaves like a request.
+For `lint`, `hook` and `test`, an `enforcement_ref` is required next to it —
+the path to the file that *is* the backing:
+
+```yaml
+enforcement: lint
+enforcement_ref:
+  - configs/phpstan.neon
+```
+
+Every run checks that the file exists. Without the reference the rule is not
+accepted: `lint` with no linter config is self-deception — it looks like a
+check and behaves like a request. A reference to a file that does not exist is
+the same thing, only easier to spot.
 
 `prose` is only legitimate for what a machine genuinely cannot verify.
 Anything else marked `prose` is technical debt.

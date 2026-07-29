@@ -3,6 +3,8 @@ paths:
   - "**/*.php"
 owner: "@backend"
 enforcement: lint
+enforcement_ref:
+  - configs/phpstan.neon
 since: "2026-07-29"
 ---
 

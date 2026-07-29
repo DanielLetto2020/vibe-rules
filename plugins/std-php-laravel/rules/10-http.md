@@ -4,6 +4,9 @@ paths:
   - "routes/**/*.php"
 owner: "@backend"
 enforcement: lint
+enforcement_ref:
+  - configs/phpstan.neon
+  - configs/pint.json
 since: "2026-07-25"
 ---
 

@@ -48,7 +48,7 @@ errors: list[str] = []
 warnings: list[str] = []
 VERSIONED: list[tuple[str, str | None]] = []
 stats = {"rules": 0, "prose": 0, "review": 0, "lint": 0, "hook": 0, "test": 0,
-         "skills": 0, "modules": 0}
+         "refs": 0, "skills": 0, "modules": 0}
 
 
 def err(msg: str) -> None:
@@ -238,8 +238,27 @@ def check_rules(plugin_dir: Path, name: str) -> None:
         if bullets > MAX_RULE_BULLETS:
             warn(f"{rel}: {bullets} пунктов (ориентир {MAX_RULE_BULLETS}) — длинные правила соблюдаются хуже")
 
-        if enf == "lint" and not (plugin_dir / "configs").is_dir():
-            warn(f"{rel}: enforcement=lint, но в модуле нет configs/ — фактически это prose")
+        # За «машинным» enforcement обязан стоять файл, который можно открыть.
+        # Раньше это была надежда: enforcement считался честным по слову автора,
+        # а lint без configs/ давал лишь предупреждение. Метка, за которой
+        # ничего нет, обманывает ровно там, где важна — в отчёте о том, сколько
+        # правил проверяется машиной.
+        if enf in ("lint", "hook", "test"):
+            refs = fm.get("enforcement_ref")
+            if isinstance(refs, str):
+                refs = [refs]
+            if not refs:
+                err(f"{rel}: enforcement={enf} без enforcement_ref — не видно, чем правило "
+                    f"подкреплено. Укажи конфиг линтера, скрипт хука или конфигурацию гейта.")
+            else:
+                for r in refs:
+                    target = plugin_dir / r
+                    if not target.exists():
+                        target = ROOT / r          # ссылка на общий файл репозитория
+                    if not target.exists():
+                        err(f"{rel}: enforcement_ref '{r}' не существует — "
+                            f"подкрепление указано, но проверить его нечем")
+                    stats["refs"] += 1
 
 
 def check_commands(plugin_dir: Path, name: str) -> None:

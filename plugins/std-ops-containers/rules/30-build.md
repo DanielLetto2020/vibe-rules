@@ -6,6 +6,8 @@ paths:
   - "**/*.container.y*ml"
 owner: "@platform"
 enforcement: lint
+enforcement_ref:
+  - configs/hadolint.yaml
 since: "2026-07-29"
 ---
 

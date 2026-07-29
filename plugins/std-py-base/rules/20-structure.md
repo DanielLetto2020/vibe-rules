@@ -5,6 +5,8 @@ paths:
   - "**/requirements*.txt"
 owner: "@backend"
 enforcement: lint
+enforcement_ref:
+  - configs/ruff.toml
 since: "2026-07-29"
 ---
 
