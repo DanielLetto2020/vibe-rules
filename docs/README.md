@@ -118,6 +118,7 @@ take a claim on trust.
 | [The gauntlet](../plugins/std-gauntlet/docs/GAUNTLET.md) 🇷🇺 | whoever rolls out the full pipeline | 10 min |
 | [Architecture](ARCHITECTURE.md) 🇷🇺 | whoever works on this repository | 10 min |
 | [Enforcement](ENFORCEMENT.md) 🇷🇺 | whoever decides where a requirement goes | 5 min |
+| [Threat model](THREAT-MODEL.md) 🇷🇺 | whoever needs to know what is actually protected | 10 min |
 | [Contributing](../CONTRIBUTING.md) | whoever adds modules | 10 min |
 | [Security](../SECURITY.md) | whoever owns what gets installed | 5 min |
 

@@ -63,9 +63,11 @@ These are scripts that fire before a command runs. They take no part in the
 briefing and work regardless of what the agent read or remembered.
 
 > **The central idea of this repository:**
-> a rule in prose is a request; a rule in a lock is a guarantee.
+> a rule in prose is a request; a rule in a lock is a check that always runs.
 
-A request is honoured nine times out of ten. A lock has no percentage.
+A request is honoured nine times out of ten. A check does not depend on anyone
+remembering it — though it is not a sandbox either: what locks cannot catch is
+listed in [the threat model](THREAT-MODEL.md).
 
 ---
 

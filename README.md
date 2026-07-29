@@ -393,8 +393,8 @@ modules, if the per-stack rules are not what you came for.
 ## What the locks actually block
 
 Locks are `PreToolUse` hooks. They execute regardless of what the model decided
-or remembered. 85 unit tests plus a 77-case corpus of bypasses and false
-positives cover them.
+or remembered. 85 unit tests, a 79-case corpus of bypasses and false positives,
+and property-based fuzzing of the command parser cover them.
 
 | Lock | Blocks |
 |---|---|
@@ -579,10 +579,34 @@ Honest boundaries matter more than completeness:
 The list in `std-gauntlet/rules/30-human-eyes.md` does not shrink as automation
 grows. That's expected.
 
+## What 1.0 requires
+
+The version number here says beta, and it means it. These are the conditions
+for calling the interfaces stable — written down so "1.0" is a checklist, not
+a mood:
+
+- three teams outside the author using it on real work, with feedback;
+- a second maintainer who can merge and release;
+- an external review of `guard-bash.sh` and `gauntlet.sh` by someone who did
+  not write them;
+- 90 days with no lock bypass outside the acknowledged gaps;
+- green CI on more than one OS, and a published benchmark comparing work with
+  and without the rules;
+- module and frontmatter formats frozen, with a migration guide for anything
+  that breaks;
+- at most one stable release per week — several a day is fine for beta and
+  wrong for a version people pin.
+
+Until then: use it, fork it, but expect interfaces to move.
+
 ## Documentation
 
 **[Documentation map](docs/README.md)** — what is where, with a "when to open
 this" note for each page and quick answers to common questions.
+
+**[Threat model](docs/THREAT-MODEL.md)** — what the locks defend against, what
+they cannot, and how to get a real boundary
+([container template](templates/devcontainer/)).
 
 If there is time for one page only:
 **[How this works, in plain words](docs/START.md)**.

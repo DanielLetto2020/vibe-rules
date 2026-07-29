@@ -227,7 +227,7 @@ every session for every developer. A rule set that only grows stops being read
 
 And the main test: **can a machine check this?** If yes, it belongs in a linter
 config or a hook, not in prose. A rule in prose is a request; a rule in a hook
-is a guarantee.
+is a check that runs every time.
 
 How to phrase them — [Writing your own rule](WRITING-RULES.md).
 
