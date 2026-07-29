@@ -180,6 +180,7 @@ def check_plugin(plugin_dir: Path) -> None:
     check_rules(plugin_dir, name)
     check_skills(plugin_dir, name)
     check_hooks(plugin_dir, name, manifest or {})
+    check_commands(plugin_dir, name)
 
 
 def check_rules(plugin_dir: Path, name: str) -> None:
@@ -233,6 +234,23 @@ def check_rules(plugin_dir: Path, name: str) -> None:
 
         if enf == "lint" and not (plugin_dir / "configs").is_dir():
             warn(f"{rel}: enforcement=lint, но в модуле нет configs/ — фактически это prose")
+
+
+def check_commands(plugin_dir: Path, name: str) -> None:
+    """Команда, запускающая скрипт, обязана предупредить о пути установки.
+
+    Путь содержит версию (.../std-core/0.9.0/scripts/...) и исчезает при первом
+    же обновлении. Без предупреждения агент показывает человеку этот путь как
+    способ запуска — проверено на живом проекте, работает ровно один релиз.
+    """
+    for cmd in sorted(plugin_dir.glob("commands/*.md")):
+        text = cmd.read_text(encoding="utf-8")
+        if "CLAUDE_PLUGIN_ROOT" not in text:
+            continue
+        if "называй команду, а не путь" not in text:
+            err(f"{cmd.relative_to(ROOT)}: команда запускает скрипт, но не запрещает "
+                f"показывать человеку путь установки. Путь содержит версию и "
+                f"перестанет существовать после обновления")
 
 
 def check_skills(plugin_dir: Path, name: str) -> None:
