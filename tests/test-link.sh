@@ -62,7 +62,7 @@ case_detect "чистая статика: html + css + js без сборки" \
   'printf "<!doctype html><html lang=ru><body><h1>x</h1></body></html>" > index.html;
    printf "body { color: var(--c); }" > style.css;
    printf "const x = 1;\nfunction go() { return x; }" > app.js' \
-  "std-core std-gauntlet std-js-base std-web-css std-web-html"
+  "std-core std-gauntlet std-js-base std-web-css std-web-design std-web-html"
 
 case_detect "только разметка, без стилей" \
   'printf "<!doctype html><html lang=ru><body>x</body></html>" > index.html' \

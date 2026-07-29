@@ -115,6 +115,18 @@
       "version": "0.7.1"
     },
     {
+      "name": "std-web-design",
+      "source": "./plugins/std-web-design",
+      "description": "Визуальный дизайн: следование принятому оформлению, осознанный выбор при работе с нуля",
+      "keywords": [
+        "design",
+        "ui",
+        "css",
+        "web"
+      ],
+      "version": "0.7.1"
+    },
+    {
       "name": "std-js-typescript",
       "source": "./plugins/std-js-typescript",
       "description": "TypeScript: строгость типов, границы данных, размеченные объединения",

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "std-web-design",
+  "displayName": "Стандарты: визуальный дизайн",
+  "description": "Следование существующему оформлению, а при работе с нуля — осознанный выбор вместо оформления по умолчанию",
+  "author": {
+    "name": "DanielLetto2020"
+  },
+  "keywords": [
+    "design",
+    "ui",
+    "css",
+    "web"
+  ],
+  "dependencies": [
+    "std-core",
+    "std-web-css"
+  ],
+  "version": "0.7.1"
+}

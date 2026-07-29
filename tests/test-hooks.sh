@@ -207,6 +207,141 @@ OUT=$(jq -n --arg p "$NOSTD/tests/ATest.php" '{tool_name:"Edit",tool_input:{file
 [[ "$OUT" == "ask" ]] && ok "в подключённом проекте замок снова работает" \
   || bad "guard-tests в подключённом" ask "$OUT"
 
+echo "== rules-recheck: какие правила действуют на правленый файл =="
+# Хук называет модули, чьи paths совпали с путём файла. Проверяем и совпадение,
+# и молчание там, где правил нет: ложное срабатывание на каждый файл — это шум,
+# а шум отключают вместе с проверкой.
+RC="$TMP/recheck"; mkdir -p "$RC/.claude/rules" "$RC/pages" "$RC/src"
+for m in std-web-html std-web-css std-js-base std-js-typescript std-js-vue3 std-js-nuxt; do
+  ln -sfn "$ROOT/plugins/$m/rules" "$RC/.claude/rules/$m"
+done
+
+recheck() { # <относительный путь> -> список модулей (или пусто)
+  local rel="$1"
+  mkdir -p "$RC/$(dirname "$rel")"; touch "$RC/$rel"
+  # session_id уникален на вызов: напоминание выдаётся раз на файл за сессию,
+  # и без этого второй кейс подряд получил бы молчание
+  jq -n --arg p "$RC/$rel" --arg s "s$RANDOM" \
+     '{session_id:$s,tool_name:"Write",tool_input:{file_path:$p}}' \
+    | CLAUDE_PROJECT_DIR="$RC" TMPDIR="$TMP" bash "$SCRIPTS/rules-recheck.sh" 2>/dev/null \
+    | jq -r '.hookSpecificOutput.additionalContext // ""'
+}
+
+got=$(recheck "index.html")
+grep -q 'std-web-html/10-markup' <<<"$got" \
+  && ok "html: правила разметки названы" || bad "html" "std-web-html" "$got"
+
+# Регрессия: `{js,mjs,cjs}` не раскрывается сопоставлением bash, и модуль
+# языка молчал бы на обычном .js-файле
+got=$(recheck "src/util.js")
+grep -q 'std-js-base/10-language' <<<"$got" \
+  && ok "перечисление в фигурных скобках раскрывается" || bad "{js,mjs}" "std-js-base" "$got"
+
+# Регрессия: `pages/**/*.vue` должен совпадать и с pages/index.vue —
+# `**` внутри пути не эквивалентен одной звёздочке
+got=$(recheck "pages/index.vue")
+grep -q 'std-js-nuxt/10-nuxt' <<<"$got" \
+  && ok "** внутри пути совпадает с нулём каталогов" || bad "pages/**" "std-js-nuxt" "$got"
+
+# SFC — это разметка, стили и логика в одном файле: должны сойтись все слои
+for m in std-web-html std-web-css std-js-vue3 std-js-typescript; do
+  grep -q "$m" <<<"$got" || bad "SFC: $m не назван" "$m" "$got"
+done
+ok "для .vue названы разметка, стили, компоненты и типы"
+
+got=$(recheck "notes.txt")
+[[ -z "$got" ]] && ok "файл вне правил не порождает напоминания" || bad "txt" "молчание" "$got"
+
+got=$(recheck ".claude/settings.json")
+[[ -z "$got" ]] && ok "служебные файлы .claude не проверяются" || bad ".claude" "молчание" "$got"
+
+# Второй раз тот же файл в той же сессии — молчание: повтор на каждый Edit
+# превращается в шум
+SID="repeat$RANDOM"
+same() {
+  jq -n --arg p "$RC/index.html" --arg s "$SID" \
+     '{session_id:$s,tool_name:"Edit",tool_input:{file_path:$p}}' \
+    | CLAUDE_PROJECT_DIR="$RC" TMPDIR="$TMP" bash "$SCRIPTS/rules-recheck.sh" 2>/dev/null \
+    | jq -r '.hookSpecificOutput.additionalContext // ""'
+}
+first=$(same); second=$(same)
+[[ -n "$first" && -z "$second" ]] \
+  && ok "повторная правка того же файла молчит" || bad "повтор" "первый есть, второй пуст" "$first|$second"
+
+# Чужой проект без слинкованных правил хук не трогает
+got=$(jq -n --arg p "$NOSTD/tests/ATest.php" --arg s "x$RANDOM" \
+        '{session_id:$s,tool_name:"Edit",tool_input:{file_path:$p}}' \
+      | CLAUDE_PROJECT_DIR="$NOSTD" TMPDIR="$TMP" bash "$SCRIPTS/rules-recheck.sh" 2>/dev/null)
+[[ -z "$got" ]] && ok "в проекте без правил хук молчит" || bad "чужой проект" "молчание" "$got"
+
+# Выключатель
+got=$(jq -n --arg p "$RC/src/app.ts" --arg s "off$RANDOM" \
+        '{session_id:$s,tool_name:"Write",tool_input:{file_path:$p}}' \
+      | STD_RECHECK=0 CLAUDE_PROJECT_DIR="$RC" TMPDIR="$TMP" bash "$SCRIPTS/rules-recheck.sh" 2>/dev/null)
+[[ -z "$got" ]] && ok "STD_RECHECK=0 отключает напоминания" || bad "выключатель" "молчание" "$got"
+
+echo "== design-context: оформление, принятое в проекте =="
+# Правило «придерживайся существующего дизайна» бесполезно, пока агент не знает,
+# какой дизайн существует. Хук достаёт факты из кода — проверяем оба исхода:
+# нашлось оформление и не нашлось ничего.
+DSG="$ROOT/plugins/std-web-design/scripts/design-context.sh"
+
+design_ctx() { # <каталог проекта> <файл> -> текст напоминания
+  jq -n --arg p "$1/$2" --arg s "dsg$RANDOM" \
+     '{session_id:$s,tool_name:"Edit",tool_input:{file_path:$p}}' \
+    | CLAUDE_PROJECT_DIR="$1" TMPDIR="$TMP" bash "$DSG" 2>/dev/null \
+    | jq -r '.hookSpecificOutput.additionalContext // ""'
+}
+
+DP="$TMP/design"; mkdir -p "$DP/.claude/rules" "$DP/css"
+cat > "$DP/css/main.css" <<'CSS'
+:root { --brand-color: #0b7e53; --sys-radius: 10px; }
+body { font-family: 'Montserrat', system-ui, sans-serif; }
+.card { border-radius: 10px; background: #0b7e53; }
+CSS
+touch "$DP/index.html"
+
+got=$(design_ctx "$DP" "index.html")
+grep -q 'Montserrat' <<<"$got" && ok "шрифт проекта извлечён" || bad "шрифт" "Montserrat" "$got"
+grep -q '#0b7e53' <<<"$got"    && ok "палитра проекта извлечена" || bad "цвет" "#0b7e53" "$got"
+grep -q 'brand-color' <<<"$got" && ok "переменные оформления названы" || bad "токены" "--brand-color" "$got"
+
+# Запасные шрифты одинаковы почти везде и в списке только мешают
+grep -q 'system-ui' <<<"$got" && bad "запасные шрифты не нужны" "без system-ui" "$got" \
+  || ok "из объявления шрифта берётся только первое семейство"
+
+# Пустой проект: напоминание обратное — сначала токены, потом вёрстка
+EP="$TMP/design-empty"; mkdir -p "$EP/.claude/rules"; touch "$EP/index.html"
+got=$(design_ctx "$EP" "index.html")
+grep -q 'с нуля' <<<"$got" && ok "пустой проект: сказано, что вёрстка с нуля" || bad "пустой" "с нуля" "$got"
+grep -qi 'градиент' <<<"$got" && ok "названы приметы оформления по умолчанию" || bad "приметы" "градиент" "$got"
+
+# Регрессия: `grep -c` при нуле совпадений возвращает 1, и `|| echo 0`
+# дописывал второй ноль — сравнение падало с синтаксической ошибкой
+err=$(jq -n --arg p "$EP/index.html" --arg s "e$RANDOM" \
+        '{session_id:$s,tool_name:"Edit",tool_input:{file_path:$p}}' \
+      | CLAUDE_PROJECT_DIR="$EP" TMPDIR="$TMP" bash "$DSG" 2>&1 >/dev/null)
+[[ -z "$err" ]] && ok "хук отрабатывает без ошибок в stderr" || bad "stderr" "пусто" "$err"
+
+# Не-вёрстка хук не трогает
+got=$(design_ctx "$DP" "readme.md")
+[[ -z "$got" ]] && ok "на файл не из вёрстки хук молчит" || bad "md" "молчание" "$got"
+
+# Один раз за сессию: палитра не меняется от файла к файлу
+SID="dsgrep$RANDOM"
+one() {
+  jq -n --arg p "$DP/index.html" --arg s "$SID" \
+     '{session_id:$s,tool_name:"Edit",tool_input:{file_path:$p}}' \
+    | CLAUDE_PROJECT_DIR="$DP" TMPDIR="$TMP" bash "$DSG" 2>/dev/null \
+    | jq -r '.hookSpecificOutput.additionalContext // ""'
+}
+f=$(one); s=$(one)
+[[ -n "$f" && -z "$s" ]] && ok "напоминание об оформлении выдаётся раз за сессию" \
+  || bad "повтор" "первый есть, второй пуст" "$f|$s"
+
+got=$(STD_DESIGN=0 design_ctx "$DP" "index.html")
+[[ -z "$got" ]] && ok "STD_DESIGN=0 отключает напоминание" || bad "выключатель" "молчание" "$got"
+
 echo
 printf 'Пройдено: \033[32m%d\033[0m   Провалено: \033[31m%d\033[0m\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] || exit 1

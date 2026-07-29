@@ -100,6 +100,9 @@ detect_modules() {
        \( -name '*.css' -o -name '*.scss' -o -name '*.sass' -o -name '*.less' \) \
        -type f -print -quit 2>/dev/null | grep -q .; then
     mods+=("web-css")
+    # Визуальный дизайн идёт вместе со стилями: там, где есть оформление,
+    # есть и вопрос, следовать ему или изобретать своё.
+    mods+=("web-design")
   fi
 
   # --- JS/TS: Nuxt поглощает Vue, отдельный модуль Vue тогда не нужен ---

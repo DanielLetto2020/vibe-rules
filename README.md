@@ -3,7 +3,7 @@
 [![gates](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml/badge.svg)](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml)
 [![release](https://img.shields.io/github/v/release/DanielLetto2020/vibe-rules?color=blue)](https://github.com/DanielLetto2020/vibe-rules/releases)
 [![license](https://img.shields.io/github/license/DanielLetto2020/vibe-rules?color=blue)](LICENSE)
-[![modules](https://img.shields.io/badge/modules-28-blue)](#modules)
+[![modules](https://img.shields.io/badge/modules-29-blue)](#modules)
 
 > 🇷🇺 [Русская версия](README.ru.md)
 
@@ -72,6 +72,31 @@ hope people remember" — the rule should either be automated or dropped.
 The test suite prints the share of unbacked rules. **That number must go
 down.** A standards repository should shrink as automation grows, not swell.
 
+### A file you touched gets brought up to standard
+
+A loaded rule and an applied rule are different things. Rules arrive when
+a file is read, but the write happens at the end of a long chain of reasoning,
+and three of fifteen bullets get applied. The rest were not knowingly broken —
+they were forgotten.
+
+So after every write a hook names the modules whose `paths` matched the file:
+
+```
+Файл pages/index.vue подпадает под правила: std-js-base/10-language,
+std-js-nuxt/20-data, std-js-vue3/20-reactivity, std-web-css/10-styles,
+std-web-html/10-markup … Сверь с ними написанное — целиком файл, а не
+только новые строки.
+```
+
+The radius is deliberately limited: **the whole file is checked, only what is
+within the edit gets fixed**, and wider mismatches are reported to a human.
+Without that limit one edit produces a diff of hundreds of lines — and in
+a project without tests nothing backs that initiative up.
+
+This is how a codebase written in mixed styles converges: one touched file at
+a time, rather than in a refactor scheduled for someday. Disable with
+`STD_RECHECK=0`.
+
 ## Quick start
 
 ```bash
@@ -121,24 +146,29 @@ slows down the very thing being tested; on legacy it is unreachable and gets
 switched off on day one; in a team a lax setting means there are no standards
 at all.
 
-The profile is inferred from facts in the repository — how many people commit,
-how many commits exist, whether tests exist at all:
-
 | Profile | When | Spec | Test-edit lock | Mutation gate |
 |---|---|---|---|---|
-| `prototype` | under 15 commits, no tests | not required | off | off |
-| `solo` | single author | required | ask | ratchet from 50% |
-| `team` | more than one active author | required | ask | ratchet from 60% |
+| `prototype` | the default | not required | off | off |
+| `solo` | on request: single author with tests | required | ask | ratchet from 50% |
+| `team` | on request: code read by people who did not write it | required | ask | ratchet from 60% |
 | `legacy` | 200+ commits, almost no tests | characterize first | ask | ratchet from 0%, changed files only |
-| `regulated` | money, personal data, audit | required | **deny** | absolute 80% |
 
 **Safety locks are identical in every profile.** No profile permits deleting a
 volume, force-pushing or committing a secret — the profile only moves the
 quality bar.
 
-`regulated` is never selected automatically: deciding from code that a project
-handles money or medical data cannot be done reliably, and erring in that
-direction is expensive.
+**Strictness is not guessed from the repository.** The default is `prototype`:
+rules and locks work, the quality bar does not rise on its own. `solo` and
+`team` are opted into explicitly — `/std-core:setup --profile solo`.
+
+Only `legacy` is detected automatically, and it is not about strictness but
+about the mode of work: untested code is changed only after its current
+behaviour has been pinned down.
+
+The reason for that default is practical. Strictness used to be inferred from
+the number of authors, so a static site without a single test got `solo` —
+demanding a spec and a gate run for gates the project does not have.
+A requirement with nothing to enforce it devalues the ones that do.
 
 ### The ratchet
 
@@ -197,7 +227,7 @@ Two properties matter more than the feature list:
   become the way to switch protection off entirely.
 - **No policy file, no interference.** Projects without a policy see nothing.
 
-The `corporate` profile pairs with this: the required gate set comes from the
+A policy is independent of the profile: the required gate set comes from the
 policy and a project cannot weaken it, only add to it.
 
 ## Rules for one project only
@@ -260,6 +290,7 @@ indistinguishable from an oversight six months later.
 | `std-php-yii2` | controllers, ActiveRecord, driver type pitfalls |
 | `std-web-html` | semantics, accessibility, forms, resource loading |
 | `std-web-css` | cascade, specificity, units, responsive layout |
+| `std-web-design` | following the design already in place; deliberate choices when starting fresh |
 | `std-js-typescript` | type strictness, runtime boundaries, discriminated unions |
 | `std-js-vue3` | SFC, composition, typed props |
 | `std-js-nuxt` | SSR, data fetching, server routes |
