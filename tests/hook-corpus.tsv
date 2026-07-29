@@ -23,6 +23,8 @@ deny	D=docker; $D volume rm x	переменная, присвоенная в э
 deny	bash -c "docker volume rm x"	обёртка интерпретатором
 deny	env FOO=1 docker volume rm x	обёртка env
 deny	timeout 30 docker system prune	обёртка timeout
+deny	env\tFOO=bar\tdocker volume rm x	обёртки, разделённые табуляцией (найдено фаззингом)
+deny	bash -c "rm -rf ~/" | tee /tmp/log	хвостовой пробел оставлял команду закавыченной (найдено фаззингом)
 pass	podman ps -a	чтение состояния
 pass	docker logs api --tail 50	чтение журнала
 pass	podman compose down	остановка без удаления томов

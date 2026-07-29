@@ -46,8 +46,11 @@ def load_cases():
         if len(parts) < 3:
             print(f"  {RED}ОШИБКА{OFF} строка {num}: нужно три поля через табуляцию")
             sys.exit(1)
-        want, command, note = parts[0].strip(), parts[1], parts[2].strip()
-        yield want, command, note
+        # Табуляция внутри команды записывается как \t: сам файл разделён
+        # табами, и настоящий символ разъехался бы по полям. Кейс с табами
+        # нужен — на нём замок протекал.
+        command = parts[1].replace("\\t", "\t")
+        yield parts[0].strip(), command, parts[2].strip()
 
 
 def main() -> int:
