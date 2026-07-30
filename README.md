@@ -99,6 +99,23 @@ This is how a codebase written in mixed styles converges: one touched file at
 a time, rather than in a refactor scheduled for someday. Disable with
 `STD_RECHECK=0`.
 
+A brand-new file poses the opposite problem: there is nothing to check it
+against, because it is not in the project yet. What diverges there is not
+formatting — pint and eslint will handle that — but structure: where the logic
+lives, what gets returned, how methods are named. Module rules describe the
+ideal, not what is customary here, so the hook shows the nearest files of the
+same kind together with their headers:
+
+```
+New file created: app/Http/Controllers/OrderController.php. The project
+already has other Controllers — open at least one and match the structure:
+  app/Http/Controllers/UserController.php → <?php|declare(strict_types=1);|…
+```
+
+Once per kind of file per session: a controller, a test and a component need
+different examples, while a second controller in a row needs no reminder.
+Disable with `STD_SIBLINGS=0`.
+
 That convergence has a number attached to it — the `debt` gate: how many places
 do not match the standard, with the bar set at the best already achieved.
 A rule without a number holds until the first rush, and nobody notices when it

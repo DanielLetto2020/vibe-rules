@@ -180,6 +180,66 @@ secret_case "приватный ключ ловится"          "-----BEGIN RS
 secret_case "чтение из env не ловится"        "\$pass = getenv('DB_PASSWORD');"            allow
 secret_case "плейсхолдер не ловится"          "\$pass = env('DB_PASS', '');"               allow
 
+echo "== code-siblings: новый файл пишется по образцу соседних =="
+# Разнобой структуры не ловит ни линтер, ни анализатор: они смотрят на форму,
+# а расходится расположение логики. Хук называет соседей того же вида.
+SP="$TMP/стиль"; mkdir -p "$SP/.claude/rules/std-core" "$SP/app/Http/Controllers"
+printf '<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Http\\Controllers;\n\nfinal class UserController\n{\n}\n' \
+  > "$SP/app/Http/Controllers/UserController.php"
+
+# TMPDIR подменяется намеренно: хук помнит показанные виды файлов в файле-штампе
+# и без изоляции второй прогон тестов молчал бы, «унаследовав» первый.
+siblings_ctx() { # <путь к файлу> [<сессия>]
+  local json; json=$(jq -n --arg p "$1" --arg s "${2:-с1}" \
+    '{tool_name:"Write",session_id:$s,tool_input:{file_path:$p}}')
+  printf '%s' "$json" \
+    | TMPDIR="$TMP" CLAUDE_PROJECT_DIR="$SP" bash "$SCRIPTS/code-siblings.sh" 2>/dev/null \
+    | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null
+}
+
+NEWF="$SP/app/Http/Controllers/OrderController.php"
+printf '<?php\nclass OrderController {}\n' > "$NEWF"
+out=$(siblings_ctx "$NEWF" "сессия-1")
+grep -q 'UserController.php' <<<"$out" && ok "сосед того же вида назван" \
+  || bad "code-siblings" "упоминание UserController" "${out:-<пусто>}"
+grep -q 'strict_types' <<<"$out" && ok "показана шапка образца, а не только имя" \
+  || bad "шапка соседа" "declare(strict_types=1)" "${out:-<пусто>}"
+
+# Повтор того же вида в той же сессии — шум, а шум отключают вместе с проверкой
+out=$(siblings_ctx "$SP/app/Http/Controllers/PayController.php" "сессия-1")
+[[ -z "$out" ]] && ok "второй файл того же вида молчит" || bad "повтор" "молчание" "$out"
+
+# Другой вид в той же сессии — образцы другие, напомнить нужно
+mkdir -p "$SP/tests/Feature"
+printf '<?php\n\nnamespace Tests\\Feature;\n\nfinal class LoginTest extends TestCase\n{\n}\n' \
+  > "$SP/tests/Feature/LoginTest.php"
+printf '<?php\nclass OrderTest {}\n' > "$SP/tests/Feature/OrderTest.php"
+out=$(siblings_ctx "$SP/tests/Feature/OrderTest.php" "сессия-1")
+grep -q 'LoginTest.php' <<<"$out" && ok "другой вид файла получает свои образцы" \
+  || bad "вид файла" "упоминание LoginTest" "${out:-<пусто>}"
+
+# Файл, уже живущий в git, свой стиль задал сам
+GITP="$TMP/склад"; mkdir -p "$GITP/.claude/rules/std-core" "$GITP/src"
+git -C "$GITP" init -q 2>/dev/null
+git -C "$GITP" config user.email t@t; git -C "$GITP" config user.name t
+printf '<?php\nclass A {}\n' > "$GITP/src/AService.php"
+printf '<?php\nclass B {}\n' > "$GITP/src/BService.php"
+git -C "$GITP" add -A 2>/dev/null; git -C "$GITP" commit -qm init 2>/dev/null
+out=$(printf '%s' "$(jq -n --arg p "$GITP/src/BService.php" \
+        '{tool_name:"Write",session_id:"g1",tool_input:{file_path:$p}}')" \
+      | TMPDIR="$TMP" CLAUDE_PROJECT_DIR="$GITP" bash "$SCRIPTS/code-siblings.sh" 2>/dev/null \
+      | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null)
+[[ -z "$out" ]] && ok "существующий в git файл образцов не требует" || bad "старый файл" "молчание" "$out"
+
+# Проект без стандартов не трогаем — как и все остальные замки методологии
+NOSTDP="$TMP/без-стандартов"; mkdir -p "$NOSTDP/src"
+printf '<?php\nclass C {}\n' > "$NOSTDP/src/CService.php"
+printf '<?php\nclass D {}\n' > "$NOSTDP/src/DService.php"
+out=$(printf '%s' "$(jq -n --arg p "$NOSTDP/src/DService.php" \
+        '{tool_name:"Write",session_id:"n1",tool_input:{file_path:$p}}')" \
+      | TMPDIR="$TMP" CLAUDE_PROJECT_DIR="$NOSTDP" bash "$SCRIPTS/code-siblings.sh" 2>/dev/null)
+[[ -z "$out" ]] && ok "в чужом проекте хук молчит" || bad "чужой проект" "молчание" "$out"
+
 echo "== плагин стоит на машине, но чужие проекты не трогает =="
 # Замки методологии применяются там, где стандарты приняли. Иначе первый же
 # посторонний проект встречает вопросы, которых человек не просил, и замки
