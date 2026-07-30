@@ -393,8 +393,8 @@ modules, if the per-stack rules are not what you came for.
 ## What the locks actually block
 
 Locks are `PreToolUse` hooks. They execute regardless of what the model decided
-or remembered. 85 unit tests, a 79-case corpus of bypasses and false positives,
-and property-based fuzzing of the command parser cover them.
+or remembered. 87 unit tests, 41 secret-leak tests, a 97-case corpus of bypasses
+and false positives, and property-based fuzzing of the command parser cover them.
 
 | Lock | Blocks |
 |---|---|
@@ -403,7 +403,35 @@ and property-based fuzzing of the command parser cover them.
 | `guard-infra` | edits to k8s manifests, playbooks, CI config, Dockerfiles, applied migrations, `.env` — **and to the enforcement machinery itself**: `.claude/settings.json`, project rules, gate config, git hooks |
 | `guard-deps` | adding a dependency by editing `composer.json`/`package.json` directly |
 | `guard-commit` | committing without a green gauntlet run |
-| `secret-scan` | secrets written in plaintext (`PostToolUse`) |
+| `guard-secrets` | reading a credentials file (`.env`, keys, `kubeconfig`, `*.tfstate`) — escalated before the value reaches the context |
+| `precommit-secrets` | a commit carrying a secret: the whole file, or a value in the added lines |
+| `secret-scan` | secrets written in plaintext into a file (`PostToolUse`) |
+| `scan-tree` | secrets in files created by a command rather than by a write tool |
+
+### Secrets: four doors, not one
+
+A leak differs from other mistakes in that it cannot be undone. A key that
+reached the model's context or git history counts as disclosed from that second
+on: deleting the file in the next commit undoes nothing, only rotation helps.
+So the check sits on all four doors a secret leaves through, and they share one
+dictionary (`secret-lib.sh`) — a pattern added in one place works everywhere.
+
+| Door | What happens | Decision |
+|---|---|---|
+| Read — `Read .env`, `cat`, `grep`, `printenv`, `kubectl get secret`, `vault kv get` | the value lands in the model context and in the on-disk session history | `ask`, stating the cost and a safe alternative |
+| Write — `Write`/`Edit` | the key ends up in code, a test, or documentation | message back to the model so it fixes it immediately |
+| Command — `sed -i`, `> file`, `cp`, framework generators | the file appears outside `Write`/`Edit` and the write check never sees it | scan of the changed tree |
+| Commit | the secret enters history for good | `deny` — the one place with a refusal instead of a question |
+
+False positives are handled by placeholder detection (`your-key`, `${VAR}`,
+`process.env`, `<...>`) and a per-project allow list, `.claude/secret-allow`.
+There are deliberately no directory-wide blind spots: `*.md` and `tests/` used
+to be excluded from the scan — precisely the two places a secret ends up in
+most often.
+
+Internal token prefixes and system names go into a per-project
+`.claude/secret-patterns` file (one regular expression per line) that is never
+published.
 
 The command is parsed, not pattern-matched as a whole string. Wrappers are
 unwrapped (`sudo`, `env`, `timeout`, `bash -c "…"`), variables assigned in the
@@ -496,26 +524,29 @@ as a blocking CI gate:
 1. **Executable bits** — a non-executable hook fails silently.
 2. **Module structure** — manifests, frontmatter, `owner`, `enforcement`, dead
    `paths:`, always-on context size, share of rules no machine backs.
-3. **Locks** — 85 cases: JSON in, `allow`/`deny`/`ask` out. Behaviour without
+3. **Locks** — 87 cases: JSON in, `allow`/`deny`/`ask` out. Behaviour without
    `jq` is tested separately: the lock must refuse, not go quiet.
-4. **Bypasses and false positives** — a 77-case corpus
+4. **Secret leaks** — 41 cases across all four doors: read, command, write,
+   commit. The reverse is tested too: examples, placeholders and values taken
+   from the environment must pass without a word.
+5. **Bypasses and false positives** — a 97-case corpus
    (`tests/hook-corpus.tsv`): rewritten forms of dangerous commands, harmless
    commands containing dangerous words, and the acknowledged gaps. The
    false-positive rate is printed as a number — a lock that gets in the way is
    removed along with all the others.
-5. **Stack detection and link integrity** — 33 cases, including regressions for
+6. **Stack detection and link integrity** — 33 cases, including regressions for
    bugs found during development.
-6. **Profiles, ratchet and setup** — 63 cases: profile inference from a
+7. **Profiles, ratchet and setup** — 63 cases: profile inference from a
    synthetic git history, ratchet raising and holding the bar, profile
    controlling lock strictness, repeated setup preserving manual edits.
-7. **Stack policy** — 20 cases, including: an exempt project keeps its safety
+8. **Stack policy** — 20 cases, including: an exempt project keeps its safety
    locks, and a project without a policy file is left alone.
-8. **Project-level rules** — 26 cases: template, precedence file, deviation
+9. **Project-level rules** — 26 cases: template, precedence file, deviation
    recording, and the split between committed project rules and gitignored
    shared symlinks.
-9. **Publishing** — 22 cases, including: no release is cut until the GitHub run
-   is green.
-10. **`claude plugin validate --strict`** on every module.
+10. **Publishing** — 24 cases, including: no release is cut until the GitHub run
+    is green.
+11. **`claude plugin validate --strict`** on every module.
 
 The whole suite is run in a clean container under the `C` locale — tests have
 to pass on someone else's machine, not only the author's. Missing tooling is

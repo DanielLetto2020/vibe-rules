@@ -49,17 +49,47 @@ if [[ ${#broken[@]} -gt 0 ]]; then
   exit 0
 fi
 
+NOTES=()
+
+# --- Незакрытые секреты -------------------------------------------------------
+# Проверяется один раз за сессию и именно здесь: замок на коммит скажет об этом
+# в тот момент, когда работа уже сделана и человек торопится, а `git add .`
+# случается раньше и без вопросов. Дешевле узнать на старте.
+. "$(dirname "${BASH_SOURCE[0]}")/secret-lib.sh"
+
+if git -C "$PROJECT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  tracked=() exposed=()
+  while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    secret_path_kind "$f" >/dev/null || continue
+    if git -C "$PROJECT_DIR" ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then
+      tracked+=("$f")
+    else
+      exposed+=("$f")
+    fi
+  done < <(git -C "$PROJECT_DIR" ls-files -co --exclude-standard 2>/dev/null | head -500)
+
+  if [[ ${#tracked[@]} -gt 0 ]]; then
+    NOTES+=("В git уже отслеживаются файлы с доступами: ${tracked[*]}. Они в истории репозитория — удаление файла этого не отменяет. Скажи человеку, что нужно: убрать из индекса (git rm --cached), закрыть в .gitignore и ротировать значения.")
+    SECRET_WARN="Секреты в git: ${tracked[*]} — файлы отслеживаются, значит уже в истории. Нужна ротация, а не удаление файла."
+  fi
+  if [[ ${#exposed[@]} -gt 0 ]]; then
+    NOTES+=("Файлы с доступами не закрыты в .gitignore: ${exposed[*]}. Первый же 'git add .' увезёт их в историю. Предложи человеку добавить их в .gitignore.")
+    SECRET_WARN="${SECRET_WARN:+$SECRET_WARN }Не в .gitignore: ${exposed[*]} — уедут при первом 'git add .'."
+  fi
+fi
+
 # Требования профиля доносим до модели явно. Раньше они жили только
 # в .claude/gauntlet.json, который читают скрипты, но не модель: настройка
 # specFirst стояла, а поведение не менялось — и выглядело это как «правило
 # не работает», хотя правило до модели просто не доезжало.
 CFG="$PROJECT_DIR/.claude/gauntlet.json"
-[[ -f "$CFG" ]] || exit 0
 
 # Читаем тем же способом, что и замки: где есть jq — им, иначе python3.
 # Одинаковое чтение важнее краткости: иначе на машине без jq замок считает
 # профиль так, а подсказка модели — иначе, и расхождение никак не видно.
 read_cfg() { # <ключ>
+  [[ -f "$CFG" ]] || return 0
   if command -v jq >/dev/null 2>&1; then
     jq -r --arg k "$1" 'if has($k) then .[$k] else "" end' "$CFG" 2>/dev/null; return 0
   fi
@@ -71,7 +101,6 @@ except Exception:
     pass' "$CFG" "$1" 2>/dev/null
 }
 
-NOTES=()
 [[ "$(read_cfg specFirst)" == "true" ]] \
   && NOTES+=("Прежде чем писать код новой функциональности, сформулируй критерий приёмки на человеческом языке, перечисли несчастливые пути и получи подтверждение. Тест, написанный после реализации, проверяет то, что получилось, а не то, что требовалось.")
 
@@ -86,6 +115,15 @@ NOTES=()
 PROFILE=$(read_cfg profile); [[ -z "$PROFILE" ]] && PROFILE="не задан"
 CTX="Профиль стандартов в этом проекте: $PROFILE."
 for n in "${NOTES[@]}"; do CTX+=" $n"; done
+
+# Про секреты человек должен узнать сам, а не через модель: это решение
+# принимает он (ротировать, переписать историю), и принимать его надо до
+# того, как сессия начнёт что-то коммитить.
+if [[ -n "${SECRET_WARN:-}" ]]; then
+  printf '{"systemMessage":"%s","hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' \
+    "$(json_escape "$SECRET_WARN")" "$(json_escape "$CTX")"
+  exit 0
+fi
 
 printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$(json_escape "$CTX")"
 exit 0

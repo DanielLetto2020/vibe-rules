@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Модульные стандарты разработки для Claude Code: замки (hooks), правила (rules), процедуры (skills), конвейер проверок (gauntlet)",
-    "version": "0.11.2"
+    "version": "0.12.0"
   },
   "plugins": [
     {
@@ -17,7 +17,7 @@
         "hooks",
         "core"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-gauntlet",
@@ -29,7 +29,7 @@
         "atdd",
         "quality-gates"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-policy",
@@ -39,7 +39,7 @@
         "policy",
         "governance"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-php-base",
@@ -49,7 +49,7 @@
         "php",
         "language"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-js-base",
@@ -60,7 +60,7 @@
         "ts",
         "language"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-py-base",
@@ -70,7 +70,7 @@
         "python",
         "language"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-php-laravel",
@@ -80,7 +80,7 @@
         "php",
         "laravel"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-php-yii2",
@@ -90,7 +90,7 @@
         "php",
         "yii2"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-web-html",
@@ -101,7 +101,7 @@
         "a11y",
         "web"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-web-css",
@@ -112,7 +112,7 @@
         "web",
         "styling"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-web-design",
@@ -124,7 +124,7 @@
         "css",
         "web"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-js-typescript",
@@ -134,7 +134,7 @@
         "typescript",
         "types"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-js-vue3",
@@ -144,7 +144,7 @@
         "js",
         "vue"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-js-nuxt",
@@ -155,7 +155,7 @@
         "nuxt",
         "ssr"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-js-playwright",
@@ -166,7 +166,7 @@
         "e2e",
         "playwright"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-py-fastapi",
@@ -176,7 +176,7 @@
         "python",
         "fastapi"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-py-parsers",
@@ -186,7 +186,7 @@
         "python",
         "parsing"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-sql-postgres",
@@ -196,7 +196,7 @@
         "sql",
         "postgres"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-sql-sqlite",
@@ -206,7 +206,7 @@
         "sql",
         "sqlite"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-msg-rabbitmq",
@@ -216,7 +216,7 @@
         "queue",
         "rabbitmq"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-msg-kafka",
@@ -226,7 +226,7 @@
         "queue",
         "kafka"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-cache-redis",
@@ -236,7 +236,7 @@
         "cache",
         "redis"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-ops-containers",
@@ -246,7 +246,7 @@
         "docker",
         "podman"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-ops-k8s",
@@ -256,7 +256,7 @@
         "k8s",
         "kubernetes"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-ops-ansible",
@@ -266,7 +266,7 @@
         "ansible",
         "iac"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-api-http",
@@ -277,7 +277,7 @@
         "http",
         "rest"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-arch-services",
@@ -287,7 +287,7 @@
         "architecture",
         "microservices"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-arch-approach",
@@ -297,7 +297,7 @@
         "architecture",
         "ddd"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     },
     {
       "name": "std-ops-observability",
@@ -307,7 +307,7 @@
         "observability",
         "monitoring"
       ],
-      "version": "0.11.2"
+      "version": "0.12.0"
     }
   ]
 }
