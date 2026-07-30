@@ -1,6 +1,6 @@
 ---
 paths:
-  - "tests/**/*.php"
+  - "**/tests/**/*.php"
 owner: "@backend"
 enforcement: test
 enforcement_ref:

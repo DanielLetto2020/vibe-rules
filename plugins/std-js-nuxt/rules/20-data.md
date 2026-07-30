@@ -1,10 +1,10 @@
 ---
 paths:
-  - "pages/**/*.vue"
-  - "layouts/**/*.vue"
-  - "components/**/*.vue"
-  - "composables/**/*.ts"
-  - "server/**/*.ts"
+  - "**/pages/**/*.vue"
+  - "**/layouts/**/*.vue"
+  - "**/components/**/*.vue"
+  - "**/composables/**/*.ts"
+  - "**/server/**/*.ts"
 owner: "@frontend"
 enforcement: review
 since: "2026-07-29"

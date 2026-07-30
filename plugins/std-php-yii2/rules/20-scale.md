@@ -1,10 +1,10 @@
 ---
 paths:
-  - "controllers/**/*.php"
   - "**/controllers/**/*.php"
-  - "models/**/*.php"
+  - "**/controllers/**/*.php"
   - "**/models/**/*.php"
-  - "tests/**/*.php"
+  - "**/models/**/*.php"
+  - "**/tests/**/*.php"
 owner: "@backend"
 enforcement: test
 enforcement_ref:

@@ -1,10 +1,10 @@
 ---
 paths:
-  - "app/Jobs/**/*.php"
-  - "app/Events/**/*.php"
-  - "app/Listeners/**/*.php"
-  - "app/Console/**/*.php"
-  - "app/Notifications/**/*.php"
+  - "**/app/Jobs/**/*.php"
+  - "**/app/Events/**/*.php"
+  - "**/app/Listeners/**/*.php"
+  - "**/app/Console/**/*.php"
+  - "**/app/Notifications/**/*.php"
 owner: "@backend"
 enforcement: review
 since: "2026-07-29"

@@ -2,9 +2,9 @@
 paths:
   - "**/*.spec.ts"
   - "**/*.e2e.ts"
-  - "e2e/**"
-  - "tests/e2e/**"
-  - "playwright.config.*"
+  - "**/e2e/**"
+  - "**/tests/e2e/**"
+  - "**/playwright.config.*"
 owner: "@qa"
 enforcement: test
 enforcement_ref:

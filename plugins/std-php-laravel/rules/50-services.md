@@ -1,10 +1,10 @@
 ---
 paths:
-  - "app/Actions/**/*.php"
-  - "app/Services/**/*.php"
-  - "app/Providers/**/*.php"
-  - "config/**/*.php"
-  - "lang/**"
+  - "**/app/Actions/**/*.php"
+  - "**/app/Services/**/*.php"
+  - "**/app/Providers/**/*.php"
+  - "**/config/**/*.php"
+  - "**/lang/**"
 owner: "@backend"
 enforcement: review
 since: "2026-07-29"

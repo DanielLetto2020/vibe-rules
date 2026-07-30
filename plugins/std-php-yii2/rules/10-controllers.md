@@ -1,8 +1,8 @@
 ---
 paths:
-  - "controllers/**/*.php"
   - "**/controllers/**/*.php"
-  - "models/**/*.php"
+  - "**/controllers/**/*.php"
+  - "**/models/**/*.php"
 owner: "@backend"
 enforcement: review
 since: "2026-07-25"

@@ -1,7 +1,7 @@
 ---
 paths:
-  - "app/Models/**/*.php"
-  - "database/**/*.php"
+  - "**/app/Models/**/*.php"
+  - "**/database/**/*.php"
 owner: "@backend"
 enforcement: test
 enforcement_ref:

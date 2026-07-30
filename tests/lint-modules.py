@@ -59,6 +59,44 @@ def warn(msg: str) -> None:
     warnings.append(msg)
 
 
+def glob_problems(p: str) -> list[str]:
+    """Что не так с шаблоном из paths. Пустой список — шаблон рабочий."""
+    out = []
+    if p.startswith("/"):
+        out.append(f"glob '{p}' абсолютный — paths резолвятся от корня проекта")
+    if "[" in p and "]" not in p:
+        out.append(f"glob '{p}' с незакрытой скобкой не совпадёт ни с чем")
+    # Приложение живёт в корне не всегда: монорепа, client-app/, backend/,
+    # services/api/. Шаблон без ведущего `**/` в таком проекте не совпадёт
+    # ни с чем, и правило молча не работает — ровно так треть модулей была
+    # мертва в проекте, где код лежал в подкаталоге. Диагностика этого не
+    # ловила: «правило не загрузилось» выглядит как «файлов такого типа нет».
+    # Ведущий `**/` при матчинге опционален (`(.*/)?`), поэтому корневые
+    # пути продолжают попадать — маска только расширяется.
+    if not p.startswith("*"):
+        out.append(f"glob '{p}' привязан к корню проекта — в монорепе или при коде "
+                   f"в подкаталоге не совпадёт ни с чем; нужен ведущий '**/': '**/{p}'")
+    return out
+
+
+def selftest_globs() -> None:
+    """Проверка самой проверки: без негативных кейсов она молча деградирует.
+
+    Гоняется на каждом прогоне — стоит доли миллисекунды, а без неё правка
+    в glob_problems может выключить контроль, и репозиторий останется зелёным.
+    """
+    ok = ["**/app/Http/**/*.php", "**/*.vue", "**/*.{ts,tsx}", "*.md",
+          "**/nuxt.config.*", "**/*.[jt]s"]
+    bad = ["app/Http/**/*.php", "nuxt.config.*", "tests/**", "src/**/*.ts",
+           "/etc/**", "**/*.[jt"]
+    for p in ok:
+        if glob_problems(p):
+            err(f"самотест: рабочий шаблон '{p}' признан ошибочным — {glob_problems(p)}")
+    for p in bad:
+        if not glob_problems(p):
+            err(f"самотест: ошибочный шаблон '{p}' прошёл проверку")
+
+
 def parse_frontmatter(text: str) -> tuple[dict, str]:
     """Минимальный парсер YAML-frontmatter: скаляры и простые списки.
 
@@ -229,10 +267,8 @@ def check_rules(plugin_dir: Path, name: str) -> None:
             if not paths:
                 err(f"{rel}: paths объявлен пустым — правило не загрузится никогда")
             for p in paths:
-                if p.startswith("/"):
-                    err(f"{rel}: glob '{p}' абсолютный — paths резолвятся от корня проекта")
-                if "[" in p and "]" not in p:
-                    err(f"{rel}: glob '{p}' с незакрытой скобкой не совпадёт ни с чем")
+                for msg in glob_problems(p):
+                    err(f"{rel}: {msg}")
 
         bullets = len(re.findall(r"^\s*[-*]\s+", body, re.M))
         if bullets > MAX_RULE_BULLETS:
@@ -322,6 +358,7 @@ def main() -> int:
         print("Не найдена директория plugins/", file=sys.stderr)
         return 1
 
+    selftest_globs()
     check_marketplace()
     for plugin_dir in sorted(p for p in PLUGINS.iterdir() if p.is_dir()):
         check_plugin(plugin_dir)

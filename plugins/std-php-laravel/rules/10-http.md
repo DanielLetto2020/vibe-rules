@@ -1,7 +1,7 @@
 ---
 paths:
-  - "app/Http/**/*.php"
-  - "routes/**/*.php"
+  - "**/app/Http/**/*.php"
+  - "**/routes/**/*.php"
 owner: "@backend"
 enforcement: lint
 enforcement_ref:

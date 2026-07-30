@@ -1,10 +1,10 @@
 ---
 paths:
-  - "controllers/**/*.php"
   - "**/controllers/**/*.php"
-  - "views/**"
+  - "**/controllers/**/*.php"
   - "**/views/**"
-  - "config/**/*.php"
+  - "**/views/**"
+  - "**/config/**/*.php"
 owner: "@backend"
 enforcement: review
 since: "2026-07-29"

@@ -1,11 +1,11 @@
 ---
 paths:
-  - "pages/**/*.vue"
-  - "layouts/**/*.vue"
-  - "composables/**/*.ts"
-  - "server/**/*.ts"
-  - "middleware/**/*.ts"
-  - "nuxt.config.*"
+  - "**/pages/**/*.vue"
+  - "**/layouts/**/*.vue"
+  - "**/composables/**/*.ts"
+  - "**/server/**/*.ts"
+  - "**/middleware/**/*.ts"
+  - "**/nuxt.config.*"
 owner: "@frontend"
 enforcement: lint
 enforcement_ref:

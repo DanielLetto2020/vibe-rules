@@ -183,17 +183,22 @@ new_rule() {
   fi
   mkdir -p "$RULES_DIR"
 
+  # Маски начинаются с `**/` даже там, где каталог обычно лежит в корне:
+  # приложение живёт в подкаталоге чаще, чем кажется (монорепа, client-app/,
+  # backend/), а маска от корня в таком проекте не совпадёт ни с чем — правило
+  # молча не загрузится. Ведущий `**/` при матчинге опционален, корневые пути
+  # продолжают попадать.
   local paths_hint
   case "$kind" in
-    backend)  paths_hint='  - "app/**/*.php"' ;;
-    frontend) paths_hint='  - "src/**/*.{ts,vue}"' ;;
-    infra)    paths_hint='  - "deploy/**"' ;;
-    tests)    paths_hint='  - "tests/**"' ;;
+    backend)  paths_hint='  - "**/app/**/*.php"' ;;
+    frontend) paths_hint='  - "**/src/**/*.{ts,vue}"' ;;
+    infra)    paths_hint='  - "**/deploy/**"' ;;
+    tests)    paths_hint='  - "**/tests/**"' ;;
     always)   paths_hint='' ;;
     # Правила переходного периода касаются обоих контуров сразу: и старого,
     # чтобы его не трогали, и нового, чтобы писался по общим правилам
-    migration|boundary|freeze) paths_hint='  - "ЗАПОЛНИ/**"' ;;
-    *)        paths_hint='  - "путь/**/*.расширение"' ;;
+    migration|boundary|freeze) paths_hint='  - "**/ЗАПОЛНИ/**"' ;;
+    *)        paths_hint='  - "**/путь/**/*.расширение"' ;;
   esac
 
   {

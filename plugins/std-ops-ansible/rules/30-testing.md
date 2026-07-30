@@ -1,9 +1,9 @@
 ---
 paths:
-  - "ansible/**/*.y*ml"
-  - "playbooks/**/*.y*ml"
-  - "roles/**/*.y*ml"
-  - "molecule/**"
+  - "**/ansible/**/*.y*ml"
+  - "**/playbooks/**/*.y*ml"
+  - "**/roles/**/*.y*ml"
+  - "**/molecule/**"
   - "**/ansible.cfg"
 owner: "@platform"
 enforcement: lint

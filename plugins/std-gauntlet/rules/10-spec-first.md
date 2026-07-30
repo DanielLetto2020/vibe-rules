@@ -1,8 +1,8 @@
 ---
 paths:
-  - "features/**"
+  - "**/features/**"
   - "**/*.feature"
-  - "specs/**"
+  - "**/specs/**"
 owner: "@platform"
 enforcement: review
 since: "2026-07-26"

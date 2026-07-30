@@ -1,8 +1,8 @@
 ---
 paths:
   - "**/*.vue"
-  - "components/**/*.{ts,js}"
-  - "src/components/**/*.{ts,js}"
+  - "**/components/**/*.{ts,js}"
+  - "**/src/components/**/*.{ts,js}"
 owner: "@frontend"
 enforcement: lint
 enforcement_ref:

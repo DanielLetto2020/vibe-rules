@@ -1,9 +1,9 @@
 ---
 paths:
-  - "components/**/*.php"
   - "**/components/**/*.php"
-  - "config/**/*.php"
-  - "migrations/**/*.php"
+  - "**/components/**/*.php"
+  - "**/config/**/*.php"
+  - "**/migrations/**/*.php"
   - "**/migrations/**/*.php"
 owner: "@backend"
 enforcement: review

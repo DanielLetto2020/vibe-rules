@@ -1,8 +1,8 @@
 ---
 paths:
   - "**/*.vue"
-  - "stores/**/*.{ts,js}"
-  - "src/stores/**/*.{ts,js}"
+  - "**/stores/**/*.{ts,js}"
+  - "**/src/stores/**/*.{ts,js}"
 owner: "@frontend"
 enforcement: review
 since: "2026-07-29"

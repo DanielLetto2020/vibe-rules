@@ -98,7 +98,7 @@ A rule costs money. It has to pay for itself.
 ```markdown
 ---
 paths:
-  - "app/Http/**/*.php"
+  - "**/app/Http/**/*.php"
 owner: "@backend"
 enforcement: review
 since: "2026-07-26"
@@ -118,7 +118,7 @@ The most important field. It decides **when** the rule reaches the agent.
 
 ```yaml
 paths:
-  - "app/Http/**/*.php"     # only HTTP-layer files
+  - "**/app/Http/**/*.php"     # only HTTP-layer files
 ```
 
 The agent opens a file under `app/Http/` — the rule arrives. Working on the
@@ -133,9 +133,18 @@ Pattern examples:
 | Pattern | Matches |
 |---|---|
 | `**/*.vue` | every Vue component in any folder |
-| `app/Models/**` | everything inside the models folder |
+| `**/app/Models/**` | everything inside the models folder |
 | `**/migrations/**` | migrations wherever they live |
 | `**/*.{ts,tsx}` | TypeScript files with either extension |
+
+**Always start a pattern with `**/`** — even for a file that normally sits at
+the repository root, like `**/nuxt.config.*`. Patterns resolve from the project
+root, and the application is not always there: monorepos, `client-app/`,
+`backend/`, `services/api/`. A pattern written as `app/Models/**` matches
+nothing in such a project, and the rule silently never loads — which looks
+exactly like "there are no files of that kind here". The leading `**/` is
+optional when matching, so root-level paths keep matching too. The test suite
+rejects a pattern without it.
 
 Checking that a pattern hits the right files is easy: open such a file and run
 `/context` — the rule should appear in the list.

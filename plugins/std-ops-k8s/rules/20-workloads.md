@@ -1,11 +1,11 @@
 ---
 paths:
-  - "k8s/**/*.y*ml"
-  - "kubernetes/**/*.y*ml"
-  - "manifests/**/*.y*ml"
-  - "deploy/**/*.y*ml"
-  - "charts/**/*.y*ml"
-  - "helm/**/*.y*ml"
+  - "**/k8s/**/*.y*ml"
+  - "**/kubernetes/**/*.y*ml"
+  - "**/manifests/**/*.y*ml"
+  - "**/deploy/**/*.y*ml"
+  - "**/charts/**/*.y*ml"
+  - "**/helm/**/*.y*ml"
 owner: "@platform"
 enforcement: review
 since: "2026-07-29"

@@ -1,8 +1,8 @@
 ---
 paths:
-  - "tests/**"
-  - "test/**"
-  - "spec/**"
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/spec/**"
   - "**/*_test.py"
   - "**/test_*.py"
   - "**/*Test.php"

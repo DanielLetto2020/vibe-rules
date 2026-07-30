@@ -50,7 +50,7 @@ Inside, the same format as shared rules:
 ```markdown
 ---
 paths:
-  - "app/Http/**/*.php"
+  - "**/app/Http/**/*.php"
 owner: "@petrov"
 enforcement: prose
 since: "2026-07-27"
@@ -78,7 +78,7 @@ To see what is already there:
 
 ```
 Project rules (in git):
-  api-conventions.md    @petrov  "app/Http/**/*.php"
+  api-conventions.md    @petrov  "**/app/Http/**/*.php"
   billing-migration.md  @ivanov  "app/Legacy/**"
 
 Shared modules (symlinks, not in git):

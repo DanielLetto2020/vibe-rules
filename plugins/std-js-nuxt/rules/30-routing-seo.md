@@ -1,9 +1,9 @@
 ---
 paths:
-  - "pages/**/*.vue"
-  - "layouts/**/*.vue"
-  - "middleware/**/*.ts"
-  - "nuxt.config.*"
+  - "**/pages/**/*.vue"
+  - "**/layouts/**/*.vue"
+  - "**/middleware/**/*.ts"
+  - "**/nuxt.config.*"
 owner: "@frontend"
 enforcement: review
 since: "2026-07-29"

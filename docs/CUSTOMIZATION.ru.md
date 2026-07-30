@@ -49,7 +49,7 @@
 ```markdown
 ---
 paths:
-  - "app/Http/**/*.php"
+  - "**/app/Http/**/*.php"
 owner: "@petrov"
 enforcement: prose
 since: "2026-07-27"
@@ -77,7 +77,7 @@ since: "2026-07-27"
 
 ```
 Правила этого проекта (в git):
-  api-conventions.md    @petrov  "app/Http/**/*.php"
+  api-conventions.md    @petrov  "**/app/Http/**/*.php"
   billing-migration.md  @ivanov  "app/Legacy/**"
 
 Общие модули (симлинки, в git не идут):

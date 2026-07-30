@@ -1,9 +1,9 @@
 ---
 paths:
-  - "nuxt.config.*"
-  - "modules/**/*.ts"
-  - "plugins/**/*.ts"
-  - "app.config.*"
+  - "**/nuxt.config.*"
+  - "**/modules/**/*.ts"
+  - "**/plugins/**/*.ts"
+  - "**/app.config.*"
 owner: "@frontend"
 enforcement: review
 since: "2026-07-29"

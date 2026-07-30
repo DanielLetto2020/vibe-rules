@@ -50,7 +50,7 @@ cp -r templates/module plugins/std-<slug>
 
    ```yaml
    ---
-   paths: ["src/**/*.ts"]   # without this the rule loads in EVERY session
+   paths: ["**/src/**/*.ts"]   # without this the rule loads in EVERY session
    owner: "@team"
    enforcement: lint
    enforcement_ref:
