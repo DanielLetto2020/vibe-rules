@@ -1,51 +1,50 @@
-# Project-level rules, without touching the shared repository
+# Свои правила в проекте, не трогая общий репозиторий
 
-> 🇷🇺 [Русская версия](CUSTOMIZATION.ru.md) · [all docs](README.md)
-
----
-
-## The problem
-
-Shared modules describe a technology: how Laravel code is written here, how a
-Vue component is laid out. But every project has its own things — agreements,
-traps, justified departures from a general rule.
-
-Putting those in the shared repository is wrong: it is linked into other
-projects, and your quirk becomes their problem. Adding them to `CLAUDE.md` is
-wrong for a different reason: it loads in full on every session, whatever you
-happen to be working on.
-
-So a project gets its own layer of rules. It lives in the project repository,
-is committed with the code, and loads by the same mechanics as the shared ones.
+> [все документы](README.md)
 
 ---
 
-## Four levels of customization
+## Задача
 
-From most common to least:
+Общие модули описывают технологию: как принято писать на Laravel, как
+оформлять Vue-компонент. Но у каждого проекта есть своё — договорённости,
+ловушки, обоснованные отступления от общего правила.
 
-| Level | Where | When you need it |
+Класть это в общий репозиторий нельзя: он подключён к другим проектам, и ваша
+особенность станет их проблемой. Дописывать в `CLAUDE.md` — плохо по другой
+причине: он грузится в каждую сессию целиком, независимо от того, что вы
+делаете.
+
+Поэтому у проекта есть свой слой правил. Он живёт в репозитории проекта,
+коммитится вместе с кодом и грузится по тем же законам, что общие.
+
+---
+
+## Четыре уровня настройки
+
+От самого частого к самому редкому:
+
+| Уровень | Где | Когда нужен |
 |---|---|---|
-| Project rule | `.claude/rules/<name>.md` | a convention no shared module covers |
-| Departure | `.claude/rules/00-precedence.md` | a shared rule does not fit here, and there is a reason |
-| Gate settings | `.claude/gauntlet.json` | different check commands, different mutation mode |
-| Module opt-out | `/std-core:rule override <module>` | a whole module is not about this project |
+| Правило проекта | `.claude/rules/<имя>.md` | своя конвенция, которой нет в общих модулях |
+| Отступление | `.claude/rules/00-precedence.md` | общее правило здесь не подходит, и есть причина |
+| Настройки гейтов | `.claude/gauntlet.json` | другие команды проверок, другой режим мутации |
+| Отключение модуля | `/std-core:rule override <модуль>` | целый модуль не про этот проект |
 
-All of it lives in the project's git. The shared standards repository stays
-untouched.
+Всё это в git проекта. Общий репозиторий стандартов не меняется.
 
 ---
 
-## A project rule
+## Правило проекта
 
 ```bash
 /std-core:rule new api-conventions backend
 ```
 
-This creates `.claude/rules/api-conventions.md` with a skeleton. The second
-argument is a path hint: `backend`, `frontend`, `infra`, `tests`, `always`.
+Создаётся `.claude/rules/api-conventions.md` с каркасом. Второй аргумент —
+подсказка путей: `backend`, `frontend`, `infra`, `tests`, `always`.
 
-Inside, the same format as shared rules:
+Внутри — тот же формат, что у общих правил:
 
 ```markdown
 ---
@@ -56,100 +55,99 @@ enforcement: prose
 since: "2026-07-27"
 ---
 
-# API responses
+# Ответы API
 
-- Errors follow RFC 7807; the `type` field is mandatory.
-- Pagination is cursor-based only: we have endpoints over millions of rows,
-  and `offset` there takes the database down.
+- Ошибки отдаются в формате RFC 7807, поле `type` обязательно.
+- Пагинация только курсорная: у нас есть эндпоинты на миллионы строк,
+  и `offset` там кладёт базу.
 ```
 
-**`paths` is the field that matters most.** Without it the rule loads on every
-session and burns context even when it is irrelevant. With it, the rule arrives
-exactly when a matching file is open.
+**`paths` — самое важное поле.** Правило без него грузится в каждую сессию
+и тратит контекст, даже когда вы правите совсем другое. С ним — приезжает
+ровно тогда, когда открыт подходящий файл.
 
-Then commit the rule. It reaches everyone working on the project and — unlike
-shared modules, which are symlinks — genuinely lives in git.
+Дальше правило коммитится. Оно попадёт к каждому, кто работает с проектом,
+и в отличие от общих модулей (они симлинки) действительно лежит в git.
 
-To see what is already there:
+Посмотреть, что уже есть:
 
 ```bash
 /std-core:rule list
 ```
 
 ```
-Project rules (in git):
+Правила этого проекта (в git):
   api-conventions.md    @petrov  "**/app/Http/**/*.php"
   billing-migration.md  @ivanov  "app/Legacy/**"
 
-Shared modules (symlinks, not in git):
+Общие модули (симлинки, в git не идут):
   std-php-laravel       ok
   std-js-vue            ok
 
-Precedence declared: 00-precedence.md
+Приоритет объявлен: 00-precedence.md
 ```
 
 ---
 
-## When a project rule contradicts a shared one
+## Когда правило проекта спорит с общим
 
-Claude Code loads all rules with equal weight. There is no automatic "project
-beats shared": on a contradiction the model picks one, and you never find out
-which.
+Claude Code грузит все правила с одинаковым весом. Автоматического
+«проектное побеждает общее» нет: при противоречии модель выберет одно, и вы
+не узнаете какое.
 
-So the hierarchy is declared explicitly:
+Поэтому иерархия объявляется явно:
 
 ```bash
 /std-core:rule precedence
 ```
 
-This produces `.claude/rules/00-precedence.md`, which says two things:
+Появляется `.claude/rules/00-precedence.md` — он говорит две вещи:
 
-1. **On a contradiction, the project rule wins.** The shared module describes
-   the usual way; the project knows its own circumstances.
-2. **Having noticed a contradiction, the agent must say so** rather than
-   choosing silently.
+1. **При противоречии действует правило проекта.** Общий модуль описывает,
+   как принято обычно; проект знает свои обстоятельства.
+2. **Заметив противоречие, агент обязан сказать о нём**, а не выбирать молча.
 
-The second point matters more. A divergence means either that the shared rule
-needs refining or that the departure is no longer needed. Both are decisions
-for a human.
+Второй пункт важнее первого. Расхождение означает либо что общее правило пора
+уточнять, либо что отступление в проекте больше не нужно. И то и другое —
+решение человека.
 
-### Departures are recorded with a reason
+### Отступления записываются с причиной
 
-In the same file, in the section below:
+В том же файле, разделом ниже:
 
 ```markdown
-## Departures
+## Отступления
 
-### Validation in controllers, not FormRequest
-Module: std-php-laravel, rule 10-http.
-Reason: the billing module has not been moved to FormRequest; the move is
-planned for Q4. New code follows the shared rule.
+### Валидация в контроллерах, а не в FormRequest
+Модуль: std-php-laravel, правило 10-http.
+Причина: модуль биллинга не переведён на FormRequest, перевод запланирован
+на Q4. Новый код — по общему правилу.
 ```
 
-The reason is mandatory. Six months on, a departure without one is
-indistinguishable from an oversight, and nobody will dare remove it.
+Причина обязательна. Через полгода отступление без причины неотличимо
+от недосмотра, и снять его никто не решится.
 
 ---
 
-## Turning off a shared module entirely
+## Отключить общий модуль целиком
 
 ```bash
 /std-core:rule override php-laravel
 ```
 
-The symlink is removed and a stub with a place for the reason is appended to
-`00-precedence.md`. Fill it in right away — the command will remind you.
+Симлинк убирается, а в `00-precedence.md` дописывается заготовка с местом
+под причину. Заполните её сразу — команда об этом напомнит.
 
-To restore it: `/std-core:setup`.
+Вернуть обратно: `/std-core:setup`.
 
-This is a rare case. Usually you do not want to disable a module, only to
-disagree with one of its rules — a departure is enough for that.
+Это редкий случай. Обычно нужно не выключить модуль, а не согласиться
+с одним его правилом — для этого достаточно отступления.
 
 ---
 
-## Check settings
+## Настройки проверок
 
-`.claude/gauntlet.json` is written during setup and edited by hand afterwards.
+`.claude/gauntlet.json` пишется при установке и дальше правится руками.
 
 ```json
 {
@@ -163,10 +161,10 @@ disagree with one of its rules — a departure is enough for that.
 }
 ```
 
-Change it freely: commands to match your build, mutation gate mode, threshold.
-Details in [The ratchet](RATCHET.md) and [Profiles](PROFILES.md).
+Меняется свободно: команды под свою сборку, режим мутационного гейта, порог.
+Подробности — [Храповик](RATCHET.md) и [Профили](PROFILES.md).
 
-To see the result:
+Проверить, что получилось:
 
 ```bash
 /std-gauntlet:run --list
@@ -174,67 +172,68 @@ To see the result:
 
 ---
 
-## What of this goes into git
+## Что из этого попадает в git
 
-| File | In git | Why |
+| Файл | В git | Почему |
 |---|---|---|
-| `.claude/rules/*.md` (yours) | yes | it is the team's standard, shared by all |
-| `.claude/rules/std-*` (symlinks) | no | they point at an install path, different per machine |
-| `.claude/gauntlet.json` | yes | check settings are the same for everyone |
-| `.claude/.ratchet.json` | no | the bar depends on runs on one particular machine |
-| `.claude/.std-trace.jsonl` | no | rule-loading journal, local diagnostics |
+| `.claude/rules/*.md` (ваши) | да | это стандарт команды, он общий |
+| `.claude/rules/std-*` (симлинки) | нет | указывают на путь установки, у каждого свой |
+| `.claude/gauntlet.json` | да | настройки проверок одинаковы у всех |
+| `.claude/.ratchet.json` | нет | планка зависит от прогонов на конкретной машине |
+| `.claude/.std-trace.jsonl` | нет | журнал загрузки правил, локальная диагностика |
 
-The `.gitignore` entries for this are written during setup.
+`.gitignore` для этого пишется при установке.
 
 ---
 
-## Checking that a rule actually loads
+## Как проверить, что правило действительно грузится
 
-A rule you wrote may not work: a typo in `paths`, a wrong glob. That looks
-exactly like "the rule exists" — the agent simply does not do what you asked.
+Написанное правило может не работать: опечатка в `paths`, неверная маска.
+Выглядит это одинаково с «правило есть» — агент просто не делает того,
+что вы просили.
 
-Open a file the rule is supposed to cover and look:
+Откройте файл, который правило должно покрывать, и посмотрите:
 
 ```bash
 /context
 ```
 
-Your rule should appear under Memory files. If it is not there, the glob did
-not match.
+В разделе Memory files должно появиться ваше правило. Если его там нет —
+маска не совпала.
 
-A second way, without spending tokens:
+Второй способ, без траты токенов:
 
 ```bash
 /std-core:doctor
 ```
 
-It shows the journal of actual loads: which rules arrived, when, and on which
-files.
+Он покажет журнал фактических загрузок: какие правила приезжали, когда
+и на каких файлах.
 
 ---
 
-## When to write a rule, and when not to
+## Когда заводить правило, а когда не стоит
 
-A rule is written **after the fact**:
+Правило заводится **по факту**:
 
-- the agent made the same mistake a second time;
-- review caught something it should have known;
-- you are typing the same correction into the chat for the second time.
+- агент ошибся одинаково второй раз;
+- ревью поймало то, что он должен был знать;
+- вы второй раз печатаете ту же поправку в чат.
 
-Not "let's write it down just in case". Every rule is a tax on context in
-every session for every developer. A rule set that only grows stops being read
-— by people and by the model alike.
+Не стоит: «запишем на всякий случай». Каждое правило — налог на контекст
+в каждой сессии каждого разработчика. Репозиторий правил, который только
+растёт, перестают читать — и люди, и модель.
 
-And the main test: **can a machine check this?** If yes, it belongs in a linter
-config or a hook, not in prose. A rule in prose is a request; a rule in a hook
-is a check that runs every time.
+И главная проверка: **это можно проверить машиной?** Если да, место
+не в тексте, а в конфиге линтера или в хуке. Правило прозой — просьба,
+правило в хуке — проверка, которая выполняется всегда.
 
-How to phrase them — [Writing your own rule](WRITING-RULES.md).
+Как формулировать — [Как написать своё правило](WRITING-RULES.md).
 
 ---
 
-## Next
+## Дальше
 
-- [Legacy and rewrites](LEGACY.md) — rules for a transition period
-- [Writing your own rule](WRITING-RULES.md) — phrasing and pitfalls
-- [Examples](EXAMPLES.md), scenario 5 — a project rule end to end
+- [Легаси и переписывание](LEGACY.md) — правила для переходного периода
+- [Как написать своё правило](WRITING-RULES.md) — формулировки и ошибки
+- [Примеры](EXAMPLES.md), сценарий 5 — своё правило от начала до конца

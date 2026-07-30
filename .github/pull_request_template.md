@@ -1,36 +1,37 @@
 <!--
-A rule is added in reaction, never in anticipation. See CONTRIBUTING.md.
+Правило заводится по факту, а не впрок. Подробности — CONTRIBUTING.md.
 -->
 
-## What changed
+## Что изменилось
 
-<!-- The change itself, in one or two sentences. -->
+<!-- Само изменение, одним-двумя предложениями. -->
 
-## Why
+## Зачем
 
 <!--
-The concrete incident behind it: what the model got wrong, what review caught,
-what you had to correct twice. "Might be useful" is not a reason — every rule
-costs context in every session for every developer.
+Конкретный случай, из-за которого понадобилось: в чём ошиблась модель, что
+поймало ревью, какую поправку пришлось печатать второй раз. «Может пригодиться»
+— не причина: каждое правило стоит контекста в каждой сессии у каждого
+разработчика.
 -->
 
-## Enforcement
+## Чем подкреплено
 
 <!--
-For a new or changed rule, state how it is enforced and why that level:
+Для нового или изменённого правила — как оно проверяется и почему именно так:
 
-- `hook` / `lint` / `test` — what exactly checks it, and where the config lives
-- `review` / `prose` — why a machine cannot check this
+- `hook` / `lint` / `test` — что именно проверяет и где лежит конфиг
+- `review` / `prose` — почему машина проверить это не может
 
-A rule marked `lint` without a matching entry in `configs/` is prose pretending
-to be a check.
+Правило с меткой `lint` без соответствующего файла в `configs/` — проза,
+притворяющаяся проверкой.
 -->
 
-## Checklist
+## Проверено
 
-- [ ] `tests/run.sh` passes
-- [ ] New locks come with cases in `tests/test-hooks.sh` — both the blocked call
-      and a similar call that must still pass
-- [ ] New modules are registered in `.claude-plugin/marketplace.json`
-- [ ] New rules have `paths`, `owner`, `enforcement` and `since`
-- [ ] No contradiction with an existing rule
+- [ ] `tests/run.sh` зелёный
+- [ ] У нового замка есть кейсы в `tests/test-hooks.sh` — и блокируемый вызов,
+      и похожий, который обязан пройти
+- [ ] Новый модуль зарегистрирован в `.claude-plugin/marketplace.json`
+- [ ] У нового правила есть `paths`, `owner`, `enforcement` и `since`
+- [ ] Нет противоречия с существующим правилом

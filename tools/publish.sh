@@ -192,32 +192,18 @@ if ! git push origin main 2>&1 | tail -1 | sed 's/^/  /'; then
   red "  пуш версии не прошёл"; exit 1
 fi
 
-# Описание двуязычное. Список изменений собирается из сообщений коммитов —
-# он приводится один раз и не переводится: перевод, сделанный скриптом, был бы
-# выдумкой. Двуязычны заголовки и всё, что читателю нужно сделать.
+# Описание на русском, как и вся документация репозитория. Раньше оно было
+# двуязычным ради внешней аудитории; репозиторий делается для себя, и вторая
+# половина текста только удваивала работу при каждом релизе.
 BODY="${TITLE:+$TITLE
 
-}## What changed · Что изменилось
+}## Что изменилось
 
 $CHANGES
 
-Full list · полный список: https://github.com/$REPO/compare/$LAST_TAG...v$NEW
+Полный список: https://github.com/$REPO/compare/$LAST_TAG...v$NEW
 
 ---
-
-### English
-
-Update an existing install:
-
-\`\`\`
-/plugin marketplace update vibe-rules
-/plugin update
-\`\`\`
-
-New here? Start with [START.md](https://github.com/$REPO/blob/main/docs/START.md)
-— what this is, in plain words.
-
-### 🇷🇺 По-русски
 
 Обновить установленное:
 
@@ -226,7 +212,7 @@ New here? Start with [START.md](https://github.com/$REPO/blob/main/docs/START.md
 /plugin update
 \`\`\`
 
-Впервые здесь? Начните с [START.ru.md](https://github.com/$REPO/blob/main/docs/START.ru.md)
+Впервые здесь? Начните с [START.md](https://github.com/$REPO/blob/main/docs/START.md)
 — что это такое, простыми словами."
 
 RESP=$(ghapi POST "/repos/$REPO/releases" "$(jq -n \

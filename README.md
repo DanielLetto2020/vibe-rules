@@ -3,85 +3,73 @@
 [![gates](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml/badge.svg)](https://github.com/DanielLetto2020/vibe-rules/actions/workflows/validate.yml)
 [![release](https://img.shields.io/github/v/release/DanielLetto2020/vibe-rules?color=blue)](https://github.com/DanielLetto2020/vibe-rules/releases)
 [![license](https://img.shields.io/github/license/DanielLetto2020/vibe-rules?color=blue)](LICENSE)
-[![modules](https://img.shields.io/badge/modules-29-blue)](#modules)
+[![modules](https://img.shields.io/badge/%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D0%B5%D0%B9-29-blue)](#%D0%BC%D0%BE%D0%B4%D1%83%D0%BB%D0%B8)
 
-> 🇷🇺 [Русская версия](README.ru.md)
+**Стандарты, которые агент действительно соблюдает.**
 
-**Standards your AI agent actually follows.**
+Ты объясняешь агенту одни и те же договорённости каждую сессию. Он выполняет
+их в большинстве случаев — а те разы, когда не выполнил, всплывают на ревью.
+Если всплывают.
 
-You explain the same conventions every session. The agent follows them most of
-the time — and the times it doesn't are the ones you catch in review, if you
-catch them at all.
+Здесь два вида содержимого, и второй важнее первого:
 
-There are two kinds of content here, and the second matters more:
+- **правила** — текст, который агент читает. Приезжают не все сразу, а тогда,
+  когда нужны: правило про Vue — при открытии `.vue`-файла;
+- **замки** — скрипты, которые срабатывают до выполнения опасной команды.
+  Удаление тома с данными не произойдёт, что бы агент ни решил.
 
-- **rules** — text the agent reads. They don't all arrive at once, only when
-  relevant: the Vue rule shows up when a `.vue` file is opened;
-- **locks** — scripts that fire before a dangerous command runs. Deleting
-  a data volume will not happen, whatever the agent decided.
+> Правило текстом — это просьба. Правило в замке — это проверка, которая
+> выполняется всегда. Просьбу выполнят в девяти случаях из десяти; проверка
+> не зависит от того, вспомнил о ней кто-нибудь или нет. Песочницей она при
+> этом не является — [что замки не ловят](#что-замки-не-ловят).
 
-> A rule in prose is a request. A rule in a lock is a check that always runs.
-> A request is honoured nine times out of ten; a check does not depend on
-> whether anyone remembered it. It is not a sandbox — see
-> [what the locks do not catch](#what-the-locks-do-not-catch).
+Дальняя цель — дойти до состояния, когда не читать сгенерированный код
+становится обоснованным решением. Не за счёт доверия к агенту, а за счёт
+автоматизации недоверия.
 
-The end goal is to reach a state where not reading the generated code is a
-defensible position rather than recklessness. Not by trusting the agent, but by
-automating the distrust.
+### 👉 Первый раз здесь?
 
-### 👉 First time here?
+**[Как это работает — простыми словами](docs/START.md)** — без терминов,
+с примерами и словарём. Пятнадцать минут, и дальше всё читается легко.
 
-**[How this works, in plain words](docs/START.md)** — no jargon, with examples
-and a glossary. Fifteen minutes, and everything after reads easily.
+> **О языке:** репозиторий русскоязычный целиком — правила, документация,
+> сообщения замков. Устройство, скрипты и тесты от языка не зависят: форкните
+> и пишите свои правила на любом.
 
-> **On language:** rule texts are written in Russian. The architecture, tooling
-> and tests are language-agnostic — fork it and write your own rules in any
-> language.
+## Устройство: модульность по моменту загрузки
 
-## The problem
+Правила делятся не на «PHP / JS / процессы», а по тому, **когда** они попадают
+в контекст. Тема — уже второй уровень.
 
-Claude Code starts every session with an empty context. Two constraints follow:
-
-1. **Everything you say costs tokens** — in every session, for every developer.
-2. **The more you say, the less is followed.** The docs recommend keeping
-   `CLAUDE.md` under 200 lines: long files consume context *and* reduce
-   adherence.
-
-So the question isn't *what to write*. It's *where to put it so it's found
-exactly when needed*.
-
-## The idea
-
-Rules are organised **by when they load**, not by topic:
-
-| Layer | Analogy | When it reaches the agent | Cost |
+| Слой | Аналогия | Когда попадает к агенту | Цена |
 |---|---|---|---|
-| **Lock** | a lock on the machine | never — it simply fires | 0 tokens, runs every time |
-| **Always-on** | the morning briefing | every session | expensive, ≤200 lines |
-| **Path-scoped** | a label on the machine | when a matching file is opened | pay only when relevant |
-| **Task-scoped** | a manual on the shelf | when the task matches | pay only when relevant |
-| **Reference** | the library down the hall | when the agent decides to look | nearly free |
+| **Замок** | замок на станке | никогда — просто срабатывает | 0 токенов, срабатывает каждый раз |
+| **Постоянное** | утренний брифинг | каждая сессия | дорого, ≤200 строк |
+| **По путям** | табличка на станке | когда открыт подходящий файл | платим только по делу |
+| **По задаче** | инструкция на полке | когда задача совпала с описанием | платим только по делу |
+| **Справочник** | библиотека в конце коридора | когда агент сам решит заглянуть | почти бесплатно |
 
-Explained with examples in [How this works, in plain words](docs/START.md).
+Подробнее с примерами — [«Как это работает простыми словами»](docs/START.md).
 
-Every rule records **what backs it up**: a lock, a linter, a test, human
-review — or nothing but an agreement ("prose").
+У каждого правила записано, **чем оно подкреплено**: замком, линтером, тестом,
+человеческим ревью — или это просто договорённость («проза»).
 
-The field is called `enforcement`, and it forces the author to answer an
-awkward question: how is this actually checked? If the answer is "it isn't, we
-hope people remember" — the rule should either be automated or dropped.
+Поле называется `enforcement`, и оно заставляет автора ответить на неудобный
+вопрос: а как это вообще проверяется? Если ответ «никак, надеемся на
+сознательность» — правило либо надо автоматизировать, либо удалить.
 
-The test suite prints the share of unbacked rules. **That number must go
-down.** A standards repository should shrink as automation grows, not swell.
+Тесты печатают долю таких неподкреплённых правил. Она обязана снижаться:
+репозиторий стандартов должен худеть по мере автоматизации, а не пухнуть.
 
-### A file you touched gets brought up to standard
+### Файл, которого коснулись, приводится к стандарту
 
-A loaded rule and an applied rule are different things. Rules arrive when
-a file is read, but the write happens at the end of a long chain of reasoning,
-and three of fifteen bullets get applied. The rest were not knowingly broken —
-they were forgotten.
+Загруженное правило и применённое правило — разные вещи. Правила приезжают
+при чтении файла, а запись происходит в конце длинной цепочки рассуждений,
+и из пятнадцати пунктов применяются три. Остальные не нарушены осознанно —
+про них забыли.
 
-So after every write a hook names the modules whose `paths` matched the file:
+Поэтому после каждой записи хук называет модули, чьи `paths` совпали с путём
+файла:
 
 ```
 Файл pages/index.vue подпадает под правила: std-js-base/10-language,
@@ -90,607 +78,500 @@ std-web-html/10-markup … Сверь с ними написанное — це�
 только новые строки.
 ```
 
-The radius is deliberately limited: **the whole file is checked, only what is
-within the edit gets fixed**, and wider mismatches are reported to a human.
-Without that limit one edit produces a diff of hundreds of lines — and in
-a project without tests nothing backs that initiative up.
+Радиус ограничен намеренно: **сверяется файл целиком, исправляется то, что
+в границах правки**, о расхождениях шире — агент сообщает человеку. Без этого
+ограничения одна правка порождает диффы на сотни строк, а в проекте без тестов
+такая инициатива ничем не подстрахована.
 
-This is how a codebase written in mixed styles converges: one touched file at
-a time, rather than in a refactor scheduled for someday. Disable with
+Так проект, написанный вразнобой, выравнивается по мере работы — не отдельным
+«рефакторингом когда-нибудь», а по файлу за раз. Отключается переменной
 `STD_RECHECK=0`.
 
-A brand-new file poses the opposite problem: there is nothing to check it
-against, because it is not in the project yet. What diverges there is not
-formatting — pint and eslint will handle that — but structure: where the logic
-lives, what gets returned, how methods are named. Module rules describe the
-ideal, not what is customary here, so the hook shows the nearest files of the
-same kind together with their headers:
+С новым файлом задача обратная: сверять не с чем, потому что его ещё нет
+в проекте. Здесь разъезжается не форматирование — его приведут pint и eslint —
+а структура: где живёт логика, что возвращается наружу, как называются методы.
+Правила модулей описывают идеал, а не то, что принято здесь, поэтому хук
+показывает ближайшие файлы того же вида вместе с их шапками:
 
 ```
-New file created: app/Http/Controllers/OrderController.php. The project
-already has other Controllers — open at least one and match the structure:
+Создан новый файл app/Http/Controllers/OrderController.php. В проекте уже
+есть другие Controller — открой хотя бы один и сверь структуру:
   app/Http/Controllers/UserController.php → <?php|declare(strict_types=1);|…
 ```
 
-Once per kind of file per session: a controller, a test and a component need
-different examples, while a second controller in a row needs no reminder.
-Disable with `STD_SIBLINGS=0`.
+Один раз на вид файла за сессию: контроллер, тест и компонент — разные
+образцы, а второй контроллер подряд в напоминании уже не нуждается.
+Отключается переменной `STD_SIBLINGS=0`.
 
-That convergence has a number attached to it — the `debt` gate: how many places
-do not match the standard, with the bar set at the best already achieved.
-A rule without a number holds until the first rush, and nobody notices when it
-stops. Here it is noticeable: the bar drops by itself once a touched file is
-brought in line, and goes red when a mismatch is introduced again. The
-procedure for a live project is `std-modernize`; details are on the
-[ratchet page](docs/RATCHET.md).
+У этого выравнивания есть измерение — гейт `debt`: число мест, не
+соответствующих стандарту, с планкой по лучшему достигнутому. Правило без
+числа соблюдается до первой спешки, и заметить это нельзя. Здесь заметно:
+планка опускается сама, когда тронутый файл приведён к правилам, и краснеет,
+когда несоответствие внесено заново. Процедура на живом проекте —
+`std-modernize`, подробности — [страница про храповик](docs/RATCHET.md).
 
-## Quick start
+## Профили: строгость под состояние проекта
 
-```bash
-# once per machine
-/plugin marketplace add DanielLetto2020/vibe-rules
-/plugin install std-core@vibe-rules
+Одна строгость на все проекты не работает. На прототипе она тормозит ровно то,
+ради чего прототип и делается; на легаси недостижима и отключается в первый же
+день; в команде мягкий режим означает, что стандартов нет.
 
-# in each project — one command
-/std-core:setup --scope project
-```
-
-`setup` reads your repository, works out what kind of project this is,
-installs the plugins it needs, links the matching stack modules and writes the
-gate configuration. Nothing to pick by hand.
-
-### Three commands, that's it
-
-```bash
-/std-core:setup            connect a project — or re-sync one already connected
-/std-core:update           update the standards to the latest version
-/std-core:setup --remove   disconnect a project from the standards
-```
-
-`setup` is idempotent: the first run configures, every later run re-reads the
-project and installs whatever the stack has gained, keeping the profile and any
-manual edits. There is deliberately no separate sync command — remembering how
-"configure" differs from "re-sync" should not be a person's job.
-
-`update` performs three steps that each look complete on their own yet achieve
-nothing apart: it updates the marketplace catalogue, updates the plugins, and
-re-points the rule symlinks — the install path changes with the version, and
-without re-pointing the rules quietly stop loading. A session restart is
-required afterwards.
-
-Two more commands as needed: `/std-core:doctor` shows what is actually linked
-and loaded, `/std-core:rule` creates a project-level rule.
-
-### Bound to the project, not to your machine
-
-`--scope project` writes `.claude/settings.json` listing the marketplace and
-the required plugins. Anyone who clones the repository is offered the install
-on first open — nothing to set up by hand, and the setup cannot drift between
-teammates.
-
-Without it plugins are installed for your machine only (`--scope user`,
-the default), and the project's files stay untouched. `--scope local` is the
-same but for this project only and not committed.
-
-Stack detection reads `composer.json`, `package.json`, `pyproject.toml`,
-compose files, Kubernetes manifests and Ansible playbooks. Real output from
-five different projects:
-
-| Project | Modules linked |
-|---|---|
-| Laravel + Vue + Postgres | `core` `gauntlet` `php-base` `php-laravel` `js-base` `js-vue3` `sql-postgres` |
-| Legacy Yii2 | `core` `gauntlet` `php-base` `php-yii2` `sql-postgres` |
-| FastAPI + Kafka + Redis | `core` `gauntlet` `py-base` `py-fastapi` `cache-redis` `msg-kafka` `ops-containers` |
-| Nuxt + Playwright | `core` `gauntlet` `js-base` `js-nuxt` `js-playwright` |
-| Infrastructure only | `core` `gauntlet` `ops-k8s` `ops-ansible` `ops-containers` |
-
-Note the split: **PHP is not always Laravel.** Language rules and framework
-rules are separate modules — a plain PHP or Symfony project still gets
-`php-base`, and framework modules stack on top.
-
-## Profiles: strictness that fits the project
-
-One level of strictness for every project does not work. On a prototype it
-slows down the very thing being tested; on legacy it is unreachable and gets
-switched off on day one; in a team a lax setting means there are no standards
-at all.
-
-| Profile | When | Spec | Test-edit lock | Mutation gate |
+| Профиль | Когда | Спека | Замок на тесты | Мутационный гейт |
 |---|---|---|---|---|
-| `prototype` | the default | not required | off | off |
-| `solo` | on request: single author with tests | required | ask | ratchet from 50% |
-| `team` | on request: code read by people who did not write it | required | ask | ratchet from 60% |
-| `legacy` | 200+ commits, almost no tests | characterize first | ask | ratchet from 0%, changed files only |
+| `prototype` | по умолчанию | не нужна | выключен | выключен |
+| `solo` | по просьбе: один автор, есть тесты | нужна | спрашивает | храповик от 50% |
+| `team` | по просьбе: код читают те, кто его не писал | нужна | спрашивает | храповик от 60% |
+| `legacy` | 200+ коммитов, тестов почти нет | сначала характеризация | спрашивает | храповик от 0%, только изменённые файлы |
 
-**Safety locks are identical in every profile.** No profile permits deleting a
-volume, force-pushing or committing a secret — the profile only moves the
-quality bar.
+**Замки безопасности одинаковы во всех профилях.** Ни один не разрешает
+удалить том, сделать force-push или закоммитить секрет — профиль двигает
+только планку качества.
 
-**Strictness is not guessed from the repository.** The default is `prototype`:
-rules and locks work, the quality bar does not rise on its own. `solo` and
-`team` are opted into explicitly — `/std-core:setup --profile solo`.
+**Строгость не угадывается по репозиторию.** По умолчанию ставится
+`prototype`: правила и замки работают, планка качества сама не поднимается.
+`solo` и `team` включаются явно — `/std-core:setup --profile solo`.
 
-Only `legacy` is detected automatically, and it is not about strictness but
-about the mode of work: untested code is changed only after its current
-behaviour has been pinned down.
+Автоматически определяется только `legacy`, и это не про строгость, а про
+режим работы: непокрытый тестами код меняют, сначала зафиксировав поведение.
 
-The reason for that default is practical. Strictness used to be inferred from
-the number of authors, so a static site without a single test got `solo` —
-demanding a spec and a gate run for gates the project does not have.
-A requirement with nothing to enforce it devalues the ones that do.
+Причина такого умолчания практическая. Раньше профиль выводился из числа
+авторов, и статический сайт без единого теста получал `solo` — с требованием
+писать спеку и прогонять гейты, которых в проекте нет. Требование, за которым
+нечему сработать, обесценивает и те, что работают.
 
-### The ratchet
+### Храповик
 
-A ratchet turns one way only: a car jack goes up as you pump and does not drop
-back when you let go.
+Храповик — механизм, который крутится только в одну сторону: домкрат качаешь,
+машина поднимается, отпускаешь — назад не падает.
 
-A fixed threshold has a characteristic failure mode. On an existing project the real
-mutation score is usually 20–40%. A 70% gate is unreachable today, so it gets
-disabled on day one. A 20% gate is useless — it does not stop unverified code
-from arriving.
+У обычного фиксированного порога есть характерный способ ломаться. На существующем проекте
+фактический mutation score обычно 20–40%. Порог 70% недостижим сегодня, поэтому
+его отключают в первый же день. Порог 20% бесполезен — он не мешает добавлять
+непроверенный код.
 
-The ratchet sets the bar to **the best result the project has already
-achieved**, minus a small tolerance for run-to-run noise. Improving is
-optional; regressing is not.
+Храповик ставит планку по **лучшему результату, которого проект уже
+достигал**, минус небольшой допуск на шум прогона. Улучшать не обязательно,
+ухудшать нельзя.
 
 ```
-run 1:  20%  → bar rises to 20%
-run 2:  45%  → bar rises to 45%
-run 3:  44%  → passes, within tolerance
-run 4:  30%  → FAILS — new code is verified worse than what already exists
+прогон 1:  20%  → планка поднялась до 20%
+прогон 2:  45%  → планка поднялась до 45%
+прогон 3:  44%  → проходит, в пределах допуска
+прогон 4:  30%  → ПРОВАЛ — новый код проверен хуже существующего
 ```
 
-That is what makes the gate usable on legacy from day one, at any starting
-point. Settings, history and how to change the logic — [the ratchet
-page](docs/RATCHET.md).
+Именно это делает гейт применимым к легаси с первого дня и с любого стартового
+состояния. Настройки, история и как поменять логику —
+[страница про храповик](docs/RATCHET.md).
 
-## Organisation policy
+## Политика организации
 
-Rules in this repository are universal practices. A company usually also has a
-**policy** — which technologies are permitted, which minimum versions, which
-packages are out. That is a different axis: this repository says *how to use
-Postgres*, a policy says *Postgres 13+ and nothing else*.
+Правила в этом репозитории — универсальные практики. У компании обычно есть
+ещё и **политика**: какие технологии допустимы, какие минимальные версии, какие
+пакеты не используются. Это другая ось: репозиторий говорит, *как пользоваться
+Postgres*, политика — *Postgres 13+ и ничего другого*.
 
-`std-policy` is the mechanism for it. The content stays private — in your own
-repository — while the enforcement is public and shared:
+`std-policy` — механизм для неё. Содержимое остаётся приватным, в собственном
+репозитории организации, а исполнение — публичное и общее:
 
 ```json
 {
   "runtime": { "php": "8.1", "node": "18" },
   "stability": { "denyPrerelease": true },
-  "deniedPackages": { "some/lib": "unmaintained since 2023" },
+  "deniedPackages": { "some/lib": "не поддерживается с 2023" },
   "staticAssets": { "maxBinaryKb": 512 },
   "exempt": { "enabled": false, "reason": "" }
 }
 ```
 
-A `PreToolUse` lock checks dependency changes against it: a beta version,
-a banned package or a runtime below the minimum is blocked before it lands.
-Twenty test cases cover the lock.
+Замок `PreToolUse` сверяет с ней изменения зависимостей: beta-версия,
+запрещённый пакет или рантайм ниже минимума блокируются до попадания в код.
+Замок покрыт двадцатью тестовыми случаями.
 
-Two properties matter more than the feature list:
+Два свойства важнее списка возможностей:
 
-- **A policy never unlocks safety.** Even with `exempt: true` — for a project
-  built by an outside contractor, or with an approved deviation — deleting
-  a volume and force-pushing stay blocked. Otherwise the exemption flag would
-  become the way to switch protection off entirely.
-- **No policy file, no interference.** Projects without a policy see nothing.
+- **Политика никогда не открывает замки безопасности.** Даже при
+  `exempt: true` — для проекта сторонней разработки или согласованного
+  отклонения — удаление тома и force-push остаются заблокированными. Иначе
+  флаг исключения стал бы способом отключить защиту целиком.
+- **Нет файла политики — нет вмешательства.** Проекты без политики её не видят.
 
-A policy is independent of the profile: the required gate set comes from the
-policy and a project cannot weaken it, only add to it.
+Политика не зависит от профиля: обязательный набор гейтов приходит из неё,
+и проект не может его ослабить — только дополнить.
 
-## Rules for one project only
+## Правила только для одного проекта
 
-Shared modules describe a technology. Every project also has things true only
-here: team agreements, traps in this codebase, deviations from a shared rule
-with a reason.
+Общие модули описывают технологию. У каждого проекта есть ещё и то, что верно
+только здесь: договорённости команды, ловушки этого кода, отступления
+от общего правила с причиной.
 
-Those live next to the shared ones and **are committed with the code**:
+Они лежат рядом с общими и **коммитятся вместе с кодом**:
 
 ```
 .claude/rules/
-  00-precedence.md     ← declares which source wins, in git
-  std-php-laravel      ← shared module, a symlink, gitignored
-  std-web-css          ← shared module
-  billing-legacy.md    ← this project's rule, in git
+  00-precedence.md     ← объявляет, чей источник главнее, в git
+  std-php-laravel      ← общий модуль, симлинк, в git не идёт
+  std-web-css          ← общий модуль
+  billing-legacy.md    ← правило этого проекта, в git
 ```
 
 ```bash
-/std-core:rule new billing-legacy backend   # create from a template
-/std-core:rule list                         # what is where
-/std-core:rule override php-laravel         # switch a shared module off here
+/std-core:rule new billing-legacy backend   # создать по шаблону
+/std-core:rule list                         # что откуда
+/std-core:rule override php-laravel         # отключить общий модуль здесь
 ```
 
-A project rule loads exactly like a shared one — by file path. The only
-difference is where it comes from and that it never reaches the shared
-repository.
+Правило проекта загружается точно так же, как общее — по путям файлов.
+Отличается только источником и тем, что в общий репозиторий не уходит.
 
-### Why precedence has to be declared
+### Почему приоритет приходится объявлять
 
-Claude Code loads every rule with **equal weight**. There is no automatic
-"the project wins". If a project rule and a shared module contradict each
-other, the model picks one arbitrarily and nobody finds out which.
+Claude Code загружает все правила с **одинаковым весом**. Автоматического
+«проектное побеждает» нет. Если правило проекта противоречит общему модулю,
+модель выберет одно произвольно, и никто не узнает какое.
 
-`00-precedence.md` states it plainly: the project rule wins, **and the
-contradiction must be reported rather than silently resolved**. The second
-half matters more — a contradiction means either the shared rule needs
-refining or the local deviation is obsolete, and both are decisions for
-a human.
+`00-precedence.md` говорит это прямо: действует правило проекта, **и
+о противоречии надо сообщить, а не разрешать его молча**. Вторая половина
+важнее — противоречие означает либо что общее правило пора уточнять, либо что
+местное отступление больше не нужно, и оба случая решает человек.
 
-Switching a shared module off records the deviation in that same file and
-marks the reason as mandatory. A deviation without a reason is
-indistinguishable from an oversight six months later.
+Отключение общего модуля записывает отступление в тот же файл и помечает
+причину как обязательную. Отступление без причины через полгода неотличимо
+от недосмотра.
 
-## Modules
+## Модули
 
-| Module | Covers |
+Модули делятся на язык и фреймворк: PHP не всегда Laravel, поэтому правила
+уровня языка живут отдельно и подключаются в любом случае, а фреймворковые
+добавляются сверх них.
+
+| Модуль | Покрывает |
 |---|---|
-| `std-core` | locks, rule linking, diagnostics — install everywhere |
-| `std-gauntlet` | the gauntlet: spec, tests, mutation, metrics, gates — install everywhere |
-| `std-policy` | mechanism for an organisation's stack policy: allowed technologies, minimum versions |
-| `std-api-http` | versioning, field and path naming, contracts, status codes |
-| `std-arch-services` | service boundaries, request auth, gateway without logic |
-| `std-arch-approach` | choosing DDD, code-first or db-first by complexity |
-| `std-ops-observability` | structured logs, business metrics, alerting, verified backups |
-| `std-php-base` | PHP as a language: `strict_types`, types, strict comparison |
-| `std-js-base` | JS/TS runtime behaviour: promises, comparison, dates, money |
-| `std-py-base` | Python as a language: annotations, mutable defaults, resources |
-| `std-php-laravel` | HTTP layer, Eloquent, tests |
-| `std-php-yii2` | controllers, ActiveRecord, driver type pitfalls |
-| `std-web-html` | semantics, accessibility, forms, resource loading |
-| `std-web-css` | cascade, specificity, units, responsive layout |
-| `std-web-design` | following the design already in place; deliberate choices when starting fresh |
-| `std-js-typescript` | type strictness, runtime boundaries, discriminated unions |
-| `std-js-vue3` | SFC, composition, typed props |
-| `std-js-nuxt` | SSR, data fetching, server routes |
-| `std-js-playwright` | E2E: selectors, waits, flake control |
-| `std-py-fastapi` | schemas, dependencies, async pitfalls |
-| `std-py-parsers` | networking, retries, resilience to source changes |
-| `std-sql-postgres` | zero-downtime migrations, indexes |
-| `std-sql-sqlite` | engine limits, differences from production |
-| `std-msg-rabbitmq` | acks, idempotency, DLQ |
-| `std-msg-kafka` | keys, partitions, offsets, ordering |
-| `std-cache-redis` | TTL, invalidation, locks |
-| `std-ops-containers` | images, layers, secrets, non-root |
-| `std-ops-k8s` | resources, probes, zero-downtime rollouts |
-| `std-ops-ansible` | idempotency, inventory, secrets |
+| `std-core` | замки, линковка правил, диагностика — ставится всем |
+| `std-gauntlet` | строй проверок: спека, тесты, мутации, метрики, гейты — ставится всем |
+| `std-policy` | механизм политики организации: разрешённые технологии, минимальные версии |
+| `std-api-http` | версионирование, именование полей и методов, контракты, коды ответов |
+| `std-arch-services` | границы сервисов, авторизация запросов, шлюз без логики |
+| `std-arch-approach` | выбор DDD, code-first или db-first по сложности |
+| `std-ops-observability` | структурированные логи, бизнес-метрики, алертинг, проверенные бэкапы |
+| `std-php-base` | PHP как язык: strict_types, типы, строгие сравнения, исключения |
+| `std-js-base` | JS/TS во время выполнения: промисы, сравнения, даты, деньги |
+| `std-py-base` | Python как язык: аннотации, изменяемые аргументы, ресурсы |
+| `std-php-laravel` | HTTP-слой, Eloquent, тесты |
+| `std-php-yii2` | контроллеры, ActiveRecord, типы из БД |
+| `std-web-html` | семантика, доступность, формы, загрузка ресурсов |
+| `std-web-css` | каскад, специфичность, единицы, адаптивность |
+| `std-web-design` | следование принятому оформлению, осознанный выбор при работе с нуля |
+| `std-js-typescript` | строгость типов, границы данных, размеченные объединения |
+| `std-js-vue3` | SFC, композиция, типизация пропсов |
+| `std-js-nuxt` | SSR, загрузка данных, серверные роуты |
+| `std-js-playwright` | E2E: селекторы, ожидания, борьба с флаками |
+| `std-py-fastapi` | схемы, зависимости, асинхронность |
+| `std-py-parsers` | сеть, ретраи, устойчивость к источнику |
+| `std-sql-postgres` | миграции без даунтайма, индексы |
+| `std-sql-sqlite` | ограничения движка, отличия от прода |
+| `std-msg-rabbitmq` | подтверждения, идемпотентность, DLQ |
+| `std-msg-kafka` | ключи, партиции, оффсеты, порядок |
+| `std-cache-redis` | TTL, инвалидация, блокировки |
+| `std-ops-containers` | образы, слои, секреты, non-root |
+| `std-ops-k8s` | ресурсы, probe'ы, обновления без простоя |
+| `std-ops-ansible` | идемпотентность, инвентарь, секреты |
 
-## The gauntlet
+## Строй проверок
 
-Inspired by Robert C. Martin's [stated approach](https://x.com/unclebobmartin/status/2080257779395154409)
-of not reading code written by his agents, and instead surrounding them with
-constraints. Five stages, each verifying the one before it:
+Пять ступеней, каждая проверяет предыдущую. Подробно — `plugins/std-gauntlet/docs/GAUNTLET.md`.
 
-1. **Spec** in plain language — the only artefact a human always reads.
-2. **Tests** derived from the spec, written in a session separate from the
-   implementation.
-3. **Mutation testing** — the only stage that verifies the tests themselves.
-   Its second form is **corrupting values in the spec**: change a number in a
-   scenario, and if the test stays green it is not checking what was ordered.
-4. **Metrics** instead of reading diffs.
-5. **A list for human eyes** — what nothing else can catch.
+1. **Спека** на человеческом языке — единственное, что человек читает всегда.
+2. **Тесты** из спеки, в отдельной сессии от реализации.
+3. **Мутационное тестирование** — единственная ступень, проверяющая сами тесты.
+   Второй его вид — **порча значений в спеке**: если поменять число в сценарии,
+   а тест остался зелёным, значит он проверяет не то, что заказано.
+4. **Метрики** вместо чтения диффа.
+5. **Список для человеческих глаз** — то, что не берётся ничем.
 
-Between tests and mutation sits a cheap check you can run on every iteration —
-**coverage of the changed lines**. Overall coverage makes a poor gate: on a
-large project it barely moves even when this task added two hundred lines
-without a single test. Diff coverage only concerns the new code, so an absolute
-threshold there means exactly what it says, and it computes in seconds.
+Между тестами и мутациями стоит дешёвая проверка, которую можно гонять на
+каждой итерации, — **покрытие изменённых строк**. Общий процент покрытия
+плохой гейт: на большом проекте он не шелохнётся, даже если в этой задаче
+дописали двести строк без единого теста. Покрытие diff'а относится только
+к новому коду, поэтому абсолютный порог здесь означает ровно то, что написано,
+а считается за секунды.
 
 ```
-coverage of changed lines: 34/41 = 83% (threshold 80%)
+покрытие изменённых строк: 34/41 = 83% (порог 80%)
 ```
 
-The report is located automatically (`coverage.xml`, `clover.xml`,
-`coverage/lcov.info` and neighbours). When there is none, the gate does not go
-green quietly — it says "not checked": the difference between "coverage is fine"
-and "nobody measured coverage" is exactly what the gauntlet exists for. A
-covered line means an executed line, not a verified one — assertion quality is
-the mutation stage's job, and neither replaces the other.
+Отчёт ищется сам (`coverage.xml`, `clover.xml`, `coverage/lcov.info` и рядом).
+Если его нет, гейт не зеленеет молча, а пишет «не проверено»: разница между
+«покрытие в порядке» и «покрытие никто не мерил» — ровно та, ради которой
+строй и заводится. Покрытая строка при этом означает выполненную, а не
+проверенную — за качество ассертов отвечает мутационная ступень, и одно
+другого не заменяет.
 
-One command runs everything:
-
-```bash
-/std-gauntlet:run          # all gates
-/std-gauntlet:run --fast   # skip mutation, for tight loops
-```
-
-### Why mutation testing is the load-bearing part
-
-Coverage tells you a line was executed. It does not tell you it was verified.
-
-Here is a real run from this repository's demo project — a discount function
-and a test asserting "the result is positive":
+Одна команда прогоняет всё:
 
 ```
-tests pass  →  mutation: 0 of 4 killed (MSI 0%)     ← the test guards nothing
+/std-gauntlet:run          все гейты
+/std-gauntlet:run --fast   без мутационного, для итераций
 ```
 
-The test was green. It protected nothing. Strengthening the assertions:
+Замок `guard-commit` не даёт закоммитить, если после последнего зелёного
+прогона исходники менялись. Это то, что превращает гейты из доброго намерения
+в обязательный этап.
 
-```
-tests pass  →  mutation: 2 of 4 killed (MSI 50%)
-```
-
-The two survivors turned out to be **equivalent mutants**: silently clamping
-the discount made the boundary unobservable. Making the requirement explicit —
-above 50% is an error, not a silent clamp — brought it to 100%.
-
-That is the real payoff: mutation testing didn't just find a weak test, it
-exposed a vague requirement.
-
-### The lock that makes it mandatory
-
-`guard-commit` blocks a commit if sources changed after the last green
-gauntlet run. Without it, gates are a good intention — run when remembered.
-With it, "work is done" and "checks passed" become the same event.
-
-**The gauntlet installs on its own.** `std-gauntlet` is a standalone plugin:
-the mutation ratchet and the test-edit lock work without any of the stack
-modules, if the per-stack rules are not what you came for.
+**Строй проверок ставится отдельно.** `std-gauntlet` — самостоятельный плагин:
+мутационный храповик и замок на правку тестов работают и без остальных модулей,
+если правила по стекам не нужны.
 
 ```
 /plugin install std-gauntlet@vibe-rules
 ```
 
-## What the locks actually block
+## Что замки блокируют
 
-Locks are `PreToolUse` hooks. They execute regardless of what the model decided
-or remembered. 93 unit tests, 41 secret-leak tests, a 97-case corpus of bypasses
-and false positives, and property-based fuzzing of the command parser cover them.
+Замок — это `PreToolUse`-хук: он выполняется независимо от того, что модель
+решила и о чём вспомнила. Покрытие — 93 unit-теста, 41 тест на утечку
+секретов, корпус из 97 кейсов на обходы и ложные срабатывания и фаззинг
+разбора команд.
 
-| Lock | Blocks |
+| Замок | Что не пропускает |
 |---|---|
-| `guard-bash` | container/image/volume deletion, force-push (including `+refspec`), `--no-verify` and `commit -n`, `core.hooksPath` swaps, `migrate:fresh`, `DROP TABLE`/`DROP DATABASE`, `rm -rf /` and `~/`, `find / -delete`, `dd` onto a device, `mkfs`, recursive `chmod`/`chown` on system paths |
-| `guard-tests` | **editing an existing test** (creating new ones is free) |
-| `guard-infra` | edits to k8s manifests, playbooks, CI config, Dockerfiles, applied migrations, `.env` — **and to the enforcement machinery itself**: `.claude/settings.json`, project rules, gate config, git hooks |
-| `guard-deps` | adding a dependency by editing `composer.json`/`package.json` directly |
-| `guard-commit` | committing without a green gauntlet run |
-| `guard-secrets` | reading a credentials file (`.env`, keys, `kubeconfig`, `*.tfstate`) — escalated before the value reaches the context |
-| `precommit-secrets` | a commit carrying a secret: the whole file, or a value in the added lines |
-| `secret-scan` | secrets written in plaintext into a file (`PostToolUse`) |
-| `scan-tree` | secrets in files created by a command rather than by a write tool |
+| `guard-bash` | удаление контейнеров, образов, томов и кэша; force-push, включая `+refspec`; `--no-verify` и `commit -n`; подмену `core.hooksPath`; `migrate:fresh`, `DROP TABLE`/`DROP DATABASE`; `rm -rf /` и `~/`; `find / -delete`; `dd` на устройство; `mkfs`; рекурсивный `chmod`/`chown` по системным путям |
+| `guard-tests` | **правку существующего теста** (новые пишутся свободно) |
+| `guard-infra` | правку манифестов k8s, playbook'ов, конфигурации CI, Dockerfile, применённых миграций, `.env` — **и самого механизма проверок**: `.claude/settings.json`, правил проекта, конфигурации гейтов, git-хуков |
+| `guard-deps` | добавление зависимости прямой правкой `composer.json`/`package.json` |
+| `guard-commit` | коммит без зелёного прогона гейтов |
+| `guard-secrets` | чтение файла с доступами (`.env`, ключи, `kubeconfig`, `*.tfstate`) — эскалация до того, как значение попадёт в контекст |
+| `precommit-secrets` | коммит, в котором есть секрет: файл целиком или значение в добавленных строках |
+| `secret-scan` | секреты в открытом виде в записанном файле (`PostToolUse`) |
+| `scan-tree` | секреты в файлах, созданных командой, а не инструментом записи |
 
-### Secrets: four doors, not one
+### Секреты: четыре точки, а не одна
 
-A leak differs from other mistakes in that it cannot be undone. A key that
-reached the model's context or git history counts as disclosed from that second
-on: deleting the file in the next commit undoes nothing, only rotation helps.
-So the check sits on all four doors a secret leaves through, and they share one
-dictionary (`secret-lib.sh`) — a pattern added in one place works everywhere.
+Утечка отличается от остальных ошибок тем, что её нельзя откатить. Ключ,
+попавший в контекст модели или в историю git, считается раскрытым с этой
+секунды: удаление файла следующим коммитом ничего не отменяет, помогает
+только ротация. Поэтому проверка стоит на всех четырёх дорогах, по которым
+секрет уходит, и словарь у них общий (`secret-lib.sh`) — паттерн, добавленный
+в одном месте, действует везде.
 
-| Door | What happens | Decision |
+| Дорога | Что происходит | Решение |
 |---|---|---|
-| Read — `Read .env`, `cat`, `grep`, `printenv`, `kubectl get secret`, `vault kv get` | the value lands in the model context and in the on-disk session history | `ask`, stating the cost and a safe alternative |
-| Write — `Write`/`Edit` | the key ends up in code, a test, or documentation | message back to the model so it fixes it immediately |
-| Command — `sed -i`, `> file`, `cp`, framework generators | the file appears outside `Write`/`Edit` and the write check never sees it | scan of the changed tree |
-| Commit | the secret enters history for good | `deny` — the one place with a refusal instead of a question |
+| Чтение — `Read .env`, `cat`, `grep`, `printenv`, `kubectl get secret`, `vault kv get` | значение попадает в контекст модели и в историю сессии на диске | `ask` с ценой и безопасной альтернативой |
+| Запись — `Write`/`Edit` | ключ оказывается в коде, тесте или документации | сообщение модели, чтобы исправила сразу |
+| Команда — `sed -i`, `> file`, `cp`, генератор фреймворка | файл появляется мимо `Write`/`Edit` и обычной проверкой не виден | скан изменённого дерева |
+| Коммит | секрет уходит в историю навсегда | `deny` — единственное место, где запрет, а не вопрос |
 
-False positives are handled by placeholder detection (`your-key`, `${VAR}`,
-`process.env`, `<...>`) and a per-project allow list, `.claude/secret-allow`.
-There are deliberately no directory-wide blind spots: `*.md` and `tests/` used
-to be excluded from the scan — precisely the two places a secret ends up in
-most often.
+Ложные срабатывания снимаются распознаванием заглушек (`your-key`, `${VAR}`,
+`process.env`, `<...>`) и списком исключений проекта `.claude/secret-allow`.
+Слепых зон по каталогам нет намеренно: раньше из скана были исключены `*.md`
+и `tests/` — ровно два места, где секрет оказывается чаще всего.
 
-Internal token prefixes and system names go into a per-project
-`.claude/secret-patterns` file (one regular expression per line) that is never
-published.
+Внутренние префиксы токенов и имена систем добавляются проектным файлом
+`.claude/secret-patterns` (по регулярному выражению на строку), который
+не публикуется.
 
-The command is parsed, not pattern-matched as a whole string. Wrappers are
-unwrapped (`sudo`, `env`, `timeout`, `bash -c "…"`), variables assigned in the
-same line are substituted, and text-only commands are left alone — so
-`echo "never run migrate:fresh"` and `git log --grep "drop database"` pass,
-while `bash -c "docker volume rm x"` does not.
+Команда разбирается, а не сопоставляется целиком с шаблоном: снимаются обёртки
+(`sudo`, `env`, `timeout`, `bash -c "…"`), подставляются переменные, присвоенные
+в той же строке, а команды, которые только печатают и ищут текст, не трогаются.
+Поэтому `echo "не запускай migrate:fresh"` и `git log --grep "drop database"`
+проходят, а `bash -c "docker volume rm x"` — нет.
 
-Opaque execution is escalated rather than ignored: `curl … | bash`,
-`base64 -d | sh`, `eval` and process substitution ask for confirmation, because
-their contents cannot honestly be inspected.
+Непрозрачное выполнение не пропускается молча, а эскалируется: `curl … | bash`,
+`base64 -d | sh`, `eval` и подстановка процесса спрашивают подтверждение —
+их содержимое честно проверить нельзя.
 
-### What the locks do not catch
+### Что замки не ловят
 
-A lock catches the routine, unintentional destruction — forgetfulness, not
-intent. It is defence in depth, not a security boundary and not a sandbox.
-The gaps below are deliberate and pinned in `tests/hook-corpus.tsv`, so they
-stay named instead of drifting into wishful thinking.
+Замок ловит частые непреднамеренные разрушения, то есть забывчивость, а не
+намерение. Это защита в глубину, а не граница безопасности и не песочница.
+Границы ниже — осознанные, они зафиксированы в `tests/hook-corpus.tsv`
+и потому остаются названными, а не превращаются в самообман.
 
-| Not caught | Why |
+| Не ловится | Почему |
 |---|---|
-| `bash deploy.sh` | the contents of a script file are never read |
-| `./tools/cleanup` | your own binary is just as opaque |
-| `python3 -c "shutil.rmtree('/')"` | destruction inside a language runtime, not in the shell |
-| `$TOOL volume rm cache` | the variable came from the environment, not from this line |
-| `curl -X DELETE https://api/...` | destruction through a network call |
-| `make clean-all` | a makefile target is not visible to command parsing |
+| `bash deploy.sh` | содержимое файла скрипта замок не читает |
+| `./tools/cleanup` | свой исполняемый файл непрозрачен так же |
+| `python3 -c "shutil.rmtree('/')"` | разрушение средствами языка, а не оболочки |
+| `$TOOL volume rm cache` | переменная пришла из окружения, а не из этой строки |
+| `curl -X DELETE https://api/...` | разрушение через сетевой вызов |
+| `make clean-all` | цель makefile разбору команды не видна |
 
-The right way to read this: locks make the common accident impossible and the
-deliberate bypass visible. If you need a hard boundary, run the agent in a
-container with real permissions — the locks complement that, not replace it.
+Как это читать: замки делают обычную случайность невозможной, а осознанный
+обход — заметным. Нужна жёсткая граница — запускайте агента в контейнере
+с реальными правами; замки её дополняют, а не заменяют.
 
-`jq` is a hard dependency. Missing it used to disable every lock silently;
-now commands are blocked with an explanation and the session says so on start.
-Where `python3` is present it is used as a fallback and everything keeps
-working.
+`jq` — обязательная зависимость. Раньше её отсутствие молча выключало все
+замки; теперь команда блокируется с объяснением, а сессия сообщает об этом
+на старте. Где есть `python3`, он используется как запасной разборщик,
+и всё продолжает работать.
 
-`guard-tests` closes the central hole in the whole approach: when a test fails,
-the model has two options — fix the code or weaken the test. The second is
-faster. So editing an existing test escalates to a human, while writing a new
-one does not.
+## Подключение
 
-## Working with existing code
+```bash
+# один раз на машину
+/plugin marketplace add DanielLetto2020/vibe-rules
+/plugin install std-core@vibe-rules
 
-New features get a spec. Legacy code doesn't have one — and that's a different
-problem, so it gets a different procedure.
+# в проекте — одна команда
+/std-core:setup --scope project
+```
 
-**`legacy-characterize`** — pin current behaviour before changing anything:
+`setup` читает репозиторий, определяет, что это за проект, ставит нужные
+плагины, подключает модули по стеку и записывает конфигурацию гейтов.
+Выбирать руками ничего не нужно.
 
-1. Pick a narrow boundary — one function, one endpoint.
-2. Run it on real inputs and **record the outputs as the baseline, without
-   judging whether they're correct.** If something looks like a bug, it still
-   gets pinned. The goal is to catch the system as it is, not to improve it.
-3. List the oddities found, show them to the human, fix nothing yet.
-4. **Verify the baseline can fail** — break the code on purpose; the test must
-   go red. Otherwise the baseline is worthless.
-5. Only now make changes. Any deviation is visible immediately.
+### Три команды на всё
 
-The governing principle: **the agent builds the oracle and maintains it, but
-never *is* the oracle.** What counts as correct is decided by a human or by the
-existing system.
+```bash
+/std-core:setup            подключить проект — или досинхронизировать уже подключённый
+/std-core:update           обновить стандарты до свежей версии
+/std-core:setup --remove   отключить проект от стандартов
+```
 
-**`safe-removal`** — deletion is more dangerous than addition, for a
-non-obvious reason: after deleting something, green tests prove nothing. If the
-functionality wasn't covered, its disappearance goes unnoticed until a user
-complains a week later. So the order is inverted: prove it's unused *first*,
-then remove — entry point, then implementation, then dependencies, and data in
-a separate release, never the same one.
+`setup` идемпотентна: первый запуск настраивает, повторный перечитывает проект
+и доустанавливает появившееся, сохраняя профиль и ручные правки. Отдельной
+команды синхронизации нет намеренно — помнить, чем «настроить» отличается
+от «досинхронизировать», человек не обязан.
 
-## How rules reach a project
+`update` делает три шага, которые по отдельности выглядят выполненными,
+а результата не дают: обновляет каталог маркетплейса, обновляет плагины
+и перепривязывает симлинки правил — путь установки меняется вместе с версией,
+и без перепривязки правила молча перестают загружаться. После неё нужен
+перезапуск сессии.
 
-Claude Code plugins distribute skills, commands, agents and hooks — but **not
-`.claude/rules/`**. And only `rules` support path-scoped loading via `paths:`,
-which is deterministic rather than left to the model's judgement.
+Ещё две команды — по необходимости: `/std-core:doctor` показывает, что реально
+подключено и загрузилось, `/std-core:rule` заводит правило уровня проекта.
 
-So rules are symlinked, and `std-link.sh` resolves the repository path
-dynamically from `known_marketplaces.json` — the link survives
-`/plugin update`. Symlinks contain absolute paths, so they are added to
-`.gitignore` automatically, and a `SessionStart` hook verifies they're alive:
-a silently broken rule is worse than a missing one.
+### Привязка к проекту, а не к машине
 
-## Tests
+`--scope project` записывает `.claude/settings.json` с маркетплейсом и списком
+нужных плагинов. Любой, кто склонирует репозиторий, получит предложение
+поставить их при первом открытии — руками настраивать нечего, и настройки
+не разойдутся между участниками.
+
+Без этого плагины ставятся только на твою машину (`--scope user`,
+по умолчанию), файлы проекта не трогаются. `--scope local` — то же самое,
+но только для этого проекта и без коммита.
+
+Автодетект читает `composer.json`, `package.json`, `pyproject.toml`,
+compose-файлы, манифесты k8s и playbook'и. Nuxt поглощает Vue, SQLite
+и Postgres определяются отдельно, инфраструктура — по содержимому файлов,
+а не по их именам.
+
+Для команды положите в проект `.claude/settings.json` из `templates/project/` —
+при доверии папки Claude Code предложит установку сам.
+
+### Почему симлинки
+
+Плагины Claude Code раздают skills, commands, agents и hooks, но **не раздают
+`.claude/rules/`**. При этом только rules умеют path-scoped загрузку по `paths:` —
+детерминированную, а не «на усмотрение модели». Поэтому правила линкуются,
+а `std-link.sh` резолвит путь репозитория динамически (из
+`known_marketplaces.json`), чтобы связь пережила `/plugin update`.
+
+Симлинки содержат абсолютный путь машины и автоматически уходят в `.gitignore`.
+`SessionStart`-хук проверяет их живость: молча сломанное правило хуже
+отсутствующего.
+
+## Тесты
 
 ```bash
 tests/run.sh
 ```
 
-Nothing here invokes a model or spends tokens — it runs in seconds and is safe
-as a blocking CI gate:
+Ни один шаг не запускает модель и не тратит токены:
 
-1. **Executable bits** — a non-executable hook fails silently.
-2. **Module structure** — manifests, frontmatter, `owner`, `enforcement`, dead
-   `paths:`, always-on context size, share of rules no machine backs.
-3. **Locks** — 93 cases: JSON in, `allow`/`deny`/`ask` out. Behaviour without
-   `jq` is tested separately: the lock must refuse, not go quiet.
-4. **Secret leaks** — 41 cases across all four doors: read, command, write,
-   commit. The reverse is tested too: examples, placeholders and values taken
-   from the environment must pass without a word.
-5. **Bypasses and false positives** — a 97-case corpus
-   (`tests/hook-corpus.tsv`): rewritten forms of dangerous commands, harmless
-   commands containing dangerous words, and the acknowledged gaps. The
-   false-positive rate is printed as a number — a lock that gets in the way is
-   removed along with all the others.
-6. **Stack detection and link integrity** — 33 cases, including regressions for
-   bugs found during development.
-7. **Profiles, ratchet and setup** — 63 cases: profile inference from a
-   synthetic git history, ratchet raising and holding the bar, profile
-   controlling lock strictness, repeated setup preserving manual edits.
-8. **Compliance-debt ratchet** — 17 cases: the first run records the fact,
-   growth fails the gate, a drop lowers the bar for good, and "nothing to
-   measure with" never looks like "no debt".
-9. **Diff coverage** — 14 cases across two report formats: only this work's
-   lines are counted, a new file outside the index cannot yield a false 100%,
-   and a missing report is distinguishable from success.
-10. **Stack policy** — 20 cases, including: an exempt project keeps its safety
-   locks, and a project without a policy file is left alone.
-11. **Project-level rules** — 26 cases: template, precedence file, deviation
-    recording, and the split between committed project rules and gitignored
-    shared symlinks.
-12. **Publishing** — 24 cases, including: no release is cut until the GitHub run
-    is green.
-13. **`claude plugin validate --strict`** on every module.
+1. **Страж приватных данных** — первым шагом, до всего остального.
+   Репозиторий публичный, и его содержимое расходится по клонам навсегда,
+   поэтому проверяется всё, что уходит в коммит: пути с домашним каталогом
+   конкретной машины, личная и рабочая почта, ключи доступа, пароли в открытом
+   виде, внутренние домены и ФИО. Заглушки (`your-key`, `${VAR}`,
+   `/home/user/…`) проходят молча, иначе документацию было бы не написать.
+   Свои названия систем добавляются в `tests/.private-patterns` — файл
+   не публикуется, потому что сам по себе приватен. Шаблоны закреплены
+   самотестом: правка, выключившая охрану, красит прогон.
+2. **Права на исполнение** — неисполняемый хук молча не срабатывает.
+3. **Структура модулей** — манифесты, frontmatter, `owner`, `enforcement`,
+   мёртвые `paths:`, размер постоянного контекста, доля неавтоматизированного.
+4. **Замки** — 93 кейса: JSON на вход, решение `allow/deny/ask` на выход.
+   Отдельно проверяется поведение без `jq`: замок обязан отказать, а не
+   промолчать.
+5. **Утечка секретов** — 41 кейс на всех четырёх точках: чтение, команда,
+   запись, коммит. Проверяется и обратное — что образцы, плейсхолдеры
+   и значения из окружения проходят молча.
+6. **Обходы и ложные срабатывания** — корпус из 97 кейсов
+   (`tests/hook-corpus.tsv`): переписанные формы опасных команд, безобидные
+   команды с опасными словами внутри и признанные границы. Доля ложных
+   срабатываний печатается числом — замок, который мешает работать, отключают
+   целиком.
+7. **Автодетект и связи** — 33 кейса, включая регрессии на найденные баги.
+8. **Профили, храповик и настройка** — 63 кейса: определение профиля
+   по синтетической истории git, подъём и удержание планки, влияние профиля
+   на строгость замка, сохранение ручных правок при повторной настройке.
+9. **Храповик долга** — 17 кейсов: первый прогон фиксирует факт, рост валит
+   гейт, снижение опускает планку навсегда, а «нечем измерить» не выглядит
+   как «долга нет».
+10. **Покрытие изменённых строк** — 14 кейсов на двух форматах отчёта: считаются
+   только строки этой работы, новый файл вне индекса не даёт ложные 100%,
+   отсутствие отчёта отличается от успеха.
+11. **Политика стека** — 20 кейсов, в том числе: проект вне политики сохраняет
+   замки безопасности, а проект без файла политики не трогается вовсе.
+12. **Правила уровня проекта** — 26 кейсов: шаблон, файл приоритета, запись
+    отступления и разделение на коммитимые правила проекта и симлинки общих.
+13. **Публикация** — 24 кейса, в том числе: релиз не создаётся, пока прогон
+    на GitHub не зелёный.
+14. **`claude plugin validate --strict`** по каждому модулю.
 
-The whole suite is run in a clean container under the `C` locale — tests have
-to pass on someone else's machine, not only the author's. Missing tooling is
-reported in one line up front: "nothing to check with" and "checks failed" are
-different news.
+Весь набор гоняется в чистом контейнере с локалью `C` — тесты обязаны идти
+на чужой машине, а не только на машине автора. Чего не хватает, прогон
+сообщает одной строкой в начале: «нечем проверять» и «проверки провалились» —
+разные новости.
 
-Separately, `tests/test-context.sh` verifies what usually stays an act of
-faith: that a rule **actually loaded** into context for the right file. It's
-built on the `InstructionsLoaded` hook, which journals every instruction file
-Claude loads.
+Отдельно `tests/test-context.sh` проверяет то, что обычно остаётся актом веры:
+что правило **фактически загрузилось** в контекст на нужном файле. Основано на
+хуке `InstructionsLoaded`, ведущем журнал `.claude/.std-trace.jsonl`.
 
-Three bugs were caught by these tests, not in production:
+## Как добавить модуль
 
-- `xargs -r` returns 0 on empty input — "no files" was indistinguishable from
-  "match found", so Python projects were getting Kubernetes rules;
-- `jq`'s `//` operator treats `false` as empty, so `requireBeforeCommit: false`
-  silently didn't work;
-- `grep` with a list containing non-existent paths returns 2, which under
-  `set -o pipefail` reads as "not found".
+Скажите Claude «добавь модуль стандартов под <технологию>» — сработает скилл
+`std-new-module`. Либо руками: `cp -r templates/module plugins/std-<slug>`,
+заполнить манифест, добавить запись в `marketplace.json`, прогнать `tests/run.sh`.
 
-## Writing your own rules
+## Процесс
 
-A module is a plugin under `plugins/std-<slug>/`. Copy the skeleton:
+- **Владелец у каждого модуля.** Изменение правила — PR с обоснованием.
+- **Правило заводится по факту**, а не впрок: агент ошибся одинаково второй
+  раз, или ревью поймало то, что он должен был знать.
+- **Ревизия раз в квартал.** Правило, которое за квартал ни разу не
+  нарушалось, либо уже вбито в линтер (убрать текст), либо не нужно.
 
-```bash
-cp -r templates/module plugins/std-<slug>
-```
+## Что нужно для 1.0
 
-Every rule needs frontmatter:
+Номер версии говорит «бета», и это не кокетство. Условия, при которых
+интерфейсы можно объявить стабильными, записаны здесь, чтобы «1.0» был
+списком, а не настроением:
 
-```yaml
----
-paths: ["app/Http/**/*.php"]   # without this, the rule loads in EVERY session
-owner: "@backend"               # who keeps it current
-enforcement: lint               # hook | lint | test | review | prose
-since: "2026-07-26"
----
-```
+- три команды помимо автора работают на этом и дают обратную связь;
+- второй человек, который может мержить и выпускать;
+- внешний разбор `guard-bash.sh` и `gauntlet.sh` тем, кто их не писал;
+- 90 дней без обхода замка вне признанных границ;
+- зелёный прогон больше чем на одной ОС и опубликованное сравнение работы
+  с правилами и без них;
+- формат модулей и frontmatter заморожен, для ломающих изменений есть
+  инструкция по переходу;
+- не чаще одного стабильного релиза в неделю: несколько в день — нормально
+  для беты и неверно для версии, на которую закрепляются.
 
-`enforcement` is the important field. It forces the author to answer: *how is
-this actually checked?* `prose` is only legitimate for things a machine cannot
-verify — design rationale, agreements, boundaries. Anything else marked `prose`
-is technical debt.
+До тех пор: пользуйтесь, форкайте, но рассчитывайте, что интерфейсы поедут.
 
-Write rules that can be verified: "validation only in FormRequest" beats
-"validate your input". Keep them under 15 bullets — long rules are followed
-less well than short ones.
+## Документация
 
-Then register the module in `.claude-plugin/marketplace.json` and run
-`tests/run.sh`. See [CONTRIBUTING.md](CONTRIBUTING.md).
+**[Карта документации](docs/README.md)** — что где, с пометкой «когда сюда
+идти» для каждой страницы и быстрыми ответами на частые вопросы.
 
-## What this does not solve
+**[Модель угроз](docs/THREAT-MODEL.md)** — от чего замки защищают, от чего нет
+и чем получить настоящую границу
+([шаблон окружения](templates/devcontainer/)).
 
-Honest boundaries matter more than completeness:
-
-- performance, race conditions, cost of operation — invisible to happy-path tests;
-- architectural entropy — code can be correct and unextendable;
-- correctness of the spec itself;
-- a malicious dependency passes every check flawlessly.
-
-The list in `std-gauntlet/rules/30-human-eyes.md` does not shrink as automation
-grows. That's expected.
-
-## What 1.0 requires
-
-The version number here says beta, and it means it. These are the conditions
-for calling the interfaces stable — written down so "1.0" is a checklist, not
-a mood:
-
-- three teams outside the author using it on real work, with feedback;
-- a second maintainer who can merge and release;
-- an external review of `guard-bash.sh` and `gauntlet.sh` by someone who did
-  not write them;
-- 90 days with no lock bypass outside the acknowledged gaps;
-- green CI on more than one OS, and a published benchmark comparing work with
-  and without the rules;
-- module and frontmatter formats frozen, with a migration guide for anything
-  that breaks;
-- at most one stable release per week — several a day is fine for beta and
-  wrong for a version people pin.
-
-Until then: use it, fork it, but expect interfaces to move.
-
-## Documentation
-
-**[Documentation map](docs/README.md)** — what is where, with a "when to open
-this" note for each page and quick answers to common questions.
-
-**[Threat model](docs/THREAT-MODEL.md)** — what the locks defend against, what
-they cannot, and how to get a real boundary
-([container template](templates/devcontainer/)).
-
-If there is time for one page only:
-**[How this works, in plain words](docs/START.md)**.
-
-
-## License
-
-MIT
+Если времени на одну страницу:
+**[Как это работает простыми словами](docs/START.md)**.

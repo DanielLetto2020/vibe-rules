@@ -1,99 +1,98 @@
-# Writing your own rule
+# Как написать своё правило
 
-> 🇷🇺 [Русская версия](WRITING-RULES.ru.md) · [back to README](../README.md) ·
-> [start with the basics](START.md) · [all docs](README.md)
-
----
-
-## First, an untangling: rules and profiles are different things
-
-A common confusion, so let's clear it up before anything else.
-
-**A profile** answers "how strictly should this be checked". It governs the
-checks: whether a spec is required, whether gates run before a commit, where
-the test-quality bar sits, whether editing a test needs confirmation.
-
-**A rule** answers "how do we write code here". It does not depend on the
-profile at all.
-
-The same rule — "validation only in FormRequest" — applies equally in a
-throwaway prototype and in a billing system. The difference between them is not
-in the rules but in how many checks the work must pass to count as done.
-
-So **you do not write different rules for different profiles.** You write one,
-and it works everywhere.
+> [к README](../README.md)
+> [начать с основ](START.md) · [все документы](README.md)
 
 ---
 
-## Where a requirement belongs
+## Сначала развязка: правила и профили — про разное
 
-Before writing a rule, check that it should be a rule at all. One question
-settles it:
+Частая путаница, поэтому вперёд всего.
 
-> **Can a machine check this without a human?**
+**Профиль** отвечает на вопрос «насколько строго проверять». Он управляет
+проверками: нужна ли спека, гонять ли гейты перед коммитом, какая планка
+у тестов, спрашивать ли при правке теста.
 
-| Answer | Where it goes | Example |
+**Правило** отвечает на вопрос «как здесь принято писать код». Оно
+не зависит от профиля никак.
+
+Одно и то же правило «валидация только в FormRequest» одинаково действует
+и в черновике, и в биллинге. Разница между ними не в правилах, а в том,
+сколько проверок надо пройти, чтобы работа считалась сделанной.
+
+Поэтому **писать разные правила под разные профили не нужно.** Пишете одно,
+оно работает везде.
+
+---
+
+## Куда вообще класть требование
+
+Прежде чем писать правило, стоит проверить, что оно должно быть правилом.
+Один вопрос решает всё:
+
+> **Может ли машина проверить это без человека?**
+
+| Ответ | Куда класть | Пример |
 |---|---|---|
-| Yes, and it's a dangerous action | **lock** | deleting a volume, force-push |
-| Yes, a linter catches it | **linter config** | indentation, function length, `any` in TypeScript |
-| Yes, a test catches it | **test** | system behaviour |
-| No, but a human must look | **rule** | "migrations are always read by eye" |
-| No, it's an agreement | **rule** | "don't touch the legacy module without asking" |
+| Да, это опасное действие | **замок** | удаление тома, force-push |
+| Да, это проверяет линтер | **конфиг линтера** | отступы, длина функции, `any` в TypeScript |
+| Да, это проверяет тест | **тест** | поведение системы |
+| Нет, но человек должен смотреть | **правило** | «миграции читаем глазами всегда» |
+| Нет, это договорённость | **правило** | «легаси-модуль не трогаем без согласования» |
 
-If a linter can check it, it does not belong in prose. Prose is read and
-usually followed. A linter does not ask.
+Если требование проверяется линтером — ему не место в тексте. Текст читают
+и обычно выполняют. Линтер не спрашивает.
 
-A rule is for what **a machine cannot verify**: reasons behind decisions,
-agreements, boundaries of responsibility, traps specific to a project.
+Правило — это то, что **машина проверить не может**: причины решений,
+договорённости, границы ответственности, ловушки конкретного проекта.
 
 ---
 
-## Two kinds of rules
+## Два вида правил
 
-### Shared — for every project on that stack
+### Общее — для всех проектов со стеком
 
-Lives in this repository under `plugins/std-<stack>/rules/`. Everyone who
-connects the module gets it.
+Живёт в этом репозитории, в `plugins/std-<стек>/rules/`. Его получают все,
+кто подключил модуль.
 
-Write one when the requirement holds for any project using that technology.
-For example: "every Redis key has a TTL" — true everywhere.
+Пишется, когда требование верно для любого проекта на этой технологии.
+Например: «у каждого ключа Redis есть срок жизни» — это правда везде.
 
-### Project rule — only here
+### Правило проекта — только здесь
 
-Lives in the project itself under `.claude/rules/`, is committed with the code
-and never reaches the shared repository.
+Живёт в самом проекте, в `.claude/rules/`, коммитится вместе с кодом,
+в общий репозиторий не уходит.
 
-Write one when the requirement is true only in this project: team agreements,
-traps in this codebase, deviations from a shared rule.
+Пишется, когда требование верно только в этом проекте: договорённости
+команды, ловушки этого кода, отступления от общего правила.
 
-Create it with:
+Создать:
 
 ```bash
 /std-core:rule new billing-legacy backend
 ```
 
-A template appears with prompts. Then fill it in.
+Появится заготовка с подсказками. Дальше — заполнить.
 
 ---
 
-## When a rule is worth adding at all
+## Когда правило вообще стоит заводить
 
-Three legitimate triggers, all of them **after the fact**, never in
-anticipation:
+Три законных повода, и все они — **по факту**, а не впрок:
 
-1. The agent made the same mistake **a second time**.
-2. Review caught something it should have known.
-3. You typed the same correction into chat twice.
+1. Агент ошибся одинаково **второй раз**.
+2. Ревью поймало то, что он должен был знать.
+3. Вы второй раз печатаете в чат одну и ту же поправку.
 
-An illegitimate trigger: "let's write down everything we know about Laravel
-just in case". That is the fastest way to kill the repository — plenty of text,
-no adherence, and context spent in every session by every developer.
+Незаконный повод: «давайте на всякий случай запишем всё, что знаем
+про Laravel». Это самый быстрый способ убить репозиторий: текста много,
+соблюдения ноль, а контекст съеден в каждой сессии у каждого разработчика.
 
-A rule costs money. It has to pay for itself.
+Правило стоит денег. Оно должно окупаться.
 
 ---
 
-## What a rule is made of
+## Из чего состоит правило
 
 ```markdown
 ---
@@ -104,72 +103,71 @@ enforcement: review
 since: "2026-07-26"
 ---
 
-# Heading: what the rule is about
+# Заголовок: о чём правило
 
-- Each point is stated so it can be verified.
-- Reasons appear where they are not obvious.
+- Пункт формулируется проверяемо.
+- Причина пишется там, где она неочевидна.
 ```
 
-Field by field.
+Разберём поля.
 
-### `paths` — where the rule applies
+### `paths` — где правило действует
 
-The most important field. It decides **when** the rule reaches the agent.
+Самое важное поле. Оно решает, **когда** правило попадёт к агенту.
 
 ```yaml
 paths:
-  - "**/app/Http/**/*.php"     # only HTTP-layer files
+  - "**/app/Http/**/*.php"     # только файлы HTTP-слоя
 ```
 
-The agent opens a file under `app/Http/` — the rule arrives. Working on the
-frontend — it does not, and no context is spent.
+Открыл агент файл из `app/Http/` — правило приехало. Работает с фронтендом —
+не приехало, и контекст не потрачен.
 
-**Without `paths` a rule loads in every session**, even when irrelevant. Do
-that only for things that genuinely touch everything: for example, "tests are
-never bent to fit the implementation".
+**Без `paths` правило грузится в каждую сессию**, даже когда оно ни при чём.
+Так стоит делать только для того, что действительно касается всего:
+например, «тесты не подгоняем под реализацию».
 
-Pattern examples:
+Примеры масок:
 
-| Pattern | Matches |
+| Маска | Что попадает |
 |---|---|
-| `**/*.vue` | every Vue component in any folder |
-| `**/app/Models/**` | everything inside the models folder |
-| `**/migrations/**` | migrations wherever they live |
-| `**/*.{ts,tsx}` | TypeScript files with either extension |
+| `**/*.vue` | все Vue-компоненты в любой папке |
+| `**/app/Models/**` | всё внутри папки моделей |
+| `**/migrations/**` | миграции, где бы они ни лежали |
+| `**/*.{ts,tsx}` | TypeScript-файлы двух расширений |
 
-**Always start a pattern with `**/`** — even for a file that normally sits at
-the repository root, like `**/nuxt.config.*`. Patterns resolve from the project
-root, and the application is not always there: monorepos, `client-app/`,
-`backend/`, `services/api/`. A pattern written as `app/Models/**` matches
-nothing in such a project, and the rule silently never loads — which looks
-exactly like "there are no files of that kind here". The leading `**/` is
-optional when matching, so root-level paths keep matching too. The test suite
-rejects a pattern without it.
+**Маска всегда начинается с `**/`** — даже для файла, который обычно лежит
+в корне репозитория: `**/nuxt.config.*`. Маски резолвятся от корня проекта,
+а приложение живёт там не всегда: монорепа, `client-app/`, `backend/`,
+`services/api/`. Маска вида `app/Models/**` в таком проекте не совпадёт
+ни с чем, и правило молча не загрузится — выглядит это ровно как «файлов
+такого типа здесь нет». Ведущий `**/` при матчинге опционален, поэтому
+корневые пути продолжают попадать. Прогон отвергает маску без него.
 
-Checking that a pattern hits the right files is easy: open such a file and run
-`/context` — the rule should appear in the list.
+Проверить, что маска попадает по нужным файлам, легко: откройте такой файл
+и выполните `/context` — правило должно появиться в списке.
 
-### `owner` — who is responsible
+### `owner` — кто отвечает
 
-Who updates the rule when it goes stale. Without an owner, nobody will dare
-touch it in six months: is it still relevant, or was it simply forgotten?
+Кто обновит правило, когда оно устареет. Без владельца правило через полгода
+никто не решится тронуть: непонятно, всё ещё актуально или забыли.
 
-For a project rule this can be a team or a person, whatever you use.
+Для правила проекта это может быть команда или человек — как принято у вас.
 
-### `enforcement` — what backs it up
+### `enforcement` — чем подкреплено
 
-Here the author answers the awkward question: **how is this checked?**
+Здесь автор отвечает на неудобный вопрос: **а как это проверяется?**
 
-| Value | Meaning |
+| Значение | Означает |
 |---|---|
-| `hook` | a lock prevents the violation |
-| `lint` | a linter catches it, and the config ships with the module |
-| `test` | the test suite catches it |
-| `review` | not automatable, a human looks |
-| `prose` | an agreement, or the reason behind a decision |
+| `hook` | есть замок, который не даст нарушить |
+| `lint` | ловит линтер, и конфиг лежит в модуле |
+| `test` | ловится тестами |
+| `review` | автоматике не поддаётся, человек смотрит глазами |
+| `prose` | просто договорённость или причина решения |
 
-For `lint`, `hook` and `test`, an `enforcement_ref` is required next to it —
-the path to the file that *is* the backing:
+Для `lint`, `hook` и `test` рядом обязателен `enforcement_ref` — путь к файлу,
+который это подкрепление и есть:
 
 ```yaml
 enforcement: lint
@@ -177,118 +175,118 @@ enforcement_ref:
   - configs/phpstan.neon
 ```
 
-Every run checks that the file exists. Without the reference the rule is not
-accepted: `lint` with no linter config is self-deception — it looks like a
-check and behaves like a request. A reference to a file that does not exist is
-the same thing, only easier to spot.
+Файл проверяется на существование при каждом прогоне. Без ссылки правило
+не примут: `lint` без конфига — самообман, выглядит как проверка, работает
+как просьба. Ссылка на несуществующий файл — то же самое, только заметнее.
 
-`prose` is only legitimate for what a machine genuinely cannot verify.
-Anything else marked `prose` is technical debt.
+Значение `prose` законно только для того, что машина проверить не в состоянии.
+Всё остальное с `prose` — технический долг.
 
-### `since` — when it appeared
+### `since` — когда появилось
 
-A date. It helps during the quarterly review to tell a living rule from
-a leftover.
+Дата. Помогает на квартальной ревизии понять, живое правило или пережиток.
 
 ---
 
-## How to phrase the points
+## Как формулировать пункты
 
-### Verifiable, not aspirational
+### Проверяемо, а не благопожелательно
 
-| Poor | Good |
+| Плохо | Хорошо |
 |---|---|
-| Write readable code | Methods up to 15 lines |
-| Validate your data | Validation only in FormRequest |
-| Mind performance | Load relations with `with()`, never query inside a loop |
-| Think about security | Secrets come from environment variables only |
+| Пиши читаемый код | Метод до 15 строк |
+| Валидируй данные | Валидация только в FormRequest |
+| Следи за производительностью | Связи грузим через `with()`, запрос в цикле не пишем |
+| Думай о безопасности | Секреты только из переменных окружения |
 
-The test is simple: **can you say unambiguously whether this point was
-violated?** If two people look at the code and disagree, the wording is bad.
+Проверка простая: **можно ли по этому пункту однозначно сказать, нарушен он
+или нет?** Если двое посмотрят на код и разойдутся во мнении — формулировка
+плохая.
 
-### Reasons where they are not obvious
+### Причина там, где она неочевидна
 
-No need to explain the obvious. Explain what looks strange:
+Не нужно объяснять очевидное. Нужно объяснять то, что выглядит странно:
 
-> Compare type-safely: `(int)$x === self::STATUS`, not `$x === 3`. Under
-> Postgres an integer column comes back as a string, and this bug does not
-> reproduce on SQLite.
+> Сравнение типобезопасное: `(int)$x === self::STATUS`, а не `$x === 3`.
+> Под Postgres целочисленная колонка приходит строкой, и на SQLite эта
+> ошибка не воспроизводится.
 
-Without the second sentence the rule looks like nitpicking. With it, it makes
-sense and nobody works around it.
+Без второго предложения правило выглядит придиркой. С ним — становится
+понятно, и его не будут обходить.
 
-### Short
+### Коротко
 
-Aim for under 15 points per file. Long rules are followed less reliably than
-short ones. If it doesn't fit, it is probably two rules.
+Ориентир — до 15 пунктов в файле. Длинные правила соблюдаются хуже коротких.
+Если не помещается — скорее всего, это два правила.
 
-### No contradictions
+### Без противоречий
 
-If two rules say different things, the agent picks one arbitrarily and you
-won't know which. Before adding, look for an existing rule on the same topic.
+Если два правила говорят разное, агент выберет любое, и вы не узнаете какое.
+Перед добавлением стоит поискать, нет ли уже правила на ту же тему.
 
 ---
 
-## When a shared rule doesn't fit your project
+## Что делать, если общее правило не подходит проекту
 
-That happens legitimately. A shared rule says "validation in FormRequest", but
-your legacy module won't be migrated for another six months.
+Такое бывает законно. Например, общее правило говорит «валидация в
+FormRequest», а у вас легаси-модуль, который переведут только через полгода.
 
-Three options, in order of severity:
+Три варианта, по возрастанию радикальности:
 
-**1. Record the deviation.** The module stays connected, and the reason goes
-into the project's precedence file:
+**1. Записать отступление.** Модуль остаётся подключённым, а в файл приоритета
+проекта добавляется причина:
 
 ```markdown
-### Validation in controllers inside the billing module
-Reason: not migrated to FormRequest, migration scheduled. New code follows the
-shared rule.
+### Валидация в контроллерах в модуле биллинга
+Причина: не переведён на FormRequest, перевод запланирован. Новый код —
+по общему правилу.
 ```
 
-**2. Write a project rule** that refines the shared one. On a contradiction the
-project rule wins — that is stated in the precedence file created at setup.
+**2. Написать своё правило проекта**, которое уточняет общее. При противоречии
+действует правило проекта — это записано в файле приоритета, который создаётся
+при подключении.
 
-**3. Switch the module off entirely:**
+**3. Отключить модуль целиком:**
 
 ```bash
 /std-core:rule override php-laravel
 ```
 
-The deviation is recorded automatically, but you fill in the reason by hand.
-A deviation without a reason is indistinguishable from an oversight six months
-later.
+Причина запишется автоматически, но заполнить её надо руками. Отступление
+без причины через полгода неотличимо от недосмотра.
 
-Before dropping a module, check whether only one of its rules conflicts.
-
----
-
-## Check that the rule works
-
-Once written, make sure it arrives:
-
-1. Open a file matched by `paths`.
-2. Run `/context` — the rule should be listed.
-3. Ask a question on the rule's topic and see whether the agent refers to it.
-
-The third step matters more than the first two. A rule can load and still go
-unnoticed if it is vaguely worded.
+Прежде чем отключать модуль, проверьте: может, мешает одно правило из него,
+а не весь модуль.
 
 ---
 
-## Quarterly review
+## Проверить, что правило работает
 
-A rule that was never violated in a quarter is either:
+Написали — убедитесь, что оно доезжает:
 
-- already enforced by a linter, so the text can go (the check stays), or
-- needed by nobody, so it can go entirely.
+1. Откройте файл, который попадает под `paths`.
+2. Выполните `/context` — правило должно быть в списке.
+3. Задайте вопрос по теме правила и посмотрите, ссылается ли агент на него.
 
-Both outcomes are progress. A standards repository should shrink as automation
-grows, not swell.
+Третий шаг важнее первых двух. Правило может загрузиться и остаться
+незамеченным, если сформулировано расплывчато.
 
 ---
 
-## Next
+## Ревизия раз в квартал
 
-- **the rule-versus-lock boundary** → [ENFORCEMENT.md](ENFORCEMENT.md) 🇷🇺
-- **a project rule in action** → [Examples, walkthrough 5](EXAMPLES.md)
-- **a whole new stack** → [CONTRIBUTING.md](../CONTRIBUTING.md)
+Правило, которое за квартал ни разу не нарушалось, — это либо:
+
+- уже вбито в линтер, и текст можно удалить (проверка остаётся), либо
+- никому не нужно, и удалить можно целиком.
+
+Оба исхода — прогресс. Репозиторий стандартов должен худеть по мере
+автоматизации, а не пухнуть.
+
+---
+
+## Дальше
+
+- **граница «правило или замок»** → [ENFORCEMENT.md](ENFORCEMENT.md)
+- **своё правило в действии** → [Примеры, сценарий 5](EXAMPLES.md)
+- **нужен целый новый стек** → [CONTRIBUTING.md](../CONTRIBUTING.md)

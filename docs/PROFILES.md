@@ -1,61 +1,61 @@
-# Profiles: where they live and how to change them
+# Профили: где живут и как настроить
 
-> 🇷🇺 [Русская версия](PROFILES.ru.md) · [back to README](../README.md) ·
-> [start with the basics](START.md) · [all docs](README.md)
+> [к README](../README.md)
+> [начать с основ](START.md) · [все документы](README.md)
 
 ---
 
-## In short
+## Коротко
 
-**A profile is a set of requirements about checks**, not about code. It decides
-whether a spec is required, whether gates run before a commit, where the
-test-quality bar sits, and what happens when an existing test is edited.
+**Профиль — это набор требований к проверкам**, а не к коду. Он решает:
+нужна ли спека, гонять ли гейты перед коммитом, где планка у тестов,
+спрашивать ли при правке теста.
 
-Rules do **not** depend on the profile — see
-[Writing your own rule](WRITING-RULES.md).
+Правила от профиля **не зависят** — про это отдельно в
+[«Как написать своё правило»](WRITING-RULES.md).
 
-Three places a profile lives:
+Три уровня, где профиль живёт:
 
-| Where | What is there | Who edits it |
+| Где | Что там | Кто меняет |
 |---|---|---|
-| `plugins/std-core/profiles/profiles.json` | four ready profiles | whoever maintains the standards repo |
-| `.claude/gauntlet.json` in the project | the chosen profile and its settings | you, in your project |
-| the `--profile` argument | which profile to pick | you, at setup |
+| `plugins/std-core/profiles/profiles.json` | четыре готовых профиля | тот, кто ведёт репозиторий стандартов |
+| `.claude/gauntlet.json` в проекте | выбранный профиль и его параметры | вы, в своём проекте |
+| аргумент `--profile` | какой профиль выбрать | вы, при настройке |
 
 ---
 
-## Choosing a profile
+## Как выбрать профиль
 
-When setting up a project:
+При настройке проекта:
 
 ```bash
 /std-core:setup --profile solo
 ```
 
-With no argument the profile is `prototype`: rules and locks work, the quality
-bar does not rise on its own. The one exception is `legacy`, detected from
-facts (200+ commits with almost no tests), because that is not a level of
-strictness but a mode of working with uncovered code.
+Без аргумента ставится `prototype`: правила и замки работают, планка качества
+сама не поднимается. Исключение одно — `legacy`, он определяется по фактам
+(200+ коммитов при почти полном отсутствии тестов), потому что это не уровень
+строгости, а режим работы с непокрытым кодом.
 
-Strictness is deliberately not guessed from the repository. A single author
-used to mean `solo`, so a project without a single test was told to write specs
-and run gates it does not have. A requirement with nothing to enforce it
-devalues the ones that work.
+Строгость по репозиторию не угадывается намеренно. Раньше один автор давал
+`solo`, и проект без единого теста получал требование писать спеку и гонять
+гейты, которых нет. Требование, за которым нечему сработать, обесценивает
+и те, что работают.
 
-To see what would be chosen without changing anything:
+Посмотреть, что выберется, ничего не меняя:
 
 ```bash
 /std-core:setup --dry-run
 ```
 
-Change it later with the same command and a different value. Settings you
-edited by hand are preserved.
+Сменить позже — та же команда с другим значением. Уже настроенные вручную
+параметры при этом сохранятся.
 
 ---
 
-## What lands in the project
+## Что записывается в проект
 
-After setup the project gets `.claude/gauntlet.json`:
+После настройки в проекте появляется `.claude/gauntlet.json`:
 
 ```json
 {
@@ -72,37 +72,37 @@ After setup the project gets `.claude/gauntlet.json`:
 }
 ```
 
-**This file is committed.** The whole team gets the same requirements, and the
-history shows when and why they changed.
+**Этот файл коммитится.** У всей команды одинаковые требования, и они видны
+в истории — когда и почему поменялись.
 
 ---
 
-## Adapting a profile to your project
+## Как подстроить профиль под свой проект
 
-The common case: the profile almost fits, but one thing gets in the way.
+Самый частый случай: профиль почти подходит, но одна вещь мешает.
 
-Just edit `.claude/gauntlet.json` — it takes precedence over the profile
-definition. Running `setup` again will not overwrite your changes.
+Просто отредактируйте `.claude/gauntlet.json` — он главнее того, что записано
+в профиле. Повторный запуск `setup` ваши правки не затрёт.
 
-### Examples
+### Примеры
 
-**Gates before every commit get in the way.** Say you have a rule of
-committing after every small edit:
+**Мешает требование гейтов перед каждым коммитом.** Скажем, у вас правило
+«коммит после каждой мелкой правки»:
 
 ```json
 { "requireBeforeCommit": false }
 ```
 
-**Stricter about tests.** By default the profile asks before an existing test
-is edited; you want it forbidden:
+**Хотите строже относиться к тестам.** По умолчанию профиль спрашивает
+при правке существующего теста, а вы хотите запретить:
 
 ```json
 { "guardTests": "deny" }
 ```
 
-Values: `off` — don't interfere, `ask` — ask, `deny` — forbid.
+Значения: `off` — не вмешиваться, `ask` — спросить, `deny` — запретить.
 
-**Your own test command.** Detection found the wrong thing, or nothing:
+**Своя команда тестов.** Автодетект нашёл не то или не нашёл ничего:
 
 ```json
 {
@@ -113,107 +113,106 @@ Values: `off` — don't interfere, `ask` — ask, `deny` — forbid.
 }
 ```
 
-You choose the keys; the order in the file is the order of execution. Put cheap
-and fast checks first so an obvious mistake surfaces in seconds.
+Ключи придумываете сами, порядок в файле — это порядок запуска. Дешёвое
+и быстрое ставьте первым, чтобы очевидная ошибка находилась за секунды.
 
-**A fixed mutation threshold instead of the ratchet.** When quality is already
-high and you want a firm bar:
+**Мутационный порог вместо храповика.** Если качество уже высокое
+и хочется фиксированную планку:
 
 ```json
 { "mutation": { "enabled": true, "mode": "absolute", "threshold": 80 } }
 ```
 
-Or switch it off entirely:
+Или наоборот, отключить совсем:
 
 ```json
 { "mutation": { "enabled": false } }
 ```
 
-**No spec required.** For a project where tasks are small and obvious:
+**Спека не нужна.** Для проекта, где задачи мелкие и очевидные:
 
 ```json
 { "specFirst": false }
 ```
 
-### What cannot be overridden
+### Что нельзя переопределить
 
-Safety locks: deleting volumes and images, force-push, `migrate:fresh`,
-plaintext secrets. They behave identically under every profile and are not
-configurable from a project — otherwise a profile would become a way to switch
-protection off.
+Замки безопасности: удаление томов и образов, force-push, `migrate:fresh`,
+секреты в открытом виде. Они работают одинаково во всех профилях и не
+настраиваются из проекта — иначе профиль стал бы способом отключить защиту.
 
 ---
 
-## Creating your own profile
+## Как завести свой профиль
 
-Useful when a team has a mode none of the four cover. For example an "internal
-tool": tests needed, spec not, gates light.
+Нужно, когда есть режим, не покрытый готовыми. Например,
+«внутренний инструмент»: тесты нужны, спека нет, гейты мягкие.
 
-Add it to the standards repository, in
+Профиль добавляется в репозиторий стандартов, в
 `plugins/std-core/profiles/profiles.json`:
 
 ```json
 "internal-tool": {
-  "title": "Internal tool",
-  "when": "A utility for ourselves: if it breaks, the same people fix it.",
+  "title": "Внутренний инструмент",
+  "when": "Утилита для своих: ломается — чинят те же, кто пишет.",
   "specFirst": false,
   "requireBeforeCommit": true,
   "guardTests": "ask",
   "gates": ["style", "test"],
   "mutation": { "enabled": true, "mode": "ratchet", "floor": 30 },
-  "rationale": "A spec is redundant: the requester and the implementer are the same person. Tests are not — other teams use the tool and a breakage is noticed late."
+  "rationale": "Спека избыточна: заказчик и исполнитель — один человек. Но тесты нужны, потому что инструментом пользуются другие команды и о поломке узнают не сразу."
 }
 ```
 
-Fields:
+Поля:
 
-| Field | What it sets |
+| Поле | Что задаёт |
 |---|---|
-| `title` | human-readable name |
-| `when` | when to apply it — one line, shown during setup |
-| `specFirst` | require acceptance criteria before code |
-| `requireBeforeCommit` | run gates before committing |
-| `guardTests` | `off` / `ask` / `deny` when an existing test is edited |
-| `gates` | which checks are required: `style`, `types`, `test`, `security` |
-| `mutation` | [ratchet](RATCHET.md) from a floor, `absolute` with a threshold, or off |
-| `rationale` | **why it is this way** — required |
+| `title` | человеческое название |
+| `when` | когда применять — одна строка, её видно при настройке |
+| `specFirst` | требовать ли критерий приёмки до кода |
+| `requireBeforeCommit` | гонять ли гейты перед коммитом |
+| `guardTests` | `off` / `ask` / `deny` при правке существующего теста |
+| `gates` | какие проверки обязательны: `style`, `types`, `test`, `security` |
+| `mutation` | [храповик](RATCHET.md) от планки, `absolute` с порогом, или выключено |
+| `rationale` | **почему именно так** — обязательно |
 
-`rationale` is not a formality. In six months nobody will remember why this
-profile skips the spec, and it will either be broken or abandoned.
+`rationale` — не формальность. Через полгода никто не вспомнит, почему
+в этом профиле спека не нужна, и его либо сломают, либо перестанут применять.
 
-After adding:
+После добавления:
 
 ```bash
-tests/run.sh                            check the structure
+tests/run.sh                            проверить структуру
 /std-core:setup --profile internal-tool
 ```
 
-### Automatic detection
+### Автоопределение
 
-If you want the profile picked automatically, add a rule to the `detection`
-section of the same file. Think twice, though: intent is hard to infer from
-code, and getting it wrong is irritating.
+Если хотите, чтобы профиль выбирался сам, добавьте правило в раздел
+`detection` того же файла. Но подумайте дважды: определить намерение по коду
+сложно, а ошибка в эту сторону раздражает.
 
-Today only `legacy` is auto-selected. `solo` and `team` are chosen by a person:
-the number of authors tells you how many people commit, not what quality bar
-the project is prepared to hold.
+Сейчас автоматически определяется только `legacy`. `solo` и `team` включаются
+человеком: число авторов в репозитории говорит о том, сколько людей коммитит,
+но не о том, какую планку качества проект готов держать.
 
 ---
 
-## Seeing what is in force
+## Как посмотреть, что действует сейчас
 
 ```bash
-cat .claude/gauntlet.json          what the project records
-/std-gauntlet:run --list           which gates will run
-/std-core:doctor                   full diagnostics
+cat .claude/gauntlet.json          что записано в проекте
+/std-gauntlet:run --list           какие гейты запустятся
+/std-core:doctor                   полная диагностика
 ```
 
-The agent receives the profile's requirements at the start of a session — if
-the profile requires a spec, it knows without reading the file.
+Требования профиля агент получает в начале сессии — если профиль требует
+спеку, он об этом знает и без чтения файла.
 
 ---
 
-## Next
+## Дальше
 
-- **the mutation gate** → [Ratchet](RATCHET.md)
-- **rules, not checks** → [Writing a rule](WRITING-RULES.md)
+- **мутационный гейт** → [Храповик](RATCHET.md)
+- **правила, а не проверки** → [Как написать правило](WRITING-RULES.md)

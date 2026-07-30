@@ -1,118 +1,120 @@
-# Contributing
+# Как вносить изменения
 
-> 🇷🇺 Правила пишутся на русском — см. [README.ru.md](README.ru.md).
-> Discussion in English or Russian is equally welcome.
+> [к README](README.md)
 
-## The one question to answer first
+## Вопрос, на который отвечают первым
 
-**Can a machine check this?**
+**Может ли это проверить машина?**
 
-If yes, it does not belong in prose. A rule written as text is a request —
-the model reads it and follows it most of the time. A rule compiled into a
-linter config or a hook is a check that runs every time, whether or not anyone
-remembered it. Not a sandbox: see [the threat model](docs/THREAT-MODEL.md).
+Если да — правилу не место в прозе. Правило текстом это просьба: модель читает
+его и выполняет в большинстве случаев. Правило, вбитое в конфиг линтера или
+в хук, — проверка, которая выполняется всегда, независимо от того, вспомнил
+о ней кто-нибудь или нет. Песочницей она при этом не является — см.
+[модель угроз](docs/THREAT-MODEL.md).
 
-| Answer | Where it goes | `enforcement` |
+| Ответ | Куда идёт | `enforcement` |
 |---|---|---|
-| Dangerous, irreversible action | `std-core/scripts/*.sh` | `hook` |
-| Formalisable as a code property | `configs/` of the module | `lint` |
-| Formalisable as system behaviour | project tests | `test` |
-| Cost of error not covered by tests | rule text, explicit list | `review` |
-| None of the above | rule text | `prose` |
+| Опасное необратимое действие | `std-core/scripts/*.sh` | `hook` |
+| Формализуется как свойство кода | `configs/` модуля | `lint` |
+| Формализуется как поведение системы | тесты проекта | `test` |
+| Цена ошибки не покрывается тестами | текст правила, явный список | `review` |
+| Ничего из перечисленного | текст правила | `prose` |
 
-A module made entirely of `prose` is a bad module. The test suite prints, on
-every run, how many rules a machine backs (`lint`, `hook`, `test`) and how many
-rest on a person (`review`, `prose`). The second number is the metric, and it is
-expected to fall over time: `review` means "a human will read the code" — the
-very thing this repository is meant to reduce.
+Модуль, целиком состоящий из `prose`, — плохой модуль. Прогон на каждом запуске
+печатает, сколько правил подкреплено машиной (`lint`, `hook`, `test`) и сколько
+держится на человеке (`review`, `prose`). Второе число и есть метрика, и оно
+обязано снижаться: `review` означает «человек прочитает код» — ровно то, от чего
+репозиторий обещает избавить.
 
-## When to add a rule at all
+## Когда правило вообще стоит заводить
 
-Only in reaction, never in anticipation:
+Только по факту, никогда впрок:
 
-- the model made the same mistake a second time;
-- code review caught something the model should have known;
-- you typed the same correction into chat twice.
+- модель ошиблась одинаково второй раз;
+- ревью поймало то, что модель должна была знать;
+- ты второй раз печатаешь в чат ту же поправку.
 
-"Let's write down everything we know about Laravel" is the fastest way to turn
-this repository into text nobody reads, that also inflates context in every
-session for every developer.
+«Давайте запишем всё, что знаем про Laravel» — самый быстрый способ превратить
+репозиторий в текст, который никто не читает, но который при этом раздувает
+контекст в каждой сессии у каждого разработчика.
 
-## Adding a module
+## Как добавить модуль
 
 ```bash
-cp -r templates/module plugins/std-<slug>
+cp -r templates/module plugins/std-<слаг>
 ```
 
-1. Fill in `.claude-plugin/plugin.json` — `name` must match the directory name.
-   Set `version` explicitly; without it every commit counts as a new release.
-2. Write rules in `rules/`. One file, one topic. Required frontmatter:
+1. Заполни `.claude-plugin/plugin.json` — `name` обязан совпадать с именем
+   каталога. Версию задай явно: без неё каждый коммит считается новым релизом.
+2. Напиши правила в `rules/`. Один файл — одна тема. Обязательный frontmatter:
 
    ```yaml
    ---
-   paths: ["**/src/**/*.ts"]   # without this the rule loads in EVERY session
+   paths: ["**/src/**/*.ts"]   # без этого правило грузится в КАЖДУЮ сессию
    owner: "@team"
    enforcement: lint
    enforcement_ref:
-     - configs/eslint.config.js   # required for lint, hook and test
+     - configs/eslint.config.js   # обязателен для lint, hook и test
    since: "2026-07-26"
    ---
    ```
 
-3. Put anything automatable into `configs/` — a ready linter config the project
-   can adopt. A rule marked `lint`, `hook` or `test` **must** point at that file
-   through `enforcement_ref`; the run checks the file exists. Otherwise it is
-   prose pretending to be a check.
-4. Register the module in `.claude-plugin/marketplace.json`. Without this entry
-   it cannot be installed.
-5. Run `tests/run.sh`. Red means not ready.
+3. Всё, что автоматизируется, клади в `configs/` — готовый конфиг линтера,
+   который проект может взять себе. Правило с меткой `lint`, `hook` или `test`
+   **обязано** ссылаться на такой файл через `enforcement_ref`; прогон проверяет,
+   что файл существует. Иначе это проза, притворяющаяся проверкой.
+4. Зарегистрируй модуль в `.claude-plugin/marketplace.json`. Без этой записи он
+   не установится.
+5. Запусти `tests/run.sh`. Красный прогон — не готово.
 
-Language rules and framework rules are separate modules. PHP is not always
-Laravel: `std-php-base` covers the language, `std-php-laravel` stacks on top.
-Follow that split for new stacks.
+Правила языка и правила фреймворка — разные модули. PHP не всегда Laravel:
+`std-php-base` покрывает язык, `std-php-laravel` встаёт сверху. Новые стеки
+заводятся по той же схеме.
 
-## Writing a good rule
+## Как написать хорошее правило
 
-- **Verifiable, not aspirational.** "2-space indentation" over "format
-  properly". "Validation only in FormRequest" over "validate input".
-- **Under 15 bullets.** Long rules are followed less reliably than short ones.
-- **Explain *why* only where it isn't obvious** — a reason nobody can derive
-  from the code is worth its tokens; a reason everybody knows is not.
-- **Don't contradict another rule.** When two rules conflict, the model picks
-  one arbitrarily and you won't know which.
+- **Проверяемо, а не благонамеренно.** «Отступ в два пробела» вместо
+  «форматируй аккуратно». «Валидация только в FormRequest» вместо «проверяй
+  входные данные».
+- **Не длиннее 15 пунктов.** Длинные правила соблюдаются хуже коротких.
+- **Объясняй «почему» только там, где это неочевидно**: причина, которую нельзя
+  вывести из кода, стоит своих токенов; причина, которую знают все, — нет.
+- **Не противоречь другому правилу.** Когда два правила конфликтуют, модель
+  выбирает одно произвольно, и какое именно — ты не узнаешь.
 
-## Adding a lock
+## Как добавить замок
 
-Locks live in `plugins/std-core/scripts/` and are wired in `hooks/hooks.json`.
+Замки живут в `plugins/std-core/scripts/`, подключаются в `hooks/hooks.json`.
 
-A hook is a pure function: JSON in, `allow` / `deny` / `ask` out. That makes it
-fully testable without invoking a model. **Every lock must come with cases in
-`tests/test-hooks.sh`** — both the blocked call and a similar call that must
-pass. A lock that blocks too much gets disabled within a week.
+Хук — чистая функция: JSON на входе, `allow` / `deny` / `ask` на выходе. Значит
+он полностью тестируется без запуска модели. **Каждый замок обязан приходить
+с кейсами в `tests/test-hooks.sh`** — и блокируемый вызов, и похожий, который
+обязан пройти. Замок, который блокирует лишнее, отключают за неделю.
 
-Prefer `ask` over `deny` for anything a human might legitimately want to do.
-`deny` is for the irreversible.
+Для всего, что человек может захотеть сделать законно, предпочитай `ask`,
+а не `deny`. `deny` — для необратимого.
 
-## Tests
+## Тесты
 
 ```bash
-tests/run.sh              # everything, no model involved, seconds
-tests/test-context.sh     # verifies rules actually load — invokes a model
+tests/run.sh              всё, без модели, за секунды
+tests/test-context.sh     проверяет фактическую загрузку правил — тратит токены
 ```
 
-`test-context.sh` is deliberately kept out of CI: it spends tokens. Run it
-locally before releasing a module.
+`test-context.sh` намеренно не в CI: он расходует токены. Гоняй его локально
+перед публикацией модуля.
 
-## Pull requests
+## Пул-реквесты
 
-- One module or one coherent change per PR.
-- Say **why** the rule exists — what went wrong that made it necessary.
-- Green `tests/run.sh` is required.
-- New rules need an `owner`. A rule without one has nobody to update it when it
-  goes stale.
+- Один модуль или одно связное изменение на PR.
+- Скажи **зачем** правило появилось — что пошло не так, из-за чего оно
+  понадобилось.
+- Зелёный `tests/run.sh` обязателен.
+- У нового правила должен быть `owner`. У правила без владельца некому его
+  обновить, когда оно устареет.
 
-## Quarterly review
+## Ежеквартальный пересмотр
 
-A rule that was never violated in a quarter is either already enforced by a
-linter — delete the text, keep the check — or nobody needs it. Both outcomes
-are progress. This repository is supposed to shrink as automation grows.
+Правило, которое за квартал ни разу не нарушили, — либо уже вбито в линтер
+(тогда текст удаляем, проверку оставляем), либо никому не нужно. Оба исхода
+означают движение вперёд. Этот репозиторий должен худеть по мере автоматизации.

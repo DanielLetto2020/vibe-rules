@@ -1,285 +1,284 @@
-# The ratchet: how it works and how to configure it
+# Храповик: как работает и как настроить
 
-> 🇷🇺 [Русская версия](RATCHET.ru.md) · [all docs](README.md)
-
----
-
-## What it is
-
-A ratchet turns one way only. A car jack: you pump, the car goes up; you let
-go, it does not drop back — the pawl holds it.
-
-Same thing here, except what it holds is **test quality**.
-
-The bar is not set in advance. It equals the best result the project has
-already reached. Improve, and the bar rises. Try to hand in something worse and
-the gate goes red.
-
-```
-run 1:  20%   bar set at 20
-run 2:  45%   better → bar rises to 45
-run 3:  44%   within tolerance, passes
-run 4:  30%   FAIL — worse than it already was
-```
-
-One requirement: **don't make it worse than it is now.** Improving is optional.
+> [все документы](README.md)
 
 ---
 
-## What the percentages are
+## Что это
 
-This is the **mutation score** — the share of deliberate code breakages the
-tests noticed.
+Храповик — механизм, который крутится только в одну сторону. Домкрат: качаешь
+— машина поднимается, отпускаешь — назад не падает, собачка держит.
 
-The tool takes your code and breaks it in a hundred places: turns `>` into
-`>=`, plus into minus, deletes a line. After each break it runs the tests.
+Здесь то же самое, только держит он **качество тестов**.
 
-- Tests go red — the break was caught.
-- Tests stay green — those tests guard nothing there.
+Планка не назначается заранее. Она равна лучшему результату, которого проект
+уже достигал. Улучшил — планка поднялась. Попытался сдать хуже — гейт красный.
 
-Coverage says "the line was executed". Mutation score says "the line was
-verified". The second is the honest one: a suite with 100% coverage can miss
-almost every bug.
+```
+прогон 1:  20%   планка встала на 20
+прогон 2:  45%   лучше → планка поднялась до 45
+прогон 3:  44%   в пределах допуска, проходит
+прогон 4:  30%   ПРОВАЛ — хуже, чем уже было
+```
+
+Требование одно: **не делай хуже, чем есть сейчас.** Улучшать не обязательно.
 
 ---
 
-## Why not just a threshold
+## Что за проценты
 
-A fixed threshold fails predictably.
+Речь про **mutation score** — долю нарочных поломок кода, которые тесты
+заметили.
 
-Set 70% on an existing project that really sits at 30%:
+Инструмент берёт ваш код и портит его в сотне мест: `>` меняет на `>=`, плюс
+на минус, выкидывает строку. После каждой порчи запускает тесты.
 
-```
-day 1:  build red, nobody can commit
-day 2:  "let's disable it for now"
-day 8:  no check at all
-```
+- Тесты покраснели — поломка поймана.
+- Тесты зелёные — в этом месте они ничего не охраняют.
 
-Set 20% so it passes: unverified code flows in freely, the threshold does not
-get in the way. There is a check, and it achieves nothing.
-
-**Both options are bad.** A threshold is either unreachable or useless.
-
-A ratchet works from any starting point, including zero. That is why it can be
-switched on today on any project: it will not block work, and it will not let
-things slide.
+Покрытие говорит «строка выполнялась». Mutation score говорит «строка
+проверялась». Второе честнее: бывает набор со стопроцентным покрытием, который
+пропускает почти все ошибки.
 
 ---
 
-## Where things live
+## Зачем так, а не просто порог
 
-| File | What it holds | In git |
+Обычный фиксированный порог ломается предсказуемо.
+
+Ставите 70% на существующий проект, где реально 30%:
+
+```
+день 1:  сборка красная, никто не может закоммитить
+день 2:  «давайте временно отключим»
+день 8:  проверки нет вообще
+```
+
+Ставите 20%, чтобы проходило: непроверенный код добавляется свободно, порог
+не мешает. Проверка есть, толку нет.
+
+**Оба варианта плохие.** Порог либо недостижим, либо бесполезен.
+
+Храповик работает с любого стартового состояния, включая ноль. Поэтому его
+можно включить сегодня на любом проекте: мешать не начнёт, а деградировать
+не даст.
+
+---
+
+## Где что лежит
+
+| Файл | Что в нём | В git |
 |---|---|---|
-| `.claude/gauntlet.json` | settings: mode, starting bar | yes |
-| `.claude/.ratchet.json` | current bar, best result, history | no |
+| `.claude/gauntlet.json` | настройки: режим, стартовая планка | да |
+| `.claude/.ratchet.json` | текущая планка, лучший результат, история | нет |
 
-The state is deliberately not committed: the bar depends on what was run on a
-particular machine, and syncing it through git would mean constant conflicts.
-In CI the bar starts from the value in the settings.
+Состояние не коммитится намеренно: планка зависит от того, что прогонялось
+на конкретной машине, и синхронизировать её между разработчиками через git
+означало бы постоянные конфликты. В CI планка считается заново от значения
+в настройках.
 
-To inspect the current state:
+Посмотреть текущее состояние:
 
 ```bash
 ratchet.sh show
 ```
 
 ```
-bar:   45%
-best:  45%
-history:
+планка: 45%
+лучшее:  45%
+история:
   2026-07-26T18:12Z  20%
   2026-07-26T19:30Z  45%
   2026-07-27T09:15Z  44%
 ```
 
-The history exists for the "did this get better or worse over the quarter"
-conversation — a single number does not answer it.
+История нужна для разговора «стало лучше или хуже за квартал» — по одному
+числу этого не видно.
 
 ---
 
-## Settings
+## Настройки
 
-All in `.claude/gauntlet.json`, under `mutation`.
+Всё в `.claude/gauntlet.json`, раздел `mutation`.
 
-### Mode
+### Режим
 
 ```json
 { "mutation": { "enabled": true, "mode": "ratchet", "floor": 50 } }
 ```
 
-| Field | Values | Effect |
+| Поле | Значения | Что делает |
 |---|---|---|
-| `enabled` | `true` / `false` | whether the mutation gate runs at all |
-| `mode` | `ratchet` / `absolute` | ratchet or fixed threshold |
-| `floor` | number | starting bar for the ratchet |
-| `threshold` | number | threshold for `absolute` mode |
-| `changedOnly` | `true` / `false` | score only the changed files |
+| `enabled` | `true` / `false` | включён ли мутационный гейт вообще |
+| `mode` | `ratchet` / `absolute` | храповик или фиксированный порог |
+| `floor` | число | стартовая планка для храповика |
+| `threshold` | число | порог для режима `absolute` |
+| `changedOnly` | `true` / `false` | считать только по изменённым файлам |
 
-### A fixed threshold instead of the ratchet
+### Фиксированный порог вместо храповика
 
-When quality is already high and you want a firm number:
+Когда качество уже высокое и хочется твёрдую планку:
 
 ```json
 { "mutation": { "enabled": true, "mode": "absolute", "threshold": 80 } }
 ```
 
-No ready-made profile is set this way: a stated figure is needed where an
-outside party requires it — an audit, a regulation, a contract. That is
-a person's decision, not something inferred from the repository.
+Ни один готовый профиль так не настроен: названная цифра нужна там, где
+её требует внешняя сторона — аудит, регламент, договор. Это решение человека,
+а не вывод из состояния репозитория.
 
-### Changed files only
+### Только изменённые файлы
 
-On a large project a full mutation run takes hours — so people stop running
-it. Limiting it to changed files turns it into a check that actually happens:
+На большом проекте полный мутационный прогон идёт часами — его перестают
+запускать. Ограничение изменёнными файлами превращает его в проверку, которую
+реально делают:
 
 ```json
 { "mutation": { "mode": "ratchet", "floor": 0, "changedOnly": true } }
 ```
 
-That is how the `legacy` profile is set. The tool receives
-`--git-diff-filter=AM` (Infection) or `--since` (Stryker).
+Так настроен профиль `legacy`. Инструмент получает `--git-diff-filter=AM`
+(Infection) или `--since` (Stryker).
 
-### Off entirely
+### Выключить совсем
 
 ```json
 { "mutation": { "enabled": false } }
 ```
 
-Sensible for static sites and prototypes: there is nothing to mutate.
+Осмысленно для статических сайтов и прототипов: мутировать нечего.
 
 ---
 
-## Tolerance
+## Допуск
 
-A mutation run is not deterministic: timeouts, parallelism, test order. A
-one-or-two point swing is noise, not decay.
+Мутационный прогон недетерминирован: таймауты, параллельность, порядок тестов.
+Колебание в один-два пункта — это шум, а не деградация.
 
-So the bar is checked with a **2 point** tolerance: at a bar of 45, a 43 passes
-and a 42 does not.
+Поэтому планка проверяется с допуском в **2 пункта**: при планке 45 значение
+43 пройдёт, а 42 уже нет.
 
-The tolerance is a constant in the script itself (`TOLERANCE=2` in
-`ratchet.sh`). Raise it only if your runs are genuinely noisier — but first
-find out why.
+Допуск задан в самом скрипте (`TOLERANCE=2` в `ratchet.sh`). Менять его стоит
+только если ваш прогон шумит сильнее — но сначала лучше разобраться, почему.
 
 ---
 
-## When the gate goes red
+## Когда гейт покраснел
 
 ```
-RATCHET: 30% below the bar of 45%
+ХРАПОВИК: 30% ниже планки 45%
 
-The bar is the best this project has already reached. Going below means new
-code is verified worse than the code already here.
+Планка — это лучшее, чего проект уже достигал. Опускаться ниже нельзя:
+значит новый код проверен хуже, чем существующий.
 ```
 
-**What to do, in order:**
+**Что делать по порядку:**
 
-1. Open the tool's report: which mutants survived, in which files.
-2. Work through them — usually the assertion is too weak: it checks "not empty"
-   instead of an exact value, or never touches a boundary.
-3. Strengthen the assertions. More often than not you need a sharper check in
-   an existing test, not a new test.
+1. Посмотреть отчёт инструмента: какие мутанты выжили и в каких файлах.
+2. Разобрать их — обычно это места, где ассерт слишком слабый: проверяется
+   «не пусто» вместо конкретного значения, или не проверяется граница.
+3. Усилить ассерты. Чаще нужен не новый тест, а более точная проверка
+   в существующем.
 
-For a guided walkthrough, ask the agent to "go through the surviving mutants" —
-the `mutation-harden` procedure covers it step by step.
+Подробный разбор — процедура `mutation-harden`: скажите агенту «разбери
+выживших мутантов», и он пойдёт по шагам.
 
-**What not to do:** raise the tolerance, disable the gate, or bulk-exclude
-mutants. That turns the check into decoration.
+**Чего не делать:** поднимать допуск, отключать гейт, добавлять мутантов
+в исключения пачкой. Это превращает проверку в декорацию.
 
 ---
 
-## Resetting the bar
+## Как сбросить планку
 
-Sometimes legitimate. You removed a large, well-covered module — the average
-honestly dropped, and that is not decay.
+Бывает законно. Например, удалили большой хорошо покрытый модуль — средний
+процент честно упал, и это не деградация.
 
 ```bash
 ratchet.sh reset 40
 ```
 
-A separate command on purpose: lowering the bar should be **a visible human
-decision**, not a side effect of automation. The history records it as
-"set manually".
+Отдельная команда сделана намеренно: понижение планки должно быть **заметным
+решением человека**, а не побочным эффектом автоматики. В истории останется
+запись «установлено вручную».
 
 ---
 
-## Can the logic itself be changed
+## Можно ли поменять саму логику
 
-Yes — the ratchet is an ordinary script:
-`plugins/std-gauntlet/scripts/ratchet.sh`. Change it in the standards
-repository, not in a project.
+Да, храповик — обычный скрипт: `plugins/std-gauntlet/scripts/ratchet.sh`.
+Меняется в репозитории стандартов, а не в проекте.
 
-What is worth adjusting there:
+Что там можно поправить:
 
-- **tolerance** — the `TOLERANCE` constant at the top;
-- **how much history is kept** — currently the last 50 runs;
-- **the rule for raising the bar** — currently the bar equals the best result;
-  you could make it "the average of the last three" if your runs are very
-  noisy.
+- **допуск** — константа `TOLERANCE` в начале;
+- **сколько прогонов хранить в истории** — сейчас последние 50;
+- **правило подъёма планки** — сейчас планка равна лучшему результату; можно
+  сделать, например, «среднее из трёх последних», если прогон очень шумный.
 
-After editing, run `tests/run.sh`: the ratchet's logic is covered by tests and
-they will catch a change in behaviour you did not intend.
+После правки — `tests/run.sh`: логика храповика покрыта тестами, и они
+поймают, если поведение изменилось не так, как задумано.
 
-If you need a fundamentally different regime — neither ratchet nor fixed
-threshold — add a third `mode` alongside rather than rewriting the existing
-ones: other projects are already configured against them.
+Если нужен принципиально другой режим (не храповик и не фиксированный порог),
+разумнее добавить третий `mode` рядом, а не переписывать существующие: чужие
+проекты уже на них настроены.
 
 ---
 
-## A second ratchet: compliance debt
+## Второй храповик: долг соответствия
 
-The same principle applied to a second metric — the number of places that do
-not match the standard. This metric moves the other way (lower is better), so
-it has its own script, `debt.sh`, and its own state, `.claude/.debt.json`.
+Тот же принцип применён ко второй метрике — числу мест, не соответствующих
+стандарту. Метрика идёт в другую сторону (меньше — лучше), поэтому у неё
+отдельный скрипт `debt.sh` и отдельное состояние `.claude/.debt.json`.
 
 ```bash
-debt.sh count           count violations
-debt.sh check           compare against the bar (this is what the `debt` gate does)
-debt.sh show            bar, best achieved, history
-debt.sh reset <number>  raise the bar deliberately
+debt.sh count           посчитать нарушения
+debt.sh check           сравнить с планкой (это и делает гейт `debt`)
+debt.sh show            планка, лучшее достигнутое, история
+debt.sh reset <число>   поднять планку осознанно
 ```
 
-Why it sits next to a plain linter gate: the `types` gate asks "are there zero
-errors?". On an existing project the answer is no, the gate is red always, and
-it gets switched off on day one. The `debt` gate asks "are there no more errors
-than before?" — a project can answer yes from the start, and the bar drops as
-the files you touch get brought in line.
+Зачем он нужен рядом с обычным гейтом линтера: гейт `types` спрашивает
+«ошибок ноль?». На существующем проекте ответ «нет», гейт красный всегда,
+и его отключают в первый же день. Гейт `debt` спрашивает «ошибок не больше,
+чем было?» — на этот вопрос проект отвечает «да» с самого начала, а планка
+опускается по мере того, как тронутые файлы приводятся к правилам.
 
-The counting command is inferred from the stack or set explicitly:
+Команда подсчёта определяется по стеку или задаётся явно:
 
 ```json
 { "debt": { "command": "./vendor/bin/phpstan analyse --error-format=raw --no-progress" } }
 ```
 
-It has one requirement: print one line per violation as `path:line: …`. That is
-what `phpstan --error-format=raw`, `eslint -f unix`, `ruff
---output-format=concise` and `mypy` do. Tool summary lines are not counted —
-otherwise the number would change when the linter is upgraded rather than when
-the code changes.
+Требование к ней одно: печатать по строке на нарушение в виде `путь:строка: …`.
+Так умеют `phpstan --error-format=raw`, `eslint -f unix`, `ruff
+--output-format=concise`, `mypy`. Строки-сводки инструмента в долг не
+попадают — иначе число менялось бы при обновлении версии, а не при изменении
+кода.
 
-The first run records a fact, not an aspiration: the bar equals what is there
-today. From then on it can only go down; raising it is a deliberate human
-decision via `reset`, needed when the config gets stricter or the linter is
-upgraded.
+Первый прогон фиксирует факт, а не пожелание: планка равна тому, что есть
+сейчас. Дальше её можно только опускать; поднять — осознанное решение
+человека через `reset`, и оно нужно, когда ужесточился конфиг или обновился
+линтер.
 
-How to use this in practice is the `std-modernize` procedure: measure, pick a
-spot by cost, cover it with characterization tests, bring it in line, record
-the new bar.
-
----
-
-## What the ratchet does not do
-
-- **It does not verify the specification.** Tests can kill every mutant and
-  still check the wrong requirement.
-- **It does not see performance or race conditions** — no happy-path test does.
-- **It does not replace review of what tests never cover**: migrations,
-  contracts, dependencies, access control.
+Как этим пользоваться на практике — процедура `std-modernize`: измерить,
+выбрать участок по цене, покрыть характеризационными тестами, привести
+к правилам, зафиксировать новую планку.
 
 ---
 
-## Next
+## Чего храповик не делает
 
-- [The gauntlet](../plugins/std-gauntlet/docs/GAUNTLET.md) 🇷🇺 — five stages,
-  the ratchet is the third
-- [Profiles](PROFILES.md) — which mode each profile enables
+- **Не проверяет правильность спецификации.** Тесты могут убивать всех
+  мутантов и при этом проверять неправильное требование.
+- **Не видит производительность и гонки** — как и любые тесты на счастливом
+  пути.
+- **Не заменяет ревью того, что тестами не покрывается**: миграции, контракты,
+  зависимости, доступы.
+
+---
+
+## Дальше
+
+- [Строй проверок](../plugins/std-gauntlet/docs/GAUNTLET.md) — пять ступеней,
+  где храповик третья
+- [Профили](PROFILES.md) — какой режим включён в каком профиле

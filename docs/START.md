@@ -1,257 +1,261 @@
-# How this works, in plain words
+# Как это работает — простыми словами
 
-> 🇷🇺 [Русская версия](START.ru.md) · [back to README](../README.md)
+> [к README](../README.md)
 
-This page is for someone opening the repository for the first time. No jargon;
-every unfamiliar word is explained where it first appears.
-
----
-
-## The problem everything grew from
-
-Imagine a very fast developer who turns up every morning with complete amnesia.
-They know PHP, Vue and Python well. They remember nothing about your project,
-yesterday's conversation or the team's agreements.
-
-That is not a metaphor — it is how an AI agent works: every session starts
-from a blank slate.
-
-So every morning you brief them again. And there are two catches.
-
-**First: briefing costs money.** Everything you say each morning is paid for in
-every session, by every developer.
-
-**Second, and it matters more: the more you say, the less is followed.** Dump
-eighty rules on someone and they will remember ten. Which ten is not up to you.
-
-Hence the whole design: **don't say everything at once — put each thing where
-it will be found exactly when it is needed.**
+Эта страница — для тех, кто открыл репозиторий впервые. Без терминов;
+все непонятные слова объясняются там, где встречаются.
 
 ---
 
-## Four places to put a rule
+## Проблема, из которой всё выросло
 
-### 1. The morning briefing
+Представь очень быстрого разработчика, который каждое утро приходит
+с полной амнезией. Он отлично знает PHP, Vue и Python. Но не помнит ни ваш
+проект, ни вчерашний разговор, ни договорённости команды.
 
-You say out loud: "we're building billing on Laravel 11, tests run like this,
-business logic lives in Actions." Short, specific to this project, every day.
+Это не метафора — так и работает ИИ-агент: каждая новая сессия начинается
+с чистого листа.
 
-That is the `CLAUDE.md` file in the project root. It is read at the start of
-every session, which is why it stays short.
+Значит, каждое утро его надо вводить в курс дела заново. И тут два подвоха.
 
-### 2. A label on the machine
+**Первый: у брифинга есть цена.** Всё, что вы рассказываете каждое утро,
+оплачивается в каждой сессии каждого разработчика.
 
-You don't explain the milling machine's rules every morning — you put a label
-on the machine. Whoever walks up to it reads it.
+**Второй, и он важнее: чем больше говоришь, тем хуже слушают.** Вывалите на
+человека восемьдесят правил — он запомнит десять. Какие именно — вы не
+контролируете.
 
-That is how **path-scoped rules** work: the Vue rule sits on `.vue` files, the
-migration rule on the migrations folder. There can be two hundred of them and
-the morning briefing does not grow by a single line.
-
-### 3. A manual on the shelf
-
-"How to add a new parser" is not a rule, it is a fifteen-step procedure. Nobody
-carries it in their head; you fetch it when you take on that kind of task.
-
-### 4. A lock on the machine
-
-The important one. If a part must never go in without a clamp, you don't write
-that on a label. You make the machine **physically refuse to start** without
-the clamp.
-
-These are scripts that fire before a command runs. They take no part in the
-briefing and work regardless of what the agent read or remembered.
-
-> **The central idea of this repository:**
-> a rule in prose is a request; a rule in a lock is a check that always runs.
-
-A request is honoured nine times out of ten. A check does not depend on anyone
-remembering it — though it is not a sandbox either: what locks cannot catch is
-listed in [the threat model](THREAT-MODEL.md).
+Отсюда вся конструкция: **не рассказывать всё сразу, а разложить по местам,
+где оно найдётся ровно тогда, когда понадобится.**
 
 ---
 
-## Glossary
+## Четыре места, куда кладут правило
 
-A few words appear throughout the docs and are worth explaining once.
+### 1. Утренний брифинг
 
-### Lock
+Вы говорите вслух: «мы делаем биллинг на Laravel 11, тесты запускаются вот
+так, бизнес-логика живёт в Actions». Коротко, только про этот проект,
+каждый день.
 
-A script that fires before a dangerous action and stops it. For example
-`podman volume rm` — deleting a data volume — is blocked before the command
-reaches the system.
+Это файл `CLAUDE.md` в корне проекта. Его читают в начале каждой сессии,
+поэтому держат коротким.
 
-Locks come in three strengths:
+### 2. Табличка на станке
 
-- **deny** — the command will not run (deleting data, force-push);
-- **ask** — you decide (editing a server manifest, adding a dependency);
-- **stay quiet** — an ordinary action, nothing to interfere with.
+Вы не рассказываете утром правила работы на фрезерном станке — вы вешаете
+табличку прямо на него. Подошёл — прочитал.
 
-### Gate
+Так работают **правила по путям**: правило про Vue висит на `.vue`-файлах,
+правило про миграции — на папке миграций. Их может быть двести, и утренний
+брифинг от этого не длиннее ни на строчку.
 
-A check the work must pass to count as done: linter, type checker, tests.
-A red gate means "not done", not "almost done".
+### 3. Инструкция на полке
 
-All gates run from one command so nobody has to remember five of them.
+«Как завести новый парсер» — это не правило, а процедура на пятнадцать шагов.
+Её не носят в голове, за ней идут, когда берутся за такую задачу.
 
-### Mutation testing
+### 4. Замок на станке
 
-A way to check not the code, but **the tests themselves**.
+Самое важное. Если на станок нельзя ставить деталь без зажима, вы не пишете
+об этом на табличке. Вы делаете так, чтобы станок **физически не запускался**
+без зажима.
 
-The tool takes your code and deliberately breaks it in a hundred places: turns
-`>` into `>=`, plus into minus, deletes a line. After each break it runs the
-tests.
+Это скрипты, которые срабатывают до выполнения команды. Они вообще не
+участвуют в брифинге и работают независимо от того, что агент прочитал
+и что запомнил.
 
-- Tests go red — the break was caught, good.
-- Tests stay green — those tests guard nothing at that spot.
+> **Главная мысль всего репозитория:**
+> правило текстом — это просьба, правило в замке — проверка, которая
+> выполняется всегда.
 
-Why it matters: coverage tells you a line was executed. It does not tell you
-the line was verified. A suite with 100% coverage can miss almost every bug —
-it runs everything and checks nothing.
+Просьбу выполнят в девяти случаях из десяти. Проверка не зависит от того,
+вспомнил о ней кто-нибудь или нет. Песочницей она при этом не является:
+чего замки не ловят — в [модели угроз](THREAT-MODEL.md).
 
-The share of breaks caught is called the **mutation score**.
+---
 
-### Ratchet
+## Словарь
 
-A ratchet turns one way only. A car jack: you pump, the car goes up; you let
-go, it does not drop back.
+Дальше в документации встречаются слова, которые стоит объяснить один раз.
 
-Test quality works the same here. The bar is not set in advance — it equals
-**the best result the project has already reached**:
+### Замок
+
+Скрипт, который срабатывает перед выполнением опасного действия и не даёт
+ему случиться. Например, `podman volume rm` — удаление тома с данными —
+блокируется до того, как команда дойдёт до системы.
+
+Замки бывают трёх видов:
+
+- **запретить** — команда не выполнится (удаление данных, force-push);
+- **спросить** — вы решаете сами (правка манифеста для сервера, новая
+  зависимость);
+- **промолчать** — обычное действие, вмешиваться не за чем.
+
+### Гейт
+
+Проверка, которую работа обязана пройти, чтобы считаться сделанной: линтер,
+типизатор, тесты. «Красный гейт» значит «не готово», а не «почти готово».
+
+Все гейты проекта запускаются одной командой, чтобы не вспоминать пять разных.
+
+### Мутационное тестирование
+
+Способ проверить не код, а **сами тесты**.
+
+Инструмент берёт ваш код и нарочно портит его в сотне мест: меняет `>` на
+`>=`, плюс на минус, выкидывает строку. После каждой порчи запускает тесты.
+
+- Тесты покраснели — поломку заметили, хорошо.
+- Тесты зелёные — значит в этом месте они ничего не охраняют.
+
+Зачем это нужно: покрытие тестами говорит «строка выполнялась». Оно не
+говорит «строка проверялась». Бывает набор со стопроцентным покрытием,
+который пропускает почти все ошибки — он всё исполняет и ничего не проверяет.
+
+Доля пойманных поломок и называется **mutation score**.
+
+### Храповик
+
+Храповик — механизм, который крутится только в одну сторону. Домкрат: качаешь
+— машина поднимается, отпускаешь — назад не падает.
+
+С качеством тестов так же. Планка не назначается заранее, а равна **лучшему
+результату, которого проект уже достигал**:
 
 ```
-run 1:  20%   bar set at 20
-run 2:  45%   better → bar rises
-run 3:  44%   within tolerance, passes
-run 4:  30%   STOP — worse than it already was
+прогон 1:  20%   планка встала на 20
+прогон 2:  45%   стало лучше → планка поднялась
+прогон 3:  44%   в пределах погрешности, проходит
+прогон 4:  30%   СТОП — хуже, чем уже было
 ```
 
-One requirement: **don't make it worse than it is now.** Improving is optional.
+Требование одно: **не делай хуже, чем есть сейчас.** Улучшать не обязательно.
 
-Why not simpler? A fixed threshold does not work. Set 70% on an existing
-project that really sits at 30% and the build is red from day one — the check
-gets switched off within a week. Set 20% and it catches nothing. A ratchet
-works from any starting point, including zero.
+Зачем так сложно? Обычный фиксированный порог не работает. Поставите 70% на
+существующий проект, где реально 30% — сборка красная с первого дня, и через
+неделю проверку отключают. Поставите 20% — она ничего не ловит. Храповик
+работает с любого стартового состояния, включая ноль.
 
-Settings, history, resetting the bar and changing the logic itself —
-[a page of its own](RATCHET.md).
+Настройки, история, сброс планки и как поменять саму логику —
+[отдельная страница](RATCHET.md).
 
-### Profile
+### Профиль
 
-A set of requirements matched to the state of the project. A throwaway
-prototype does not need what a billing system needs.
+Набор требований под состояние проекта. Черновику не нужны те же строгости,
+что биллингу.
 
-By default a project gets `prototype`. The one exception is `legacy`, which is
-recognised from facts (200+ commits with almost no tests) — that is a mode of
-working with uncovered code, not a level of strictness. Everything else is
-opted into with one command.
+По умолчанию проект получает `prototype`. Исключение одно — `legacy`, он
+определяется по фактам (200+ коммитов при почти полном отсутствии тестов),
+потому что это не уровень строгости, а режим работы с непокрытым кодом.
+Остальное включается явно, одной командой.
 
-**Important:** a profile moves the quality bar but **never touches the safety
-locks**. No profile allows deleting a volume, force-pushing or committing
-a password.
+**Важно:** профиль двигает планку качества, но **не трогает замки
+безопасности**. Ни в одном профиле нельзя удалить том, сделать force-push
+или закоммитить пароль.
 
-| Profile | For | Strictness |
+| Профиль | Про что | Строгость |
 |---|---|---|
-| prototype | the default: rules and locks, nothing else | almost nothing required |
-| solo | opt-in: real project, single author | moderate, without ceremony |
-| team | opt-in: code is read by people who did not write it | moderate + consistency |
-| legacy | old code without tests (detected automatically) | pin current behaviour first |
+| `prototype` | по умолчанию: правила и замки, больше ничего | почти ничего не требуется |
+| `solo` | включается явно: рабочий проект, автор один | средняя, без церемоний |
+| `team` | включается явно: код читают те, кто его не писал | средняя + согласованность |
+| `legacy` | старый код без тестов (определяется по фактам) | сначала зафиксировать поведение |
 
-Strictness is never guessed from the repository: `solo` and `team` are opted
-into with `--profile`, because a requirement with nothing to enforce it
-devalues the ones that work.
+Строгость по репозиторию не угадывается: `solo` и `team` включаются через
+`--profile`, потому что требование, за которым нечему сработать, обесценивает
+и те, что работают. Регламент организации — это не профиль, а отдельный
+механизм: `.claude/policy.json` и модуль `std-policy`.
 
-### Rules and profiles are different things
+### Правила и профили — про разное
 
-A common confusion, so it gets its own note.
+Частая путаница, поэтому отдельно.
 
-**A profile** decides *how strictly to check*: whether a spec is required,
-whether gates run before a commit, where the test-quality bar sits.
+**Профиль** решает, *насколько строго проверять*: нужна ли спека, гонять ли
+гейты перед коммитом, какая планка у тестов.
 
-**A rule** says *how code is written here*. It does not depend on the profile
-at all.
+**Правило** говорит, *как здесь принято писать код*. От профиля оно не зависит
+вообще.
 
-The same rule — "validation lives in one place" — applies equally in a
-throwaway prototype and in a billing system. The difference is not in the rules
-but in how many checks the work must pass.
+Одно и то же правило «валидация только в одном месте» одинаково действует
+и в черновике, и в биллинге. Разница между ними не в правилах, а в количестве
+проверок, которые надо пройти.
 
-**You don't write different rules for different profiles** — you write one and
-it works everywhere. How to write one is [a page of its own](WRITING-RULES.md).
+**Писать разные правила под разные профили не нужно** — пишете одно, работает
+везде. Как писать — [отдельная страница](WRITING-RULES.md).
 
-### Module
+### Модуль
 
-A set of rules for one technology: Laravel, Vue, Postgres, Kubernetes. It is
-connected automatically — the system looks at the project's files and works out
-what is needed.
+Набор правил под одну технологию: Laravel, Vue, Postgres, Kubernetes.
+Подключается автоматически — система смотрит на файлы проекта и понимает,
+что нужно.
 
-Language and framework modules are separate: PHP is not always Laravel.
-A plain PHP project gets the language rules and nothing irrelevant.
-
----
-
-## What a day looks like
-
-A developer opens the project and types: "add order creation".
-
-1. The agent sees `CLAUDE.md` — stack, commands, where things live.
-2. It opens the controllers folder and the HTTP-layer label **arrives by
-   itself**: validation goes here, responses through that class, no logic here.
-3. The task resembles the "new feature" procedure — the agent takes it off the
-   shelf and follows the steps: acceptance criteria, then a failing test, then
-   the code.
-4. It tries to add a package — **a lock stops it** and asks you. A malicious
-   package passes every test flawlessly; this is the one thing automation
-   cannot catch.
-5. It tries to weaken an old test so it goes green — **a lock stops it**.
-   Writing a new test is free; weakening an existing one is not.
-6. At the end, a separate list: what needs your eyes — migrations, contract
-   changes, anything touching money and access.
-
-The developer did none of this by hand: no copying rules, no reminding about
-standards. It just happened.
+Модули языка и фреймворка разделены: PHP не всегда Laravel. Проект на голом
+PHP получит правила языка и не получит лишнего.
 
 ---
 
-## What you run yourself
+## Как выглядит день
 
-Three commands, ever:
+Разработчик открывает проект и пишет: «добавь создание заказа».
+
+1. Агент видит `CLAUDE.md` — стек, команды, где что лежит.
+2. Лезет в папку контроллеров — **сама подъезжает** табличка про HTTP-слой:
+   валидация там-то, ответ через такой-то класс, логика не здесь.
+3. Задача похожа на процедуру «новая функция» — агент берёт её с полки
+   и идёт по шагам: сначала критерий приёмки, потом тест, потом код.
+4. Пытается доставить новый пакет — **замок останавливает** и спрашивает вас.
+   Вредоносный пакет проходит любые тесты идеально, это единственное, что
+   автопроверками не ловится.
+5. Пытается подправить старый тест, чтобы позеленел, — **замок останавливает**.
+   Новый тест написать можно, старый ослабить нельзя.
+6. В конце отдельным списком: что здесь требует ваших глаз — миграции,
+   изменения контракта, всё про деньги и доступы.
+
+Разработчик при этом не делал ничего: не копировал правила, не напоминал про
+стандарты. Оно само.
+
+---
+
+## Что вы запускаете руками
+
+За всё время — три команды:
 
 ```bash
-/std-core:setup      once per project: detects, installs, configures
-/std-core:setup      again — when the project gains a new technology
-/std-gauntlet:run    before committing (a lock reminds you anyway)
+/std-core:setup      один раз на проект: определит стек, поставит, настроит
+/std-core:setup      повторно — когда в проекте появилась новая технология
+/std-gauntlet:run    перед коммитом (замок и так напомнит)
 ```
 
-Everything else happens on its own.
+Остальное происходит само.
 
-Two things still need you personally: **read the acceptance criteria before
-work starts**, and **read the "needs your eyes" list at the end**. Those are
-the points where nothing replaces you.
-
----
-
-## What this does not do
-
-Honest limits matter more than completeness:
-
-- it does not catch performance problems or race conditions — happy-path tests
-  never see them;
-- it cannot tell correct code from unextendable code;
-- it does not verify that the task itself was stated correctly;
-- it does not protect against a malicious dependency — that passes every check
-  flawlessly.
-
-The list of what stays with a human does not shrink as automation grows. That
-is expected and by design.
+Две вещи по-прежнему требуют вас лично: **прочитать критерий приёмки до
+начала работы** и **прочитать список «требует ваших глаз» в конце**. Это
+точки, где вас ничто не заменит.
 
 ---
 
-## Where to go next
+## Чего эта система не делает
 
-You have the basics — continue as needed:
+Честные границы важнее полноты:
 
-- **want to see it working** → [Examples](EXAMPLES.md)
-- **need to write your own rule** → [Writing a rule](WRITING-RULES.md)
-- **the strictness doesn't fit** → [Profiles](PROFILES.md)
+- не ловит проблемы производительности и гонки — тесты на счастливом пути
+  их не видят;
+- не отличает корректный код от нерасширяемого;
+- не проверяет, что сама постановка задачи верна;
+- не защищает от вредоносной зависимости — она проходит все проверки
+  идеально.
 
-The full list is in the [documentation map](README.md).
+Список того, что остаётся человеку, не сокращается по мере роста
+автоматизации. Это нормально и так задумано.
+
+---
+
+## Куда дальше
+
+Прочитали основы — дальше по надобности:
+
+- **хотите увидеть систему в работе** → [Примеры](EXAMPLES.md)
+- **нужно записать своё правило** → [Как написать правило](WRITING-RULES.md)
+- **не устраивает строгость проверок** → [Профили](PROFILES.md)
+
+Полный список — [карта документации](README.md).

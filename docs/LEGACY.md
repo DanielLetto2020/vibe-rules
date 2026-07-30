@@ -1,201 +1,198 @@
-# Legacy: rewrites and refactoring, by the rules
+# Легаси: переписывание и рефакторинг по правилам
 
-> 🇷🇺 [Русская версия](LEGACY.ru.md) · [all docs](README.md)
-
----
-
-## What this solves
-
-Rules and gates are designed for code being written now. On old code they
-break in ways you may not expect:
-
-- the quality threshold is unreachable — the gate is disabled on day one;
-- the agent sees old code and "improves it while it's here", handing you a
-  four-hundred-line diff instead of thirty;
-- "behaviour did not change" is an opinion, because there are no tests.
-
-Below are three modes for working with such areas. All three are set up with
-project rules and settings; the shared standards repository stays untouched.
+> [все документы](README.md)
 
 ---
 
-## Start with the profile
+## Что здесь решается
+
+Правила и гейты рассчитаны на код, который пишется сейчас. На старом коде
+они ломаются иначе, чем ожидается:
+
+- порог качества недостижим — гейт отключают в первый день;
+- агент, увидев старый код, «заодно улучшает» его и приносит дифф на
+  четыреста строк вместо тридцати;
+- «поведение не изменилось» — это мнение, потому что тестов нет.
+
+Ниже — три режима работы с такими участками. Все три ставятся правилами
+проекта и настройками, общий репозиторий стандартов при этом не меняется.
+
+---
+
+## Сначала — профиль
 
 ```bash
 /std-core:setup --profile legacy
 ```
 
-The `legacy` profile differs from the others in four ways:
+Профиль `legacy` отличается от остальных тремя вещами:
 
-- **the mutation gate runs as a ratchet from a zero starting bar** — the only
-  requirement is "no worse than now";
-- **only changed files are scored** — a full run on a large project takes
-  hours, so people stop running it;
-- **a spec before code is not required** — when fixing a bug in a module
-  written in 2017, that is ritual, not value;
-- **characterization is required instead** (`characterizeFirst`): before
-  changing an uncovered area, its behaviour is pinned down by tests. There is
-  no spec, but there must be a reference point.
+- **мутационный гейт в режиме храповика с нулевой стартовой планкой** —
+  требование только «не хуже, чем сейчас»;
+- **счёт только по изменённым файлам** — полный прогон на большом проекте
+  идёт часами, и его перестают запускать;
+- **спецификация до кода не требуется** — на исправлении ошибки в модуле,
+  который писали в 2017-м, это ритуал, а не польза;
+- **зато требуется характеризация** (`characterizeFirst`): прежде чем менять
+  непокрытый участок, поведение фиксируется тестами. Спецификации нет, но
+  точка отсчёта должна быть.
 
-Safety locks are not relaxed by any of this: no profile permits deleting a
-volume, force-pushing, or committing a secret.
+Замки безопасности при этом не смягчаются: ни один профиль не разрешает
+удалить том, сделать force-push или закоммитить секрет.
 
-Details in [Profiles](PROFILES.md) and [The ratchet](RATCHET.md).
+Подробно — [Профили](PROFILES.md), [Храповик](RATCHET.md).
 
 ---
 
-## Mode 1. Transition period: old and new side by side
+## Режим 1. Переходный период: старое и новое рядом
 
-The most common case. The project is rewritten piece by piece, and two
-contours live side by side for months, under different rules.
+Самый частый случай. Проект переписывается по частям, и месяцами живут два
+контура с разными правилами.
 
 ```bash
 /std-core:rule new billing-migration migration
 ```
 
-This creates a rule with the wording already written; three places need
-filling in: the boundary between contours, `paths`, and the criterion by which
-the migration counts as finished.
+Создаётся правило с готовой формулировкой — заполнить нужно три места:
+границу контуров, `paths` и критерий, по которому перенос считается
+законченным.
 
-What it says, and why:
+Что в нём написано и почему:
 
-**The boundary is declared explicitly.** `app/Legacy/**` is old,
-`app/Domain/**` is new. Without this the agent cannot tell which is which, and
-the rule does nothing at all.
+**Граница объявляется явно.** `app/Legacy/**` — старое, `app/Domain/**` —
+новое. Без этого агент не угадает, что считать чем, и правило не работает
+вовсе.
 
-**New code follows the shared rules in full.** No discounts for "it's a
-migration" — otherwise the new contour becomes a second old one.
+**Новый код — по общим правилам целиком.** Никаких скидок на «это же
+миграция», иначе новый контур станет вторым старым.
 
-**Old code is touched only for a stated task.** "While I'm here", "in
-passing", "since it was open" — no. A style-only edit creates diffs nobody
-reads and hides the real changes inside them. This is precisely the mistake an
-agent makes by default: it sees code that violates the rules and treats fixing
-it as its duty.
+**Старый код трогается только по прямой задаче.** «Заодно», «попутно»,
+«раз уж открыл» — нет. Правка ради стиля создаёт диффы, которые никто
+не читает, и прячет в них настоящие изменения. Это ровно та ошибка, которую
+агент делает по умолчанию: он видит код, не соответствующий правилам,
+и считает своим долгом исправить.
 
-**The old code's style is preserved.** Bringing it to the new conventions
-happens only together with the move.
+**Стиль старого кода сохраняется.** Приводить к новым конвенциям можно
+только вместе с переносом.
 
 ---
 
-## Mode 2. A freeze zone
+## Режим 2. Зона заморозки
 
-An area that is not touched at all: no tests and no way to write them without
-a staging environment, or it is being rewritten on another branch, or it is
-being retired.
+Участок, который не трогают вообще: нет тестов и нет способа их написать
+без стенда, либо он переписывается в соседней ветке, либо выводится
+из эксплуатации.
 
 ```bash
 /std-core:rule new old-reports freeze
 ```
 
-The template has two mandatory blanks, and both earn their place.
+В шаблоне два обязательных к заполнению места, и оба по делу.
 
-**The reason.** Valid: "no tests and no environment", "being rewritten on
-branch X", "retired by end of quarter". Invalid: "scary to touch" — that
-describes a feeling, not a boundary, and such a freeze never lifts.
+**Причина.** Годная: «нет тестов и нет стенда», «переписывается в ветке
+X», «выводится до конца квартала». Негодная: «страшно трогать» — это
+описание чувства, а не границы, и такая заморозка не снимется никогда.
 
-**The lifting condition.** An event or a date. A freeze without a deadline
-becomes permanent, and a year later nobody remembers why this area is
-off-limits.
+**Условие снятия.** Событие или дата. Заморозка без срока становится
+вечной, и через год никто не помнит, почему сюда нельзя.
 
-What is still allowed under a freeze: reading it and relying on it, and fixing
-production incidents — with a stated task and a mandatory test reproducing the
-failure.
+Что при заморозке всё же можно: читать и опираться, чинить аварии на проде —
+с явной задачей и обязательным тестом на воспроизведение сбоя.
 
 ---
 
-## Mode 3. Moving an area into the new contour
+## Режим 3. Перенос участка в новый контур
 
-The order is mandatory, one commit per step.
+Порядок обязателен, каждый шаг — отдельный коммит.
 
-### Step 1. Pin the behaviour
-
-```
-tell the agent: pin down the behaviour of the Billing module
-```
-
-This runs the `legacy-characterize` procedure. It writes **characterization
-tests** — they verify not how things should be, but **how they are right
-now**, quirks and bugs included. A test that fails against existing behaviour
-is wrong here: it describes a wish, not a fact.
-
-This is the only way to turn "behaviour did not change" from an opinion into a
-checkable statement.
-
-**An important limitation.** The agent builds the oracle but is not the
-oracle: it does not know which quirks are bugs and which are requirements
-somebody depends on. A human reviews the list of pinned quirks. That is
-usually ten minutes and one or two genuine discoveries.
-
-### Step 2. The new implementation
-
-Written to the shared rules. The same characterization tests must be green
-against it.
-
-### Step 3. Switching the call sites
-
-A separate commit, so that rolling back is a single action.
-
-### Step 4. Deleting the old code
+### Шаг 1. Зафиксировать поведение
 
 ```
-tell the agent: remove the Billing module from the legacy contour
+скажи агенту: зафиксируй поведение модуля Billing
 ```
 
-The `safe-removal` procedure: what gets deleted is what has no references
-left, not what "looks unused". The difference between those two phrasings is
-usually one production incident.
+Запускается процедура `legacy-characterize`. Она пишет **характеризационные
+тесты** — они проверяют не то, как должно быть, а то, **как есть сейчас**,
+включая странности и ошибки. Тест, который падает на существующем поведении,
+здесь неверен: он описывает мечту, а не факт.
+
+Это единственный способ превратить «поведение не изменилось» из мнения
+в проверяемое утверждение.
+
+**Важное ограничение.** Агент строит оракул, но сам оракулом не является:
+он не знает, какие из странностей — ошибки, а какие — требования, на которые
+кто-то полагается. Список зафиксированных странностей смотрит человек. Обычно
+это десять минут и один-два настоящих открытия.
+
+### Шаг 2. Новая реализация
+
+Пишется по общим правилам. Те же характеризационные тесты должны быть
+зелёными и на ней.
+
+### Шаг 3. Переключение вызывающих мест
+
+Отдельным коммитом, чтобы откат был одним действием.
+
+### Шаг 4. Удаление старого
+
+```
+скажи агенту: удали модуль Billing из старого контура
+```
+
+Процедура `safe-removal`: удаляется то, на что не осталось ссылок, а не то,
+что «выглядит неиспользуемым». Разница между этими двумя формулировками —
+обычно один инцидент на проде.
 
 ---
 
-## How gates behave on legacy
+## Как гейты ведут себя на легаси
 
-**The ratchet does not demand growth.** The bar equals the best result
-reached. A project at 12% passes with 12%. The only requirement is not to hand
-in worse.
+**Храповик не требует роста.** Планка равна лучшему достигнутому. Проект
+на 12% пройдёт с 12%. Требование одно: не сдавать хуже.
 
-**The bar rises on its own** as areas are migrated: new code comes with tests,
-the average climbs, and the ratchet locks in what was reached.
+**Планка поднимается сама** по мере переноса участков: новый код пишется
+с тестами, средний процент растёт, храповик фиксирует достигнутое.
 
-**When a drop is legitimate** — say, a large well-covered module was removed:
+**Когда падение законно** — например, удалён большой хорошо покрытый модуль:
 
 ```bash
 ratchet.sh reset 40
 ```
 
-A separate command on purpose: lowering the bar should be a visible human
-decision, not a side effect.
+Отдельная команда намеренно: понижение планки должно быть заметным решением
+человека, а не побочным эффектом.
 
 ---
 
-## The typical rollout mistake
+## Типичная ошибка внедрения
 
-Setting a strict profile on legacy and expecting quality to follow.
+Поставить строгий профиль на легаси и ждать, что качество подтянется.
 
 ```
-day 1:  build red, nobody can commit
-day 2:  "let's disable it for now"
-day 8:  no checks at all
+день 1:  сборка красная, никто не может закоммитить
+день 2:  «давайте временно отключим»
+день 8:  проверок нет вообще
 ```
 
-The reverse order works: weak requirements that are **actually followed**,
-plus a ratchet that prevents backsliding. A quarter later that yields more
-than a strict threshold switched off on day two.
+Работает обратный порядок: слабые требования, которые **реально соблюдаются**,
+плюс храповик, который не даёт откатиться. Через квартал это даёт больше,
+чем строгий порог, отключённый на второй день.
 
 ---
 
-## What standards do not solve on legacy
+## Что стандарты на легаси не решают
 
-- **They do not find bugs in old code.** Characterization tests pin behaviour
-  as it is — bugs included. Finding those is separate work.
-- **They do not replace domain knowledge.** A quirk in a discount calculation
-  may be a requirement one person in the company still remembers.
-- **They do not speed up the migration.** They make it reversible and
-  checkable — a different property.
+- **Не находят ошибки в старом коде.** Характеризационные тесты фиксируют
+  поведение как есть — вместе с ошибками. Найти их — отдельная работа.
+- **Не заменяют знание предметной области.** Странность в расчёте скидки
+  может быть требованием, о котором помнит один человек в компании.
+- **Не ускоряют перенос.** Они делают его обратимым и проверяемым — это
+  другое свойство.
 
 ---
 
-## Next
+## Дальше
 
-- [Project-level rules](CUSTOMIZATION.md) — where project rules live
-- [The ratchet](RATCHET.md) — how the bar works and how to move it
-- [Examples](EXAMPLES.md), scenario 3 — old code without tests, step by step
+- [Свои правила в проекте](CUSTOMIZATION.md) — где живут правила проекта
+- [Храповик](RATCHET.md) — как работает планка и как её двигать
+- [Примеры](EXAMPLES.md), сценарий 3 — старый код без тестов, по шагам

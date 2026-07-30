@@ -1,56 +1,57 @@
-name: Bug report
-description: A lock, script or rule does not behave as documented
+name: Ошибка
+description: Замок, скрипт или правило ведут себя не так, как написано в документации
 title: "bug: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        For a lock that can be bypassed, use
-        [Security Advisories](https://github.com/DanielLetto2020/vibe-rules/security/advisories/new)
-        instead — see [SECURITY.md](https://github.com/DanielLetto2020/vibe-rules/blob/main/SECURITY.md).
+        Если замок можно обойти — это не обычная ошибка. Заведите
+        [приватный отчёт о безопасности](https://github.com/DanielLetto2020/vibe-rules/security/advisories/new),
+        порядок описан в [SECURITY.md](https://github.com/DanielLetto2020/vibe-rules/blob/main/SECURITY.md).
 
   - type: dropdown
     id: area
     attributes:
-      label: Area
+      label: Что сломалось
       options:
-        - Lock (guard-bash, guard-tests, guard-infra, guard-deps, guard-commit, secret-scan)
-        - Stack detection (std-link.sh --auto)
-        - Gauntlet (gauntlet.sh, gates, mutation threshold)
-        - A rule not loading, or loading when it should not
-        - Skill or command
-        - Tests or CI
-        - Documentation
+        - Замок (guard-bash, guard-tests, guard-infra, guard-deps, guard-commit, guard-secrets, secret-scan)
+        - Автоопределение стека (std-link.sh --auto)
+        - Строй проверок (gauntlet.sh, гейты, планка мутаций, долг, покрытие)
+        - Правило не загружается — или загружается, когда не должно
+        - Процедура или команда
+        - Тесты или CI
+        - Документация
     validations:
       required: true
 
   - type: textarea
     id: expected
     attributes:
-      label: Expected vs actual
-      description: What should happen, and what happens instead.
+      label: Ожидалось и что вышло
+      description: Что должно было произойти и что произошло вместо этого.
       placeholder: |
-        Expected: `podman ps` is allowed, only deletion is blocked.
-        Actual: `podman ps` is blocked as well.
+        Ожидалось: `podman ps` проходит, блокируется только удаление.
+        Вышло: `podman ps` тоже блокируется.
     validations:
       required: true
 
   - type: textarea
     id: repro
     attributes:
-      label: Reproduction
+      label: Как воспроизвести
       description: |
-        Locks are pure functions — JSON in, a decision out. That makes them
-        reproducible without a model:
+        Замки — чистые функции: JSON на входе, решение на выходе. Значит
+        воспроизводятся без запуска модели:
 
         ```bash
         jq -n '{tool_name:"Bash",tool_input:{command:"podman ps"}}' \
           | plugins/std-core/scripts/guard-bash.sh
         ```
 
-        For detection issues, list the files present in the project
-        (`composer.json`, `package.json`, compose files) and the modules linked.
+        Если дело в автоопределении стека — перечислите файлы, которые есть
+        в проекте (`composer.json`, `package.json`, compose-файлы), и какие
+        модули слинкованы.
       render: shell
     validations:
       required: true
@@ -58,19 +59,19 @@ body:
   - type: textarea
     id: env
     attributes:
-      label: Environment
+      label: Окружение
       value: |
-        - OS:
-        - Claude Code version (`claude --version`):
-        - jq version:
-        - Installed how (marketplace / local directory / clone):
+        - ОС:
+        - Версия Claude Code (`claude --version`):
+        - Версия jq:
+        - Как установлено (маркетплейс / локальный каталог / клон):
     validations:
       required: true
 
   - type: checkboxes
     id: tests
     attributes:
-      label: Test suite
+      label: Прогон тестов
       options:
-        - label: I ran `tests/run.sh` and it reproduces there
-        - label: I ran `tests/run.sh` and it passes, the issue only appears in a real project
+        - label: Запускал `tests/run.sh` — ошибка воспроизводится и там
+        - label: Запускал `tests/run.sh` — он зелёный, проблема только на живом проекте

@@ -1,261 +1,264 @@
-# Examples: from install to daily use
+# Примеры: от подключения до ежедневной работы
 
-> 🇷🇺 [Русская версия](EXAMPLES.ru.md) · [back to README](../README.md)
+> [к README](../README.md)
 
-Five walkthroughs covering what actually happens once the standards are wired
-into a project.
+Пять сквозных сценариев: что реально происходит после того, как стандарты
+подключены к проекту.
 
 ---
 
-## Example 1 — Onboarding an existing project
+## Пример 1 — Подключение существующего проекта
 
-A Laravel project that already has its own `CLAUDE.md`. Ten minutes.
+Laravel-проект, у которого уже есть свой `CLAUDE.md`. Десять минут.
 
 ```bash
 /std-core:setup
 ```
 
 ```
-▸ 1/5  Project state
-  commits: 340   authors: 4   tests: 62/180 (0.34)   CI: yes
-  profile: team — 4 authors in the last six months
+▸ 1/5  Состояние проекта
+  коммитов: 340   авторов: 4   тесты: 62/180 (0.34)   CI: есть
+  профиль: team — 4 автора за последние полгода
 
-▸ 2/5  Plugins
-  already installed: core gauntlet
-  rules only (no install needed): php-base php-laravel js-base sql-postgres
+▸ 2/5  Плагины
+  уже установлены: core gauntlet
+  только правила (установка не нужна): php-base php-laravel js-base sql-postgres
 
-▸ 3/5  Stack rules
+▸ 3/5  Правила стека
   + std-core, std-gauntlet, std-php-base, std-php-laravel, std-js-base, std-sql-postgres
-  + .gitignore: added .claude/rules/std-*
+  + .gitignore: добавлен .claude/rules/std-*
 
-▸ 4/5  Quality gates
-  ✓ style   ✓ types   ✓ test   – mutation (not installed)
+▸ 4/5  Гейты качества
+  ✓ style   ✓ types   ✓ test   – mutation (не установлено)
 
-▸ 5/5  Configuration
-  wrote .claude/gauntlet.json
-  created .claude/rules/00-precedence.md
+▸ 5/5  Конфигурация
+  записан .claude/gauntlet.json
+  создан .claude/rules/00-precedence.md
 ```
 
-One command: it worked out the project state, installed the missing plugins,
-linked the stack modules and wrote the configuration. Nothing to pick by hand.
+Одна команда: определила состояние проекта, доустановила недостающие плагины,
+подключила модули по стеку и записала конфигурацию. Выбирать руками ничего
+не нужно.
 
-It also reports the **actual mutation score** when the tool is installed. Expect an unpleasant number next to a healthy
-coverage figure — that number is the argument for everything else.
+Отдельно она показывает **фактический mutation score**, если инструмент
+установлен. Скорее всего цифра окажется неприятной при
+здоровом покрытии — она и есть аргумент за всё остальное.
 
-### The one manual step
+### Один ручной шаг
 
-Open your existing `CLAUDE.md` and delete everything now delivered by a module.
-If it says "validation goes in FormRequest" and `std-php-laravel` says the same
-thing, remove it from the project file. Duplication doesn't break anything
-immediately — it burns context in every session and drifts apart from the
-shared rule over time.
+Открой свой `CLAUDE.md` и вычисти из него всё, что теперь приезжает модулем.
+Если там написано «валидация в FormRequest», а `std-php-laravel` говорит то же
+самое, — удаляй из проектного файла. Дубль ничего не ломает сразу, но занимает
+контекст в каждой сессии и со временем разъезжается с общим правилом.
 
-Keep only what is unique to this repository: versions, commands, layer map,
-traps.
+Оставь только уникальное для этого репозитория: версии, команды, карту слоёв,
+ловушки.
 
-### Handling conflicts
+### Как разрулить конфликт
 
-Rules from `.claude/rules/` and your `CLAUDE.md` carry **equal weight**. There
-is no automatic "project wins". If they contradict each other, the model picks
-one arbitrarily and you won't know which.
+Правила из `.claude/rules/` и твой `CLAUDE.md` имеют **одинаковый вес**.
+Автоматического «проектное побеждает общее» нет. Если они противоречат друг
+другу, модель выберет произвольное, и ты не узнаешь какое.
 
-That is why `setup` writes `00-precedence.md`: it states that the project rule
-wins **and that a contradiction must be reported rather than silently
-resolved**. The second half matters more — it turns a silent conflict into a
-signal that the shared rule needs refining.
+Поэтому `setup` создаёт `00-precedence.md`: он объявляет, что действует
+правило проекта, **и что о противоречии нужно сообщить, а не разрешать его
+молча**. Вторая половина важнее первой — она превращает тихий конфликт
+в сигнал, что общее правило пора уточнять.
 
-More on project rules — [example 5](#example-5--a-rule-for-this-project-only).
+Подробнее про свои правила — [пример 5](#пример-5--правило-только-для-этого-проекта).
 
 ---
 
-## Example 2 — A new feature
+## Пример 2 — Новая фича
 
-> "Add an order cancellation endpoint."
+> «Добавь эндпоинт отмены заказа».
 
-The task matches the `feature-by-spec` description, so Claude picks up the
-procedure.
+Задача совпала с описанием процедуры `feature-by-spec`, и Claude берёт её.
 
-**1. Spec first, shown to you before any code:**
+**1. Сначала спека, показывается тебе до кода:**
 
 ```gherkin
-Feature: Order cancellation
+Функция: Отмена заказа
 
-  Scenario: successful cancellation
-    Given a paid order for 1500
-    When the customer cancels it
-    Then the money is refunded
-    And the order status becomes "cancelled"
+  Сценарий: успешная отмена
+    Дано заказ на 1500 в статусе "оплачен"
+    Когда покупатель отменяет его
+    Тогда деньги возвращаются
+    И заказ переходит в статус "отменён"
 
-  Scenario: cancelling an already shipped order
-    Given an order in status "shipped"
-    When the customer cancels it
-    Then the cancellation is rejected
-    And the customer sees "order already shipped"
+  Сценарий: отмена уже отгруженного заказа
+    Дано заказ в статусе "отгружен"
+    Когда покупатель отменяет его
+    Тогда отмена отклоняется
+    И покупатель видит "заказ уже отгружен"
 ```
 
-Unhappy paths are mandatory: no permission, already shipped, repeat
-cancellation, payment provider unreachable. **Work stops here until you
-confirm.** This is the only point where an error is caught by nothing below.
+Несчастливые пути обязательны: нет прав, уже отгружен, повторная отмена,
+платёжный сервис недоступен. **Работа останавливается до твоего
+подтверждения.** Это единственная точка, где ошибка не ловится ничем ниже.
 
-**2. Failing tests derived from the spec** — and proof they fail for the right
-reason ("method not found" is right; "syntax error in the test" is not).
+**2. Падающие тесты из спеки** — и доказательство, что они падают по правильной
+причине («метод не найден» — правильно, «синтаксическая ошибка в тесте» — нет).
 
-**3. Implementation.** Opening `app/Http/` pulls in the HTTP-layer rule;
-opening `app/Models/` pulls in the Eloquent rule. Both arrive automatically
-because a matching file was read.
+**3. Реализация.** Открытие `app/Http/` подтягивает правило HTTP-слоя,
+открытие `app/Models/` — правило Eloquent. Оба приходят автоматически, потому
+что был прочитан подходящий файл.
 
-**4. A lock fires** when a refund package is about to be installed:
+**4. Срабатывает замок**, когда дело доходит до установки пакета для возвратов:
 
 ```
-Adding a new dependency. Confirm the package and its source —
-tests do not cover this risk.
+Добавляется новая зависимость. Подтверди пакет и его источник —
+тесты этот риск не покрывают.
 ```
 
-**5. Gates:**
+**5. Гейты:**
 
 ```bash
 /std-gauntlet:run
 ```
 
 ```
-▸ style      passed
-▸ types      passed
-▸ test       passed
-▸ mutation   passed
+▸ style      пройден
+▸ types      пройден
+▸ test       пройден
+▸ mutation   пройден
 
-════ SUMMARY ════
+════ ИТОГ ════
   ✓ style
   ✓ types
   ✓ test
   ✓ mutation
 
-ALL GATES PASSED
+ВСЕ ГЕЙТЫ ПРОЙДЕНЫ
 
-This does NOT mean the changes need no review. Gates do not cover:
-  migrations and schema · API contract changes · new dependencies
-  money, access control, personal data · k8s manifests and playbooks
-  performance, race conditions, cost of operation
+Это НЕ означает, что изменения можно не смотреть. Гейты не покрывают:
+  миграции и схему БД · изменения API-контрактов · новые зависимости
+  деньги, права доступа, персональные данные · манифесты k8s и playbook'и
+  производительность, гонки, стоимость эксплуатации
 ```
 
-**6. Trying to commit** before re-running the gates after an edit:
+**6. Попытка закоммитить** после правки, без повторного прогона:
 
 ```
-Sources changed since the last successful gate run: app/Actions/CancelOrder.php.
-Checks are stale — run /std-gauntlet:run before committing.
+После последнего успешного прогона гейтов изменялись исходники:
+app/Actions/CancelOrder.php. Проверки устарели — запусти /std-gauntlet:run
+перед коммитом.
 ```
 
 ---
 
-## Example 3 — Legacy code with no tests
+## Пример 3 — Легаси без тестов
 
-> "Fix the discount calculation in the old module, there are no tests there."
+> «Почини расчёт скидки в старом модуле, там тестов нет».
 
-`legacy-characterize` takes over, and it **does not start fixing**.
+Срабатывает `legacy-characterize`, и он **не начинает чинить**.
 
-1. **Narrow the boundary** — one function with an observable input and output.
-2. **Pin current behaviour** on real inputs. Outputs are recorded as the
-   baseline *without judging whether they are correct*. If something looks like
-   a bug, it still gets pinned — the goal is to catch the system as it is.
-3. **Report the oddities**, fix none of them yet.
-4. **Verify the baseline can fail** — break the code on purpose, the test must
-   go red. If it doesn't, the baseline pins something that doesn't affect the
-   result.
-5. **Now fix.** The baseline goes red in exactly one place, and that's visible.
+1. **Сузить границу** — одна функция с наблюдаемым входом и выходом.
+2. **Зафиксировать текущее поведение** на реальных входах. Выходы
+   записываются как эталон, *без оценки, правильные они или нет*. Если что-то
+   выглядит багом — всё равно фиксируется: задача этого шага поймать систему
+   в текущем состоянии.
+3. **Показать найденные странности**, не чиня ни одну из них.
+4. **Проверить, что эталон может упасть** — сломать код нарочно, тест обязан
+   покраснеть. Если не покраснел, эталон фиксирует то, что не влияет
+   на результат.
+5. **Теперь чинить.** Эталон краснеет ровно в одном месте, и это видно.
 
-Where inputs come from, in descending order of value: production logs, an
-anonymised database snapshot, boundary values (empty, zero, negative, maximum,
-unicode, very long), random generation. Invented "nice" inputs give false
-confidence — they land on the happy path, while the system fails on dirty data.
+Откуда брать входы, по убыванию ценности: продовые логи, обезличенный дамп
+базы, граничные значения (пусто, ноль, отрицательное, максимум, юникод, очень
+длинная строка), случайная генерация. Выдуманные «красивые» входы дают ложное
+чувство покрытия: они попадают в счастливый путь, а система падает на грязных
+данных.
 
-**The governing principle:** the agent builds the oracle and maintains it, but
-never *is* the oracle. What counts as correct behaviour is decided by a human
-or by the existing system.
-
----
-
-## Example 4 — Removing a feature
-
-> "Rip out the old promo code system."
-
-`safe-removal` inverts the usual order, for a reason that isn't obvious:
-
-> **After a deletion, green tests prove nothing.** If the functionality wasn't
-> covered, its disappearance goes unnoticed by every test — until a user
-> complains a week later.
-
-1. **Find every consumer** — not just direct calls: routes, scheduled jobs,
-   queue handlers (a message may arrive from another service), templates,
-   fixtures, config, feature flags, docs, client SDKs. Search by fragments of
-   the name too — a call may be assembled from strings.
-2. **Prove it's unused.** Absence of call sites is not proof. Logs and metrics
-   over a representative period: an endpoint with zero calls in a month and one
-   called quarterly at period close are different cases. If there's no data,
-   Claude says so plainly rather than deleting on a hunch.
-3. **Remove in stages**, outermost first: disable the entry point → deploy and
-   observe → delete the implementation → drop now-unused dependencies →
-   **data last, in a separate release.**
-
-Between "stopped writing to the column" and "dropped the column" there must be
-a pause. Code rolls back in a minute; deleted data never does.
-
-Tests of the removed feature go with it — the only legitimate reason to delete
-a test. A test covering both removed and surviving behaviour is trimmed, not
-deleted.
+**Главный принцип:** агент строит эталон и обслуживает его, но никогда
+не является эталоном. Что считать правильным поведением — решает человек или
+существующая система.
 
 ---
 
-## Example 5 — A rule for this project only
+## Пример 4 — Удаление функциональности
 
-> "In this project validation stays in controllers — the legacy billing module
-> hasn't been migrated to FormRequest yet."
+> «Выпили старую систему промокодов».
 
-That contradicts the shared Laravel module, which says validation belongs in
-FormRequest. Writing it into `CLAUDE.md` would burn context in every session;
-editing the shared module would break it for every other project.
+`safe-removal` переворачивает обычный порядок, и причина неочевидна:
+
+> **После удаления зелёные тесты не доказывают ничего.** Если функциональность
+> не была покрыта, её исчезновение не заметит ни один тест — до жалобы
+> пользователя через неделю.
+
+1. **Найти всех потребителей** — не только прямые вызовы: маршруты,
+   планировщик, обработчики очередей (сообщение может прийти из другого
+   сервиса), шаблоны, фикстуры, конфиги, feature-флаги, документация,
+   клиентские SDK. Искать и по частям имени — вызов может собираться из строк.
+2. **Доказать, что не используется.** Отсутствие вызовов — не доказательство.
+   Логи и метрики за представительный период: эндпоинт с нулём обращений
+   за месяц и эндпоинт, который вызывают раз в квартал при закрытии периода, —
+   разные случаи. Если данных нет, Claude скажет это прямо, а не удалит
+   на глазок.
+3. **Удалять поэтапно**, от внешнего к внутреннему: отключить точку входа →
+   выкатить и понаблюдать → удалить реализацию → убрать ставшие ненужными
+   зависимости → **данные в последнюю очередь, отдельным релизом.**
+
+Между «перестали писать в колонку» и «удалили колонку» обязана быть пауза.
+Код откатывается за минуту, удалённые данные не восстанавливаются никогда.
+
+Тесты удаляемого удаляются вместе с ним — единственный законный случай удаления
+теста. Тест, проверявший и удаляемое, и остающееся, сокращается, а не удаляется.
+
+---
+
+## Пример 5 — Правило только для этого проекта
+
+> «В этом проекте валидация остаётся в контроллерах — легаси-модуль биллинга
+> не переведён на FormRequest».
+
+Это противоречит общему модулю Laravel, где сказано, что валидация в
+FormRequest. Записать в `CLAUDE.md` — значит тратить контекст в каждой сессии;
+поправить общий модуль — сломать его всем остальным проектам.
 
 ```bash
 /std-core:rule new billing-legacy backend
 ```
 
-Creates `.claude/rules/billing-legacy.md` from a template with `paths`, `owner`
-and `enforcement` already in place. Fill in the rule and the reason, commit it —
-project rules live in git, unlike the `std-*` symlinks.
+Создаётся `.claude/rules/billing-legacy.md` по шаблону, где уже есть `paths`,
+`owner` и `enforcement`. Заполняешь правило и причину, коммитишь — правила
+проекта живут в git, в отличие от симлинков `std-*`.
 
-Then make the precedence explicit:
+Затем объявляешь приоритет:
 
 ```bash
 /std-core:rule precedence
 ```
 
-This writes `00-precedence.md`, which states that the project rule wins **and
-that a contradiction must be reported rather than silently resolved**. Without
-it, both rules carry equal weight and the model picks one arbitrarily.
+Появляется `00-precedence.md`: действует правило проекта, **и о противоречии
+нужно сообщить, а не разрешать его молча**. Без этого файла оба правила
+равны по весу, и модель выберет любое.
 
-If a whole shared module doesn't fit:
+Если не подходит целый модуль:
 
 ```bash
 /std-core:rule override php-laravel
 ```
 
-The module is unlinked and the deviation is recorded with the reason marked as
-mandatory. Before doing that, check whether only one rule from the module
-conflicts — then describing the deviation is better than dropping the module.
+Модуль отвязывается, отступление записывается, причина помечается как
+обязательная. Прежде чем отключать, проверь: может, противоречит одно правило
+из модуля — тогда лучше описать отступление, оставив модуль подключённым.
 
 ---
 
-## What you run by hand, ever
+## Что ты запускаешь руками за всё время
 
 ```bash
-/std-core:setup           once per project — detects, installs, links, configures
-/std-core:setup           when the stack gains something new
-/std-core:rule new <name> when this project needs its own rule
-/std-gauntlet:run         before committing (the lock reminds you anyway)
+/std-core:setup           один раз на проект — определит, поставит, подключит
+/std-core:setup           когда в стеке появилось новое
+/std-core:rule new <имя>  когда проекту нужно своё правило
+/std-gauntlet:run         перед коммитом (замок и так напомнит)
 ```
 
-Everything else happens on its own: rules arrive when a matching file is
-opened, procedures engage when the task matches, locks fire when something
-dangerous is attempted.
+Всё остальное происходит само: правила приходят при открытии подходящего файла,
+процедуры подхватываются при совпадении задачи, замки срабатывают при попытке
+сделать опасное.
 
-The two things that still require you personally: **read the spec before work
-starts**, and **read the "needs human eyes" list at the end**. Those are the
-points where nothing can replace you.
+Две вещи по-прежнему требуют тебя лично: **прочитать спеку до начала работы**
+и **прочитать список «требует человеческих глаз» в конце**. Это точки, где
+тебя ничто не заменит.

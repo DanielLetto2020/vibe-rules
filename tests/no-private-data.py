@@ -61,10 +61,58 @@ PATTERNS: list[tuple[str, str]] = [
 
     ("частный IP-адрес",
      r"\b(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b"),
+
+    # Путь с домашним каталогом выдаёт имя пользователя машины, а заодно
+    # раскладку рабочих каталогов. Попадает в репозиторий обычно случайно:
+    # скопированной командой из терминала или примером вывода. Разрешены
+    # плейсхолдеры и стандартные имена пользователей контейнеров и раннеров
+    # CI — без них нельзя показать ни пример пути, ни рабочий Containerfile.
+    ("путь с домашним каталогом конкретной машины",
+     r"(?:/home/|/Users/|(?i:C:\\Users\\))"
+     r"(?!user\b|username\b|you\b|имя\b|name\b|dev\b|node\b|app\b|runner\b|"
+     r"vscode\b|ubuntu\b|linuxbrew\b|<|\$|\{|%)[A-Za-z][\w.-]{1,30}"),
+
+    ("личная или рабочая почта",
+     r"(?<![\w.+-])[\w.+-]{2,}@"
+     r"(?!example\.|test\.|localhost|users\.noreply\.github\.com|noreply\.)"
+     r"[\w-]{2,}\.[a-z]{2,}(?![\w-])"),
+
+    # Ключи и токены. Отдельно от secret-scan.sh, который смотрит на проекты
+    # пользователей: здесь охраняется сам репозиторий стандартов, и правила
+    # для него строже — публикуется всё содержимое целиком и навсегда.
+    ("похоже на ключ доступа",
+     r"(?:AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|sk-ant-[A-Za-z0-9_-]{16,}|"
+     r"(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,}|"
+     r"glpat-[A-Za-z0-9_-]{16,}|xox[baprs]-[A-Za-z0-9-]{10,}|"
+     r"AIza[0-9A-Za-z_-]{35}|-----BEGIN [A-Z ]*PRIVATE KEY-----)"),
+
+    ("пароль в открытом виде",
+     r"(?i)(?:password|passwd|secret|api_?key|token)\s*[:=]\s*"
+     r"[\"'](?![^\"']*(?:your|example|xxx|changeme|placeholder|\$\{|<))"
+     r"[^\"'\s]{8,}[\"']"),
+
+    ("строка подключения с паролем",
+     r"(?i)(?:postgres|postgresql|mysql|mongodb|redis|amqp|https?)://"
+     r"[^:@/\s]+:(?!password|пароль|\$|<|\{)[^@/\s]{4,}@"),
 ]
 
-# Файлы, где совпадение допустимо: сам страж описывает, что искать.
-ALLOWLIST = {"tests/no-private-data.py", "tests/private-patterns.example"}
+# Файлы, где совпадение допустимо по самой их природе: страж описывает, что
+# ищет; словарь секретов перечисляет форматы ключей; тесты и корпус обязаны
+# содержать образцы — без них проверки нечем проверить.
+#
+# Список именно перечисляет файлы, а не маску каталога: «все тесты разрешены»
+# означало бы, что настоящий ключ, случайно вставленный в новый тест, уедет
+# в публикацию.
+ALLOWLIST = {
+    "tests/no-private-data.py",
+    "tests/private-patterns.example",
+    "tests/test-secrets.sh",
+    "tests/test-hooks.sh",
+    "tests/hook-corpus.tsv",
+    "plugins/std-core/scripts/secret-lib.sh",
+    "plugins/std-core/scripts/guard-secrets.sh",
+    "plugins/std-core/scripts/precommit-secrets.sh",
+}
 
 
 def load_private_patterns() -> list[tuple[str, str]]:
@@ -86,12 +134,25 @@ def load_private_patterns() -> list[tuple[str, str]]:
 
 
 def tracked_files() -> list[str]:
+    """Отслеживаемое плюс новое, ещё не добавленное в индекс.
+
+    Раньше проверялось только отслеживаемое, и файл, созданный в этой же
+    сессии, страж не видел: `git add -A` перед коммитом добавлял его уже
+    после проверки. Утечка проходила бы ровно в том случае, ради которого
+    страж и заведён, — в свежем файле.
+    """
     try:
         out = subprocess.run(
             ["git", "ls-files", "-z"], cwd=ROOT,
             capture_output=True, text=True, check=True,
         ).stdout
-        return [f for f in out.split("\0") if f]
+        files = [f for f in out.split("\0") if f]
+        new = subprocess.run(
+            ["git", "ls-files", "-z", "--others", "--exclude-standard"], cwd=ROOT,
+            capture_output=True, text=True, check=True,
+        ).stdout
+        files += [f for f in new.split("\0") if f]
+        return files
     except (subprocess.CalledProcessError, FileNotFoundError):
         skip = {".git", "node_modules", "vendor", ".venv"}
         return [
@@ -99,6 +160,71 @@ def tracked_files() -> list[str]:
             for p in ROOT.rglob("*")
             if p.is_file() and not skip & set(p.relative_to(ROOT).parts)
         ]
+
+
+def is_stub(reason: str, matched: str) -> bool:
+    """Совпадение — заглушка из документации, а не настоящий ключ.
+
+    Проверяются именно символы-заполнители, а не любой повтор: заголовок
+    «-----BEGIN RSA PRIVATE KEY-----» состоит из дефисов, и правило «четыре
+    одинаковых символа подряд» глушило настоящий приватный ключ. Найдено
+    самотестом сразу после того, как фильтр был написан.
+    """
+    if "ключ" not in reason and "пароль" not in reason:
+        return False
+    return bool(re.search(r"[xX0*_]{4,}", matched))
+
+
+def selftest(compiled: list[tuple[str, re.Pattern]]) -> list[str]:
+    """Проверка самой проверки: без неё правка шаблона молча выключает охрану.
+
+    Гоняется каждый раз — стоит миллисекунды. Ошибка здесь означает, что
+    репозиторий остаётся зелёным, не проверяя того, ради чего страж заведён.
+    """
+    must_catch = [
+        "/home/maxim/projects/thing",
+        "/Users/Ivan/work",
+        "путь C:\\Users\\Ivan\\Desktop",
+        "контакт: me@personal-domain.ru",
+        "AKIAIOSFODNN7REALKEYX",
+        "token: ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4o5",
+        'password = "RealPass12345"',
+        "postgres://user:realpw123@db.host/app",
+        "-----BEGIN RSA PRIVATE KEY-----",
+        "хост build.internal",
+        "10.10.5.7",
+    ]
+    must_pass = [
+        "/home/user/project",
+        "/home/dev/app",
+        "путь ~/.claude/rules",
+        "почта someone@example.com",
+        "60618599+DanielLetto2020@users.noreply.github.com",
+        "token: ghp_xxxxxxxxxxxxxxxxxxxxxxxx",
+        'password = "${DB_PASSWORD}"',
+        'api_key = "your-key-here"',
+        "postgres://user:password@localhost/db",
+        "127.0.0.1:8080",
+    ]
+
+    def hit(line: str) -> str | None:
+        for reason, rx in compiled:
+            m = rx.search(line)
+            if m:
+                if is_stub(reason, m.group(0)):
+                    continue
+                return reason
+        return None
+
+    problems = []
+    for line in must_catch:
+        if hit(line) is None:
+            problems.append(f"самотест: утечка «{line[:40]}» НЕ ловится")
+    for line in must_pass:
+        r = hit(line)
+        if r is not None:
+            problems.append(f"самотест: безобидное «{line[:40]}» помечено как «{r}»")
+    return problems
 
 
 def main() -> int:
@@ -109,7 +235,12 @@ def main() -> int:
         print(f"Ошибка в шаблоне из {PRIVATE_PATTERNS_FILE.name}: {e}", file=sys.stderr)
         return 1
 
-    findings: list[str] = []
+    # Самотест гоняется только по универсальным шаблонам: локальные могут
+    # совпасть с образцами из набора, и тогда «безобидное» справедливо
+    # признаётся утечкой — ошибка была бы не в страже, а в тесте.
+    universal = [(reason, rx) for reason, rx in compiled
+                 if reason != "внутреннее название из локального списка"]
+    findings: list[str] = selftest(universal)
     checked = 0
 
     for rel in tracked_files():
@@ -131,6 +262,11 @@ def main() -> int:
             for reason, rx in compiled:
                 m = rx.search(line)
                 if m:
+                    # Заглушка из документации — не находка. Фильтр применяется
+                    # только к ключам и паролям: для домена, ФИО и пути «xxxx»
+                    # ничего не значит, а строгость там нужнее.
+                    if is_stub(reason, m.group(0)):
+                        continue
                     # Находку не печатаем целиком: вывод попадает в логи CI,
                     # которые тоже публичны
                     shown = m.group(0)

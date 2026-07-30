@@ -1,144 +1,142 @@
-# Documentation map
+# Документация: что где
 
-> 🇷🇺 [Русская версия](README.ru.md) · [back to the main page](../README.md)
+> [к главной](../README.md)
 
-A page so you don't have to read everything. Find your situation — it says what
-to open and how long it takes.
-
-🇷🇺 marks a document that is currently Russian-only.
+Страница, чтобы не читать всё подряд. Найдите свой случай — там сказано,
+что открыть и сколько это займёт.
 
 ---
 
-## Where to go, by situation
+## Куда идти по ситуации
 
-### First time here, not sure what this is
+### Вижу репозиторий впервые, не понимаю, что это
 
-**[How this works, in plain words](START.md)** · ~15 min
+**[Как это работает простыми словами](START.md)** · ~15 минут
 
-No jargon. The amnesiac developer metaphor, the four places a rule can live,
-and a glossary of every word you will meet later: lock, gate, mutation testing,
-ratchet, profile, module.
+Без терминов. Метафора разработчика с амнезией, четыре места, куда кладут
+правило, словарь всех слов, которые встретятся дальше: замок, гейт,
+мутационное тестирование, храповик, профиль, модуль.
 
-After it the rest reads easily. Before it, barely at all.
+После неё остальная документация читается легко. До неё — почти никак.
 
-### Want to see it working
+### Хочу увидеть, как это выглядит в работе
 
-**[Examples](EXAMPLES.md)** · ~15 min
+**[Примеры](EXAMPLES.md)** · ~15 минут
 
-Five end-to-end walkthroughs with real command output: onboarding an existing
-project, a new feature, legacy code without tests, removing functionality,
-a rule for one project only.
+Пять сквозных сценариев с реальным выводом команд: подключение существующего
+проекта, новая функция, старый код без тестов, удаление функциональности,
+своё правило для одного проекта.
 
-### Rolling this out on my project
+### Внедряю в свой проект
 
-1. [Quick start](../README.md#quick-start) — three commands
-2. [Profiles](PROFILES.md) — which mode to pick and how to adapt it
-3. [Examples, walkthrough 1](EXAMPLES.md) — what to do when the project
-   already has its own `CLAUDE.md`
+1. [Быстрый старт](../README.md#подключение) — три команды
+2. [Профили](PROFILES.md) — какой режим выбрать и как подстроить
+3. [Примеры, сценарий 1](EXAMPLES.md) — что делать, если у проекта уже
+   есть свой `CLAUDE.md`
 
-### The agent got it wrong again — I want to write a rule
+### Агент опять сделал не то — хочу записать правило
 
-**[Writing your own rule](WRITING-RULES.md)** · ~10 min
+**[Как написать своё правило](WRITING-RULES.md)** · ~10 минут
 
-Where a requirement belongs (a lock, a linter, a test, or actually a rule),
-what a rule is made of, how to phrase it so it can be verified, and what to do
-when a shared rule doesn't fit your project.
+Куда класть требование (замок, линтер, тест или всё-таки правило), из чего
+состоит правило, как формулировать проверяемо, что делать, если общее правило
+не подходит вашему проекту.
 
-It also untangles a common confusion: **rules do not depend on profiles**.
+Там же развязка частой путаницы: **правила не зависят от профиля**.
 
-### The checks are too strict, or not strict enough
+### Проверки слишком строгие или наоборот
 
-**[Profiles](PROFILES.md)** · ~10 min
+**[Профили](PROFILES.md)** · ~10 минут
 
-Where the ready profiles live, how to choose one, how to adapt it without
-touching the shared repository, and how to create your own. Plus what you
-**cannot** override — the safety locks.
+Где живут готовые профили, как выбрать, как подстроить под себя, не
+трогая общий репозиторий, и как завести свой. Плюс что переопределить
+**нельзя** — замки безопасности.
 
-### The mutation gate is red and I don't know why
+### Мутационный гейт красный, не понимаю почему
 
-**[The ratchet](RATCHET.md)** · ~10 min
+**[Храповик](RATCHET.md)** · ~10 минут
 
-What the percentages mean, why the bar rises by itself, where the state is
-kept, every setting, what to do when it fails and how to legitimately reset it.
+Что за проценты, почему планка растёт сама, где хранится состояние, все
+настройки, что делать при провале и как законно сбросить планку.
 
-### My project has specifics the shared rules don't cover
+### У проекта своя специфика, общие правила не покрывают
 
-**[Project-level rules](CUSTOMIZATION.md)** · ~10 min
+**[Свои правила в проекте](CUSTOMIZATION.md)** · ~10 минут
 
-Four levels of customization: a project rule, a recorded departure from a
-shared rule, your own gate commands, opting out of a module entirely. What of
-it goes into git and what does not, and how to confirm a rule actually loads.
+Четыре уровня настройки: правило проекта, отступление от общего с причиной,
+свои команды гейтов, отключение модуля целиком. Что из этого идёт в git,
+а что нет, и как убедиться, что правило действительно грузится.
 
-### I'm rewriting legacy or running a large refactor
+### Переписываю легаси или веду большой рефакторинг
 
-**[Legacy and refactoring](LEGACY.md)** · ~10 min
+**[Легаси: переписывание и рефакторинг](LEGACY.md)** · ~10 минут
 
-Three modes: a transition period with two contours, a freeze zone, moving an
-area across step by step. Ready-made rule templates, plus the mistake that
-gets checks switched off on legacy by day two.
+Три режима: переходный период с двумя контурами, зона заморозки, перенос
+участка по шагам. Готовые шаблоны правил и разбор ошибки, из-за которой
+проверки на легаси отключают на второй день.
 
-### I want to understand why it's built this way
+### Хочу понять, почему сделано именно так
 
-- **[Architecture](ARCHITECTURE.md)** 🇷🇺 — three decisions that look odd
-  without an explanation: why rules did not become skills, why the path is
-  resolved dynamically, why language is separated from framework
-- **[Enforcement](ENFORCEMENT.md)** 🇷🇺 — the boundary between a request and a
-  guarantee, and what cannot be automated at all
-- **[The gauntlet](../plugins/std-gauntlet/docs/GAUNTLET.md)** 🇷🇺 — five
-  stages: spec, tests, mutation, metrics, the list for a human
+- **[Устройство](ARCHITECTURE.md)** — три решения, которые выглядят странно
+  без объяснения: почему правила не стали скиллами, почему путь резолвится
+  динамически, почему язык отделён от фреймворка
+- **[Правило или замок](ENFORCEMENT.md)** — граница между просьбой
+  и гарантией, и что не автоматизируется в принципе
+- **[Строй проверок](../plugins/std-gauntlet/docs/GAUNTLET.md)** — пять
+  ступеней: спека, тесты, мутации, метрики, список для человека
 
-### I want to add a module to the shared repository
+### Хочу добавить модуль в общий репозиторий
 
-**[Contributing](../CONTRIBUTING.md)** · ~10 min
+**[Как участвовать](../CONTRIBUTING.md)** · ~10 минут
 
-When a rule is worth adding at all, how to add a module for a new stack, what
-is required of locks and tests.
+Когда правило вообще стоит заводить, как добавить модуль под новый стек,
+требования к замкам и тестам.
 
-### I'm about to install this and I'm thinking about security
+### Собираюсь это установить и думаю о безопасности
 
-**[Trust model](../SECURITY.md)** · ~5 min
+**[Модель доверия](../SECURITY.md)** · ~5 минут
 
-Installing means running someone else's shell scripts on your machine. What is
-in scope, what is not, and why you should read the scripts yourself rather than
-take a claim on trust.
+Установка означает выполнение чужих shell-скриптов на вашей машине. Что
+именно входит в область ответственности, что нет, и почему стоит прочитать
+скрипты самому, а не верить на слово.
 
 ---
 
-## Every document
+## Все документы списком
 
-| Document | For whom | Time |
+| Документ | Для кого | Время |
 |---|---|---|
-| [Plain words](START.md) | everyone, start here | 15 min |
-| [Examples](EXAMPLES.md) | anyone who wants to see it work | 15 min |
-| [Writing a rule](WRITING-RULES.md) | whoever keeps standards in a team | 10 min |
-| [Project-level rules](CUSTOMIZATION.md) | whoever has project specifics | 10 min |
-| [Legacy and refactoring](LEGACY.md) | whoever rewrites old code | 10 min |
-| [Profiles](PROFILES.md) | whoever configures a project | 10 min |
-| [The ratchet](RATCHET.md) | whoever deals with the quality gate | 10 min |
-| [The gauntlet](../plugins/std-gauntlet/docs/GAUNTLET.md) 🇷🇺 | whoever rolls out the full pipeline | 10 min |
-| [Architecture](ARCHITECTURE.md) 🇷🇺 | whoever works on this repository | 10 min |
-| [Enforcement](ENFORCEMENT.md) 🇷🇺 | whoever decides where a requirement goes | 5 min |
-| [Threat model](THREAT-MODEL.md) 🇷🇺 | whoever needs to know what is actually protected | 10 min |
-| [Contributing](../CONTRIBUTING.md) | whoever adds modules | 10 min |
-| [Security](../SECURITY.md) | whoever owns what gets installed | 5 min |
+| [Простыми словами](START.md) | все, с этого начинают | 15 мин |
+| [Примеры](EXAMPLES.md) | кто хочет увидеть в деле | 15 мин |
+| [Как написать правило](WRITING-RULES.md) | кто ведёт стандарты в команде | 10 мин |
+| [Свои правила в проекте](CUSTOMIZATION.md) | у кого своя специфика | 10 мин |
+| [Легаси и рефакторинг](LEGACY.md) | кто переписывает старый код | 10 мин |
+| [Профили](PROFILES.md) | кто настраивает проект | 10 мин |
+| [Храповик](RATCHET.md) | кто разбирается с гейтом качества | 10 мин |
+| [Строй проверок](../plugins/std-gauntlet/docs/GAUNTLET.md) | кто внедряет проверки целиком | 10 мин |
+| [Устройство](ARCHITECTURE.md) | кто дорабатывает сам репозиторий | 10 мин |
+| [Правило или замок](ENFORCEMENT.md) | кто решает, куда класть требование | 5 мин |
+| [Модель угроз](THREAT-MODEL.md) | кому нужно знать, что защищено на самом деле | 10 мин |
+| [Как участвовать](../CONTRIBUTING.md) | кто добавляет модули | 10 мин |
+| [Безопасность](../SECURITY.md) | кто отвечает за то, что ставится на машины | 5 мин |
 
 ---
 
-## Quick answers
+## Быстрые ответы
 
-When you need one fact rather than a read:
+Если нужен один факт, а не чтение:
 
-| Question | Where |
+| Вопрос | Где |
 |---|---|
-| What commands exist? | [main page](../README.md#quick-start) |
-| Why didn't my rule load? | [writing a rule → check it works](WRITING-RULES.md#check-that-the-rule-works) |
-| What is `enforcement` and what do I put there? | [writing a rule](WRITING-RULES.md#enforcement--what-backs-it-up) |
-| How do I switch off the pre-commit check? | [profiles → adapting](PROFILES.md#adapting-a-profile-to-your-project) |
-| Where is the quality bar stored? | [ratchet → where things live](RATCHET.md#where-things-live) |
-| My project is legacy — where do I start? | [legacy](LEGACY.md) |
-| A shared rule gets in my project's way | [project rules → departures](CUSTOMIZATION.md#when-a-project-rule-contradicts-a-shared-one) |
-| How do I add a rule without touching the shared repo? | [project-level rules](CUSTOMIZATION.md) |
-| How do I mark an area as off-limits? | [legacy → freeze zone](LEGACY.md#mode-2-a-freeze-zone) |
-| Tests are green — but do they check the spec? | [spec data mutation](../plugins/std-gauntlet/docs/GAUNTLET.md) |
-| What can't be overridden? | [profiles → what cannot](PROFILES.md#what-cannot-be-overridden) |
-| What does this system not do? | [plain words → what this does not do](START.md#what-this-does-not-do) |
+| Какие команды вообще есть? | [главная](../README.md#подключение) |
+| Почему правило не загрузилось? | [как написать правило → проверить](WRITING-RULES.md#проверить-что-правило-работает) |
+| Что такое `enforcement` и что писать? | [как написать правило](WRITING-RULES.md#enforcement--чем-подкреплено) |
+| Как отключить проверку перед коммитом? | [профили → подстроить](PROFILES.md#как-подстроить-профиль-под-свой-проект) |
+| Где хранится планка качества? | [храповик → где что лежит](RATCHET.md#где-что-лежит) |
+| Мой проект — легаси, с чего начать? | [легаси](LEGACY.md) |
+| Общее правило мешает моему проекту | [свои правила → отступления](CUSTOMIZATION.md#когда-правило-проекта-спорит-с-общим) |
+| Как добавить своё правило, не трогая общий репозиторий? | [свои правила](CUSTOMIZATION.md) |
+| Как запретить трогать участок кода? | [легаси → зона заморозки](LEGACY.md#режим-2-зона-заморозки) |
+| Тесты зелёные, но проверяют ли они спецификацию? | [мутация данных](../plugins/std-gauntlet/docs/GAUNTLET.md) |
+| Что нельзя переопределить? | [профили → что нельзя](PROFILES.md#что-нельзя-переопределить) |
+| Чего эта система не умеет? | [простыми словами → чего не делает](START.md#чего-эта-система-не-делает) |

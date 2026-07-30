@@ -1,67 +1,66 @@
-# Security Policy
+# Политика безопасности
 
-> 🇷🇺 [Русская версия](SECURITY.ru.md) · [back to README](README.md)
+> [к README](README.md)
 
-## Reporting a vulnerability
+## Как сообщить об уязвимости
 
-Report privately via
+Приватно, через
 [GitHub Security Advisories](https://github.com/DanielLetto2020/vibe-rules/security/advisories/new).
-Do not open a public issue for a vulnerability.
+Не открывай публичный issue для уязвимости.
 
-Expect a first response within 7 days.
+Первый ответ — в течение 7 дней.
 
-## What is in scope
+## Что входит в область
 
-This repository ships shell scripts that run automatically inside your
-development environment as Claude Code hooks. That makes the following in
-scope:
+Репозиторий поставляет shell-скрипты, которые выполняются автоматически внутри
+твоего окружения разработки как хуки Claude Code. Поэтому в область входит:
 
-- **Command injection in hook scripts** — hooks receive JSON on stdin
-  containing tool input, including arbitrary strings from the model and the
-  user. A payload that escapes into shell evaluation is a vulnerability.
-- **A lock that can be bypassed** — `guard-bash`, `guard-tests`,
-  `guard-infra`, `guard-deps`, `guard-commit`. If a destructive command passes
-  a lock that should stop it, that is a vulnerability, not a feature request.
-  The exception is the gaps listed under
-  [what the locks do not catch](README.md#what-the-locks-do-not-catch) — script
-  files, your own binaries, destruction inside a language runtime. Those are
-  named on purpose and pinned in `tests/hook-corpus.tsv`; a new bypass outside
-  that list is worth reporting, and a corpus entry is welcome with it.
-- **Path traversal in `std-link.sh`** — it creates symlinks based on values
-  resolved from configuration files.
-- **Secret disclosure** — `secret-scan` writes matched lines to stderr; a case
-  where it leaks a secret into a log or the transcript is in scope.
-- **Anything in this repository that transmits data off the machine.** Nothing
-  here is supposed to make network calls. A path that does is a vulnerability
-  by definition.
+- **Инъекция команд в скриптах хуков.** Хуки получают на stdin JSON
+  с содержимым вызова инструмента, включая произвольные строки от модели
+  и пользователя. Полезная нагрузка, дошедшая до выполнения в shell, —
+  уязвимость.
+- **Замок, который можно обойти** — `guard-bash`, `guard-tests`,
+  `guard-infra`, `guard-deps`, `guard-commit`. Если разрушающая команда
+  проходит замок, который должен её остановить, — это уязвимость,
+  а не пожелание. Исключение — границы, перечисленные в разделе
+  [что замки не ловят](README.md#что-замки-не-ловят): файл скрипта, свой
+  бинарник, разрушение средствами языка. Они названы намеренно и закреплены
+  в `tests/hook-corpus.tsv`; новый обход вне этого списка стоит прислать —
+  и хорошо, если вместе со строкой для корпуса.
+- **Выход за пределы каталога в `std-link.sh`** — скрипт создаёт симлинки
+  по значениям, прочитанным из конфигурационных файлов.
+- **Утечка секрета.** `secret-scan` пишет найденные строки в stderr; случай,
+  когда он утаскивает секрет в лог или в транскрипт, входит в область.
+- **Всё, что передаёт данные с машины наружу.** Ничего здесь не должно ходить
+  в сеть. Путь, который ходит, — уязвимость по определению.
 
-## What is not in scope
+## Что не входит
 
-- **A rule being wrong or incomplete.** Rules are advice to a language model,
-  not a security boundary. Open a normal issue.
-- **The model ignoring a rule.** Prose rules are requests, not guarantees —
-  that is stated throughout the documentation. If a rule needs to be
-  guaranteed, it should become a hook: that is a feature request.
-- **Vulnerabilities in third-party tools** referenced by configs (PHPStan,
-  Stryker, Infection, ruff and others). Report those upstream.
+- **Неверное или неполное правило.** Правила — это рекомендация языковой
+  модели, а не граница безопасности. Открывай обычный issue.
+- **Модель проигнорировала правило.** Правила прозой — это просьбы,
+  а не гарантии; об этом сказано во всей документации. Если правило обязано
+  соблюдаться, оно должно стать хуком — это запрос на доработку.
+- **Уязвимости в сторонних инструментах**, на которые ссылаются конфиги
+  (PHPStan, Stryker, Infection, ruff и другие). Сообщай о них авторам.
 
-## Trust model, stated plainly
+## Модель доверия, прямым текстом
 
-Installing this repository means **executing its shell scripts on your
-machine**, automatically, on tool calls. Before installing:
+Установка этого репозитория означает **выполнение его shell-скриптов на твоей
+машине**, автоматически, при вызовах инструментов. Перед установкой:
 
-- read `plugins/*/scripts/*.sh` — there are eight of them and they are short;
-- read `plugins/*/hooks/hooks.json` to see when each one fires;
-- note that nothing here makes network calls, reads outside the project
-  directory, or sends telemetry — and verify that claim yourself rather than
-  taking it on trust.
+- прочитай `plugins/*/scripts/*.sh` — их восемь, и они короткие;
+- посмотри `plugins/*/hooks/hooks.json`, чтобы понять, когда каждый срабатывает;
+- обрати внимание, что ничего здесь не ходит в сеть, не читает за пределами
+  каталога проекта и не отправляет телеметрию, — и проверь это утверждение
+  сам, а не принимай на веру.
 
-Locks reduce the damage an agent can do. They are not a sandbox and cannot
-contain a deliberately hostile agent — a shell is available to it by design.
-For untrusted work, isolate the environment itself: a container, a VM, or a
-separate account.
+Замки уменьшают ущерб, который может нанести агент. Они не песочница и не
+удержат намеренно враждебного агента — shell доступен ему по устройству
+системы. Для недоверенной работы изолируй само окружение: контейнер,
+виртуальная машина или отдельная учётная запись.
 
-## Supported versions
+## Поддерживаемые версии
 
-Only the latest release. This is a young project; fixes go into `main` and the
-next tag.
+Только последний релиз. Проект молодой; исправления идут в `main` и следующий
+тег.
