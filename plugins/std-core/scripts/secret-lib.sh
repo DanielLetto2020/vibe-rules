@@ -27,7 +27,7 @@ secret_path_kind() { # <путь> -> печатает вид секрета, к�
   esac
 
   case "$base" in
-    .env|.env.*|env.local|*.env)
+    .env|.env.*|*.env)
       printf 'файл окружения'; return 0 ;;
     id_rsa|id_dsa|id_ecdsa|id_ed25519|identity)
       printf 'приватный ключ SSH'; return 0 ;;

@@ -99,6 +99,14 @@ This is how a codebase written in mixed styles converges: one touched file at
 a time, rather than in a refactor scheduled for someday. Disable with
 `STD_RECHECK=0`.
 
+That convergence has a number attached to it — the `debt` gate: how many places
+do not match the standard, with the bar set at the best already achieved.
+A rule without a number holds until the first rush, and nobody notices when it
+stops. Here it is noticeable: the bar drops by itself once a touched file is
+brought in line, and goes red when a mismatch is introduced again. The
+procedure for a live project is `std-modernize`; details are on the
+[ratchet page](docs/RATCHET.md).
+
 ## Quick start
 
 ```bash
@@ -539,14 +547,17 @@ as a blocking CI gate:
 7. **Profiles, ratchet and setup** — 63 cases: profile inference from a
    synthetic git history, ratchet raising and holding the bar, profile
    controlling lock strictness, repeated setup preserving manual edits.
-8. **Stack policy** — 20 cases, including: an exempt project keeps its safety
+8. **Compliance-debt ratchet** — 17 cases: the first run records the fact,
+   growth fails the gate, a drop lowers the bar for good, and "nothing to
+   measure with" never looks like "no debt".
+9. **Stack policy** — 20 cases, including: an exempt project keeps its safety
    locks, and a project without a policy file is left alone.
-9. **Project-level rules** — 26 cases: template, precedence file, deviation
-   recording, and the split between committed project rules and gitignored
-   shared symlinks.
-10. **Publishing** — 24 cases, including: no release is cut until the GitHub run
+10. **Project-level rules** — 26 cases: template, precedence file, deviation
+    recording, and the split between committed project rules and gitignored
+    shared symlinks.
+11. **Publishing** — 24 cases, including: no release is cut until the GitHub run
     is green.
-11. **`claude plugin validate --strict`** on every module.
+12. **`claude plugin validate --strict`** on every module.
 
 The whole suite is run in a clean container under the `C` locale — tests have
 to pass on someone else's machine, not only the author's. Missing tooling is

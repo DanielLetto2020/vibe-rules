@@ -74,7 +74,7 @@ if [[ $REMOVE -eq 1 ]]; then
 
   bash "$HERE/std-link.sh" --unlink 2>/dev/null || true
 
-  for f in "$CFG" "$CFG_DIR/.ratchet.json" "$CFG_DIR/.gauntlet-pass" "$CFG_DIR/.std-trace.jsonl"; do
+  for f in "$CFG" "$CFG_DIR/.ratchet.json" "$CFG_DIR/.debt.json" "$CFG_DIR/.gauntlet-pass" "$CFG_DIR/.std-trace.jsonl"; do
     [[ -e "$f" ]] && { rm -f "$f"; grn "  - удалён $(basename "$f")"; }
   done
 

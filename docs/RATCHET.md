@@ -226,6 +226,48 @@ ones: other projects are already configured against them.
 
 ---
 
+## A second ratchet: compliance debt
+
+The same principle applied to a second metric — the number of places that do
+not match the standard. This metric moves the other way (lower is better), so
+it has its own script, `debt.sh`, and its own state, `.claude/.debt.json`.
+
+```bash
+debt.sh count           count violations
+debt.sh check           compare against the bar (this is what the `debt` gate does)
+debt.sh show            bar, best achieved, history
+debt.sh reset <number>  raise the bar deliberately
+```
+
+Why it sits next to a plain linter gate: the `types` gate asks "are there zero
+errors?". On an existing project the answer is no, the gate is red always, and
+it gets switched off on day one. The `debt` gate asks "are there no more errors
+than before?" — a project can answer yes from the start, and the bar drops as
+the files you touch get brought in line.
+
+The counting command is inferred from the stack or set explicitly:
+
+```json
+{ "debt": { "command": "./vendor/bin/phpstan analyse --error-format=raw --no-progress" } }
+```
+
+It has one requirement: print one line per violation as `path:line: …`. That is
+what `phpstan --error-format=raw`, `eslint -f unix`, `ruff
+--output-format=concise` and `mypy` do. Tool summary lines are not counted —
+otherwise the number would change when the linter is upgraded rather than when
+the code changes.
+
+The first run records a fact, not an aspiration: the bar equals what is there
+today. From then on it can only go down; raising it is a deliberate human
+decision via `reset`, needed when the config gets stricter or the linter is
+upgraded.
+
+How to use this in practice is the `std-modernize` procedure: measure, pick a
+spot by cost, cover it with characterization tests, bring it in line, record
+the new bar.
+
+---
+
 ## What the ratchet does not do
 
 - **It does not verify the specification.** Tests can kill every mutant and

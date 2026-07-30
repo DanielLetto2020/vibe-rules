@@ -271,7 +271,7 @@ ensure_gitignore() {
   # на этой машине, журнал загрузки правил — тем более. В git это дало бы
   # конфликт в каждом втором коммите и планку, «поднятую» чужим прогоном.
   local state hdr_written=0
-  for state in ".claude/.ratchet.json" ".claude/.std-trace.jsonl" ".claude/.gauntlet-pass"; do
+  for state in ".claude/.ratchet.json" ".claude/.debt.json" ".claude/.std-trace.jsonl" ".claude/.gauntlet-pass"; do
     grep -qxF "$state" "$gi" && continue
     [[ $hdr_written -eq 0 ]] && {
       printf '\n# Локальное состояние проверок (планка, журналы) — не в git\n' >> "$gi"

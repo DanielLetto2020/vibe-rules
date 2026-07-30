@@ -27,5 +27,10 @@
     "minMsi": 70
   },
 
+  "debt": {
+    "_comment": "Храповик долга: не «ошибок ноль», а «ошибок не больше, чем было». Команда обязана печатать по строке на нарушение в виде «путь:строка: …» — так умеют phpstan --error-format=raw, eslint -f unix, ruff --output-format=concise, mypy. Оставь строку своего стека или убери секцию: скрипт определит инструмент сам.",
+    "command": "./vendor/bin/phpstan analyse --error-format=raw --no-progress"
+  },
+
   "requireBeforeCommit": true
 }

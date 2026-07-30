@@ -11,53 +11,56 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RC=0
 hdr() { printf '\n\033[1m▸ %s\033[0m\n' "$1"; }
 
-hdr "1/15 Страж приватных данных"
+hdr "1/16 Страж приватных данных"
 python3 "$ROOT/tests/no-private-data.py" || RC=1
 
-hdr "2/15 Права на исполнение скриптов"
+hdr "2/16 Права на исполнение скриптов"
 missing=0
 while IFS= read -r s; do
   [[ -x "$s" ]] || { printf '  не исполняемый: %s\n' "${s#$ROOT/}"; missing=1; }
 done < <(find "$ROOT/plugins" "$ROOT/tests" -name '*.sh' -type f)
 [[ $missing -eq 0 ]] && echo "  ok" || { echo "  почини: chmod +x"; RC=1; }
 
-hdr "3/15 Структура модулей и frontmatter"
+hdr "3/16 Структура модулей и frontmatter"
 python3 "$ROOT/tests/lint-modules.py" || RC=1
 
-hdr "4/15 Замки (unit-тесты хуков)"
+hdr "4/16 Замки (unit-тесты хуков)"
 bash "$ROOT/tests/test-hooks.sh" || RC=1
 
-hdr "5/15 Утечка секретов: чтение, команда, запись, коммит"
+hdr "5/16 Утечка секретов: чтение, команда, запись, коммит"
 bash "$ROOT/tests/test-secrets.sh" || RC=1
 
-hdr "6/15 Обходы замков, ложные срабатывания, известные границы"
+hdr "6/16 Обходы замков, ложные срабатывания, известные границы"
 python3 "$ROOT/tests/test-hook-corpus.py" || RC=1
 
-hdr "7/15 Фаззинг разбора команд"
+hdr "7/16 Фаззинг разбора команд"
 python3 "$ROOT/tests/fuzz-guard-bash.py" || RC=1
 
-hdr "8/15 Автодетект стека и целостность связей"
+hdr "8/16 Автодетект стека и целостность связей"
 bash "$ROOT/tests/test-link.sh" || RC=1
 
-hdr "9/15 Профили, храповик, единая настройка"
+hdr "9/16 Профили, храповик, единая настройка"
 bash "$ROOT/tests/test-profile.sh" || RC=1
 
-hdr "10/15 Политика стека"
+hdr "10/16 Храповик долга соответствия"
+bash "$ROOT/tests/test-debt.sh" || RC=1
+
+hdr "11/16 Политика стека"
 bash "$ROOT/tests/test-policy.sh" || RC=1
 
-hdr "11/15 Правила уровня проекта"
+hdr "12/16 Правила уровня проекта"
 bash "$ROOT/tests/test-rule.sh" || RC=1
 
-hdr "12/15 Мутация данных спецификации"
+hdr "13/16 Мутация данных спецификации"
 bash "$ROOT/tests/test-gherkin-mutate.sh" || RC=1
 
-hdr "13/15 Публикация"
+hdr "14/16 Публикация"
 bash "$ROOT/tests/test-publish.sh" || RC=1
 
-hdr "14/15 Согласованность документации"
+hdr "15/16 Согласованность документации"
 python3 "$ROOT/tests/test-docs-sync.py" || RC=1
 
-hdr "15/15 Валидация манифестов средствами Claude Code"
+hdr "16/16 Валидация манифестов средствами Claude Code"
 if command -v claude >/dev/null 2>&1; then
   for p in "$ROOT"/plugins/*/; do
     out=$(claude plugin validate "$p" --strict 2>&1)
