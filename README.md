@@ -435,7 +435,7 @@ modules, if the per-stack rules are not what you came for.
 ## What the locks actually block
 
 Locks are `PreToolUse` hooks. They execute regardless of what the model decided
-or remembered. 87 unit tests, 41 secret-leak tests, a 97-case corpus of bypasses
+or remembered. 93 unit tests, 41 secret-leak tests, a 97-case corpus of bypasses
 and false positives, and property-based fuzzing of the command parser cover them.
 
 | Lock | Blocks |
@@ -566,7 +566,7 @@ as a blocking CI gate:
 1. **Executable bits** — a non-executable hook fails silently.
 2. **Module structure** — manifests, frontmatter, `owner`, `enforcement`, dead
    `paths:`, always-on context size, share of rules no machine backs.
-3. **Locks** — 87 cases: JSON in, `allow`/`deny`/`ask` out. Behaviour without
+3. **Locks** — 93 cases: JSON in, `allow`/`deny`/`ask` out. Behaviour without
    `jq` is tested separately: the lock must refuse, not go quiet.
 4. **Secret leaks** — 41 cases across all four doors: read, command, write,
    commit. The reverse is tested too: examples, placeholders and values taken
