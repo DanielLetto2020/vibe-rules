@@ -370,6 +370,23 @@ constraints. Five stages, each verifying the one before it:
 4. **Metrics** instead of reading diffs.
 5. **A list for human eyes** — what nothing else can catch.
 
+Between tests and mutation sits a cheap check you can run on every iteration —
+**coverage of the changed lines**. Overall coverage makes a poor gate: on a
+large project it barely moves even when this task added two hundred lines
+without a single test. Diff coverage only concerns the new code, so an absolute
+threshold there means exactly what it says, and it computes in seconds.
+
+```
+coverage of changed lines: 34/41 = 83% (threshold 80%)
+```
+
+The report is located automatically (`coverage.xml`, `clover.xml`,
+`coverage/lcov.info` and neighbours). When there is none, the gate does not go
+green quietly — it says "not checked": the difference between "coverage is fine"
+and "nobody measured coverage" is exactly what the gauntlet exists for. A
+covered line means an executed line, not a verified one — assertion quality is
+the mutation stage's job, and neither replaces the other.
+
 One command runs everything:
 
 ```bash
@@ -567,14 +584,17 @@ as a blocking CI gate:
 8. **Compliance-debt ratchet** — 17 cases: the first run records the fact,
    growth fails the gate, a drop lowers the bar for good, and "nothing to
    measure with" never looks like "no debt".
-9. **Stack policy** — 20 cases, including: an exempt project keeps its safety
+9. **Diff coverage** — 14 cases across two report formats: only this work's
+   lines are counted, a new file outside the index cannot yield a false 100%,
+   and a missing report is distinguishable from success.
+10. **Stack policy** — 20 cases, including: an exempt project keeps its safety
    locks, and a project without a policy file is left alone.
-10. **Project-level rules** — 26 cases: template, precedence file, deviation
+11. **Project-level rules** — 26 cases: template, precedence file, deviation
     recording, and the split between committed project rules and gitignored
     shared symlinks.
-11. **Publishing** — 24 cases, including: no release is cut until the GitHub run
+12. **Publishing** — 24 cases, including: no release is cut until the GitHub run
     is green.
-12. **`claude plugin validate --strict`** on every module.
+13. **`claude plugin validate --strict`** on every module.
 
 The whole suite is run in a clean container under the `C` locale — tests have
 to pass on someone else's machine, not only the author's. Missing tooling is
