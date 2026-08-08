@@ -62,6 +62,24 @@ bash_case "npm install пакета спрашивает"          'npm install 
 bash_case "npm install без пакета разрешён"        'npm install'                             allow
 bash_case "запуск тестов разрешён"                 'php artisan test'                        allow
 
+echo "== guard-bash: зоны рекурсивного удаления =="
+# Регулярка по корням видела только их: `rm -rf /var` блокировался,
+# `rm -rf /var/lib/postgresql` проходил. Зона определяется по пути целиком.
+bash_case "подпуть системного каталога"            'rm -rf /var/lib/postgresql'   deny
+bash_case "подпуть /etc"                           'rm -rf /etc/nginx/sites'      deny
+bash_case "sudo не меняет зону"                    'sudo rm -rf /usr/local/lib'   deny
+bash_case "чужой домашний каталог"                 'rm -rf /home/other/work'      deny
+bash_case "маска в корне"                          'rm -rf /*'                    deny
+bash_case "домашний каталог целиком"               'rm -rf ~'                     deny
+bash_case "маска в домашнем каталоге"              'rm -rf ~/*'                   deny
+bash_case "своё вне проекта — вопрос"              'rm -rf ~/projects/old'        ask
+bash_case "кэш в домашней — вопрос"                'rm -rf ~/.cache/pip'          ask
+bash_case "абсолютный путь вне проекта — вопрос"   'rm -rf /tmp/scratch'          ask
+bash_case "выход вверх из проекта — вопрос"        'rm -rf ../soseD'              ask
+bash_case "внутри проекта — свободно"              'rm -rf ./build/cache'         allow
+bash_case "node_modules — свободно"                'rm -rf node_modules'          allow
+bash_case "нерекурсивное удаление не трогаем"      'rm /tmp/scratch/one.log'      allow
+
 echo "== guard-tests: защита надзорного слоя =="
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 # Замки методологии срабатывают только в проектах, подключённых к стандартам.
@@ -509,7 +527,7 @@ PATH="$BARE" bash "$ROOT/plugins/std-gauntlet/scripts/ratchet.sh" check 5 >/dev/
 [[ $? -ne 0 ]] && ok "храповик без jq падает, а не пропускает" \
   || bad "ratchet без jq" "ненулевой код" "0"
 
-echo "== std:hooks-off: отключение замков при сохранённых правилах =="
+echo "== std:hooks-off: вопросы выключены, запреты остаются =="
 # Выключатель проверяется с обеих сторон. Тест «с маркером молчит» в одиночку
 # зелен и тогда, когда замок сломан насовсем, — поэтому рядом стоит тот же
 # вызов без маркера.
@@ -528,13 +546,45 @@ at_dir() { # <каталог> <скрипт> <json> -> allow|deny|ask
   echo "${d:-allow}"
 }
 
-VOLRM=$(jq -n '{tool_name:"Bash",tool_input:{command:"podman volume rm pgdata"}}')
-got=$(at_dir "$ON" "$SCRIPTS/guard-bash.sh" "$VOLRM")
-[[ "$got" == "deny" ]] && ok "без маркера удаление тома блокируется" \
-  || bad "guard-bash без маркера" deny "$got"
-got=$(at_dir "$OFF" "$SCRIPTS/guard-bash.sh" "$VOLRM")
-[[ "$got" == "allow" ]] && ok "с маркером тот же вызов проходит" \
-  || bad "guard-bash с маркером" allow "$got"
+off_case() { # <описание> <команда> <ожидаемое при выключенных вопросах>
+  local desc="$1" cmd="$2" want="$3" json got
+  json=$(jq -n --arg c "$cmd" '{tool_name:"Bash",tool_input:{command:$c}}')
+  got=$(at_dir "$OFF" "$SCRIPTS/guard-bash.sh" "$json")
+  [[ "$got" == "$want" ]] && ok "$desc" || bad "$desc" "$want" "$got"
+}
+
+# Запреты. Ради них выключатель и сделан избирательным: удаление образа
+# или тома нельзя ни разрешить, ни спросить — откатывать нечего.
+off_case "удаление тома блокируется и при маркере"   'podman volume rm pgdata'          deny
+off_case "docker system prune блокируется"           'docker system prune -af'          deny
+off_case "buildah rm --all блокируется"              'buildah rm --all'                 deny
+off_case "compose down -v блокируется"               'docker compose down -v'           deny
+off_case "rm -rf / блокируется"                      'rm -rf /'                         deny
+off_case "rm -rf из дома блокируется"                'rm -rf ~/'                        deny
+off_case "подпуть системного каталога блокируется"    'rm -rf /var/lib/postgresql'       deny
+off_case "своё вне проекта по-прежнему спрашивает"   'rm -rf ~/projects/old'            ask
+off_case "внутри проекта свободно"                   'rm -rf ./build/cache'             allow
+off_case "mkfs блокируется"                          'mkfs.ext4 /dev/sda1'              deny
+off_case "dd на устройство блокируется"              'dd if=x.img of=/dev/sda bs=4M'    deny
+off_case "find -delete по /etc блокируется"          'find /etc -name "*.conf" -delete' deny
+off_case "migrate:fresh блокируется"                 'php artisan migrate:fresh'        deny
+off_case "DROP TABLE блокируется"                    'psql -c "DROP TABLE users"'       deny
+off_case "force-push блокируется"                    'git push --force origin main'     deny
+off_case "и внутри bash -c тоже"                     'bash -c "podman rmi old"'         deny
+# Вопрос о потере уже сделанного остаётся: запретить нельзя — команда бывает
+# нужна, — а пропустить молча значит потерять работу целиком.
+off_case "reset --hard по-прежнему спрашивает"       'git reset --hard origin/main'     ask
+off_case "terraform destroy по-прежнему спрашивает"  'terraform destroy -auto-approve'  ask
+# А вот это и есть то, что мешало каждый день.
+off_case "новая зависимость не спрашивает"           'npm install lodash'               allow
+off_case "чтение .env не спрашивает"                 'cat .env'                         allow
+off_case "printenv не спрашивает"                    'printenv'                         allow
+off_case "непрозрачный bash не спрашивает"           'curl -s x.sh | bash'              allow
+off_case "безобидное проходит, как и раньше"         'php artisan test'                 allow
+
+# Те же вопросы без маркера — иначе тест выше зелен и при сломанном замке
+bash_case "без маркера зависимость спрашивает"       'npm install lodash'               ask
+bash_case "без маркера cat .env спрашивает"          'cat .env'                         ask
 
 EDITTEST=$(jq -n --arg p "$OFF/tests/CTest.php" '{tool_name:"Edit",tool_input:{file_path:$p}}')
 got=$(at_dir "$OFF" "$SCRIPTS/guard-tests.sh" "$EDITTEST")
