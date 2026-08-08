@@ -509,6 +509,70 @@ PATH="$BARE" bash "$ROOT/plugins/std-gauntlet/scripts/ratchet.sh" check 5 >/dev/
 [[ $? -ne 0 ]] && ok "храповик без jq падает, а не пропускает" \
   || bad "ratchet без jq" "ненулевой код" "0"
 
+echo "== std:hooks-off: отключение замков при сохранённых правилах =="
+# Выключатель проверяется с обеих сторон. Тест «с маркером молчит» в одиночку
+# зелен и тогда, когда замок сломан насовсем, — поэтому рядом стоит тот же
+# вызов без маркера.
+OFF="$TMP/hooks-off"; mkdir -p "$OFF/.claude/rules/std-core" "$OFF/tests"
+echo '{}' > "$OFF/.claude/gauntlet.json"; echo '<?php' > "$OFF/tests/CTest.php"
+ON="$TMP/hooks-on"; mkdir -p "$ON/.claude/rules/std-core" "$ON/tests"
+echo '{}' > "$ON/.claude/gauntlet.json"; echo '<?php' > "$ON/tests/CTest.php"
+: > "$OFF/.claude/std-hooks-off"
+
+at_dir() { # <каталог> <скрипт> <json> -> allow|deny|ask
+  # Молчание хука — это «allow», но jq на пустом входе печатает пустоту,
+  # а не значение по умолчанию: подстановка делается в bash, как в decision().
+  local out d
+  out=$(printf '%s' "$3" | CLAUDE_PROJECT_DIR="$1" bash "$2" 2>/dev/null)
+  d=$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision // empty' 2>/dev/null)
+  echo "${d:-allow}"
+}
+
+VOLRM=$(jq -n '{tool_name:"Bash",tool_input:{command:"podman volume rm pgdata"}}')
+got=$(at_dir "$ON" "$SCRIPTS/guard-bash.sh" "$VOLRM")
+[[ "$got" == "deny" ]] && ok "без маркера удаление тома блокируется" \
+  || bad "guard-bash без маркера" deny "$got"
+got=$(at_dir "$OFF" "$SCRIPTS/guard-bash.sh" "$VOLRM")
+[[ "$got" == "allow" ]] && ok "с маркером тот же вызов проходит" \
+  || bad "guard-bash с маркером" allow "$got"
+
+EDITTEST=$(jq -n --arg p "$OFF/tests/CTest.php" '{tool_name:"Edit",tool_input:{file_path:$p}}')
+got=$(at_dir "$OFF" "$SCRIPTS/guard-tests.sh" "$EDITTEST")
+[[ "$got" == "allow" ]] && ok "с маркером правка теста не эскалируется" \
+  || bad "guard-tests с маркером" allow "$got"
+
+# Пока замки живы, они охраняют собственный выключатель: создать его молча,
+# по ходу задачи, нельзя.
+MK=$(jq -n --arg p "$ON/.claude/std-hooks-off" '{tool_name:"Write",tool_input:{file_path:$p}}')
+got=$(at_dir "$ON" "$SCRIPTS/guard-infra.sh" "$MK")
+[[ "$got" == "ask" ]] && ok "создание маркера подтверждает человек" \
+  || bad "guard-infra на маркер" ask "$got"
+
+# Выключение обязано оставаться видимым, иначе «на время» станет «навсегда»
+out=$(printf '{}' | CLAUDE_PROJECT_DIR="$OFF" bash "$SCRIPTS/session-check.sh" 2>/dev/null)
+grep -q 'systemMessage' <<<"$out" && grep -qi 'выключены' <<<"$out" \
+  && ok "старт сессии сообщает, что замки выключены" \
+  || bad "session-check с маркером" "предупреждение" "${out:-<пусто>}"
+# ...и сам он маркером не глушится — иначе напоминать было бы некому
+grep -q 'std:hooks-off' "$SCRIPTS/session-check.sh" \
+  && bad "session-check не должен глушиться маркером" "нет std:hooks-off" "есть" \
+  || ok "session-check маркером не глушится"
+
+# Новый хук легко завести и забыть про выключатель: тогда «замки выключены»
+# станет полуправдой, а полуправда здесь хуже отказа.
+missing=()
+while IFS= read -r hj; do
+  pdir=$(dirname "$(dirname "$hj")")
+  while IFS= read -r s; do
+    [[ -z "$s" ]] && continue
+    [[ "$(basename "$s")" == "session-check.sh" ]] && continue
+    grep -q 'std:hooks-off' "$pdir/$s" 2>/dev/null || missing+=("$(basename "$pdir")/$s")
+  done < <(jq -r '.hooks | to_entries[] | .value[] | .hooks[] | .command' "$hj" 2>/dev/null \
+           | sed 's|.*/scripts/|scripts/|')
+done < <(find "$ROOT/plugins" -path '*/hooks/hooks.json')
+[[ ${#missing[@]} -eq 0 ]] && ok "выключатель есть во всех хуках всех модулей" \
+  || bad "хуки без std:hooks-off" "ни одного" "${missing[*]}"
+
 echo
 printf 'Пройдено: \033[32m%d\033[0m   Провалено: \033[31m%d\033[0m\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] || exit 1

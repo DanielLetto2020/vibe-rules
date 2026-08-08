@@ -12,6 +12,12 @@ set -uo pipefail
 [[ "${STD_TRACE:-1}" == "0" ]] && exit 0
 
 INPUT=$(cat)
+
+# std:hooks-off — человек отключил замки в этом проекте (.claude/std-hooks-off).
+# Правила при этом остаются и грузятся как раньше: стандарт возвращается
+# к тексту без проверки. Что замки выключены, напоминает session-check.sh —
+# единственный хук, которого маркер не глушит.
+[[ -f "${CLAUDE_PROJECT_DIR:-$PWD}/.claude/std-hooks-off" ]] && exit 0
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 LOG="${STD_TRACE_FILE:-$PROJECT_DIR/.claude/.std-trace.jsonl}"
 
