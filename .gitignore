@@ -4,6 +4,8 @@
 /CLAUDE.md
 /CLAUDE.local.md
 /.claude/settings.local.json
+# Рабочие копии агентов Claude Code (EnterWorktree, изоляция подагентов)
+/.claude/worktrees/
 
 # Локальный список названий внутренних систем для стража утечек.
 # Сами названия приватны — в публичном репозитории их нет даже

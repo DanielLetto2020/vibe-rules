@@ -41,6 +41,36 @@ read_case "обычный исходник проходит"          "/app/src/
 read_case "README проходит"                    "/app/README.md"               allow
 read_case "tfstate эскалируется"               "/infra/terraform.tfstate"     ask
 read_case "Grep по .env эскалируется"          "/app/.env"                    ask
+read_case "регистр не спасает: .ENV"           "/app/.ENV"                    ask
+read_case "ключ SSH с суффиксом"               "/app/deploy/id_rsa_github"    ask
+read_case "публичный ключ с суффиксом проходит" "/app/deploy/id_rsa_github.pub" allow
+read_case "учётные данные облака"              "/app/credentials.json"        ask
+read_case "относительный путь .aws/credentials" ".aws/credentials"            ask
+read_case "package.json проходит"              "/app/package.json"            allow
+
+# Ссылка читается по цели: app.conf -> .env — это чтение .env.
+LNK="$TMP/lnk"; mkdir -p "$LNK"; printf 'DB_PASSWORD=x\n' > "$LNK/.env"; ln -s "$LNK/.env" "$LNK/app.conf"
+read_case "ссылка на .env эскалируется"        "$LNK/app.conf"                ask
+
+# Маска Grep перекрывает .gitignore: glob ".env*" печатал строки игнорируемого
+# .env, пока замок смотрел только на path.
+GREP="$TMP/grep"; mkdir -p "$GREP/src"; printf 'DB_PASSWORD=x\n' > "$GREP/.env"
+printf '{}\n' > "$GREP/package.json"; printf 'x\n' > "$GREP/src/a.ts"
+glob_case() { # <описание> <маска> <каталог поиска|""> <ожидание>
+  local json got
+  json=$(jq -n --arg g "$2" --arg p "$3" \
+    '{tool_name:"Grep",tool_input:({pattern:"PASSWORD",glob:$g} + (if $p=="" then {} else {path:$p} end))}')
+  got=$(decision "$SCRIPTS/guard-secrets.sh" "$json" "$GREP")
+  [[ "$got" == "$4" ]] && ok "$1" || bad "$1" "$4" "$got"
+}
+glob_case "маска .env* эскалируется"           '.env*'        ""            ask
+glob_case "маска **/.env эскалируется"         '**/.env'      ""            ask
+glob_case "маска со скобками *.{ts,env}"       '*.{ts,env}'   ""            ask
+glob_case "маска *.{js,ts} проходит"           '*.{js,ts}'    ""            allow
+glob_case "маска * проходит"                   '*'            ""            allow
+glob_case "*.json без секрета под ней проходит" '*.json'      ""            allow
+glob_case "маска вне каталога с .env проходит" '*.env'        "$GREP/src"   allow
+glob_case "каталога нет — решают образцы"      '.env*'        "/nonexistent" ask
 
 # --- 2. Команда ---------------------------------------------------------------
 echo "== команда: чтение секрета и отправка наружу =="
@@ -87,6 +117,22 @@ scan_case "пустое значение проходит"           "src/e.env.
 scan_case "токен в документации находится"     "docs/api.md"    'curl -H "Authorization: Bearer ghp_9z8y7x6w5v4u3t2s1r0q"' hit
 scan_case "живой ключ в фикстуре находится"    "tests/f.php"    'sk-ant-api03-RealLookingKey1234567890'      hit
 scan_case "пример в документации проходит"     "docs/howto.md"  'export API_KEY=<ваш ключ>'                  clean
+# Форматы конфигураций, мимо которых шёл паттерн «имя и сразу = или :»
+scan_case "пароль в JSON"                      "cfg/db.json"    '{"password": "Xk9mQr2vTn4wLp8s"}'           hit
+scan_case "пароль в массиве PHP"               "config/db.php"  "'password' => 'Xk9mQr2vTn4wLp8s',"          hit
+scan_case "пароль в YAML без кавычек"          "cfg/app.yml"    'password: Xk9mQr2vTn4wLp8s'                 hit
+scan_case "пароль в properties с точками"      "app.properties" 'spring.datasource.password=Xk9mQr2vTn4wLp8s' hit
+scan_case "токен в Go через :="                "cmd/main.go"    'token := "Xk9mQr2vTn4wLp8s"'                hit
+scan_case "переменная в списке compose"        "compose.yml"    '  - POSTGRES_PASSWORD=Xk9mQr2vTn4wLp8s'     hit
+scan_case "живой ключ Stripe в вызове"         "src/pay.js"     'Stripe("sk_live_51H8kQrLmNoPqRsTuVwXyZ")'   hit
+scan_case "проектный ключ OpenAI"              "src/ai.py"      'k = "sk-proj-AbCdEfGhIjKlMnOpQrStUv12"'     hit
+scan_case "приватный ключ PGP"                 "keys/k.txt"     '-----BEGIN PGP PRIVATE KEY BLOCK-----'      hit
+# Заглушка определяется по значению, а не по соседям в строке
+scan_case "TODO рядом не прячет пароль"        "src/s.py"       'DB_PASSWORD = "Xk9mQr2vTn4wLp8s"  # TODO: move to env' hit
+scan_case "example.com в хосте не прячет пароль" "src/d.py"     'url = "postgres://app:Xk9mQr2v@db.example.com/app"' hit
+scan_case "DSN с паролем-заглушкой проходит"   "e.env.txt"      'DATABASE_URL=postgres://user:password@localhost:5432/app' clean
+scan_case "ключ-заглушка your-…-here проходит" "f.env.txt"      'ANTHROPIC_API_KEY=sk-ant-your-api-key-here' clean
+scan_case "токен-заглушка YourPersonal…"       "g.env.txt"      'GITHUB_TOKEN=ghp_YourPersonalAccessTokenHere' clean
 
 # --- 4. Коммит ----------------------------------------------------------------
 echo "== коммит: последняя точка, где утечку можно отменить =="

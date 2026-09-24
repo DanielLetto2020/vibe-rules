@@ -86,6 +86,18 @@ DANGER=$(jq -n '{tool_name:"Bash",tool_input:{command:"podman volume rm pgdata"}
 [[ "$DANGER" == "deny" ]] && ok "замки безопасности работают и при exempt" \
   || bad "замки безопасности при exempt" deny "$DANGER"
 
+echo "== значения политики — данные, а не код =="
+# Политика лежит в репозитории, и её правит кто угодно, включая модель.
+# Раньше maxBinaryKb попадал в арифметику оболочки без проверки, а арифметика
+# bash раскрывает $(...) внутри индекса массива: строка из JSON исполнялась.
+PWNED="$TMP/pwned"
+jq -n --arg v "SIZE_KB[\$(touch $PWNED)]" '{staticAssets:{maxBinaryKb:$v}}' | write_policy
+decide "$P/logo.png" "x" >/dev/null
+[[ ! -e "$PWNED" ]] && ok "строка из policy.json не исполняется" \
+  || bad "исполнение из policy.json" "файл не создан" "создан"
+jq -n '{staticAssets:{maxBinaryKb:"много"}}' | write_policy
+c "нечисловой лимит не роняет замок" "$P/logo.png" "x" allow
+
 echo "== проект без политики =="
 rm -f "$P/.claude/policy.json"
 c "нет policy.json — замок молчит"  "$P/composer.json" '"a/b": "2.0.0-beta1"'           allow
