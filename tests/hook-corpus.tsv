@@ -318,3 +318,6 @@ gap	python3 -c "import shutil; shutil.rmtree('/')"	разрушение сред
 gap	$TOOL volume rm cache	переменная пришла из окружения, а не из этой строки
 gap	curl -X DELETE https://api.example.com/v1/db	разрушение через сетевой вызов
 gap	make clean-all	цель makefile непрозрачна для разбора команды
+gap	docker run --rm -v /:/host alpine rm -rf /host/etc	путь внутри контейнера не сопоставляется с примонтированным каталогом хоста
+gap	cd "$DIR" && rm -rf *	каталог из неизвестной переменной считается каталогом проекта
+gap	psql -f drop.sql	SQL из файла замок не читает, как и файл скрипта
