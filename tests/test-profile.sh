@@ -209,6 +209,55 @@ rc() { CLAUDE_PROJECT_DIR="$R" bash "$RATCHET" check "$1" >/dev/null 2>&1; echo 
 CLAUDE_PROJECT_DIR="$R" bash "$RATCHET" reset 10 >/dev/null 2>&1
 [[ "$(rc 12)" == "0" ]] && ok "ручной сброс планки работает" || bad "сброс" 0 "$(rc 12)"
 
+# Отказ читает агент. Готовая команда сброса в нём читалась как следующий шаг,
+# и планку опускали, не спросив. Теперь сказано, чьё это решение.
+out=$(CLAUDE_PROJECT_DIR="$R" bash "$RATCHET" check 1 2>&1)
+grep -q "спроси человека" <<<"$out" && ok "при падении сказано: понижать планку решает человек" \
+  || bad "текст отказа храповика" "«спроси человека»" "$out"
+grep -q "ratchet.sh reset" <<<"$out" && bad "текст отказа храповика" "без готовой команды сброса" "$out" \
+  || ok "команда сброса агенту как следующий шаг не предлагается"
+
+echo "== храповик: испорченный ввод и состояние =="
+# «reset 70%» ронял jq, файл состояния становился пустым, а команда печатала
+# «планка установлена». Пустое состояние дальше читалось как планка 0
+# и пропускало любой результат — и так оставалось навсегда.
+R2="$TMP/ratchet2"; mkdir -p "$R2/.claude"
+r2() { CLAUDE_PROJECT_DIR="$R2" bash "$RATCHET" "$@" >/dev/null 2>&1; echo $?; }
+r2 check 60 >/dev/null
+[[ "$(r2 reset 70%)" == "2" ]] && ok "reset 70% отвергается" || bad "reset 70%" 2 "$(r2 reset 70%)"
+got=$(jq -r '.floor' "$R2/.claude/.ratchet.json" 2>/dev/null)
+[[ "$got" == "60" ]] && ok "после отвергнутого reset планка цела" || bad "планка после reset 70%" 60 "${got:-<пусто>}"
+[[ "$(r2 reset 150)" == "2" ]] && ok "планка выше 100% отвергается" || bad "reset 150" 2 "$(r2 reset 150)"
+[[ "$(r2 check abc)" == "2" ]] && ok "нечисловой результат — отказ" || bad "check abc" 2 "$(r2 check abc)"
+: > "$R2/.claude/.ratchet.json"
+[[ "$(r2 check 5)" == "2" ]] && ok "пустое состояние — отказ, а не проход" || bad "пустое состояние" 2 "$(r2 check 5)"
+echo '{"floor":"high","best":1}' > "$R2/.claude/.ratchet.json"
+[[ "$(r2 check 5)" == "2" ]] && ok "нечисловая планка — отказ" || bad "битая планка" 2 "$(r2 check 5)"
+r2 reset 50 >/dev/null
+[[ "$(r2 check 40)" == "1" ]] && ok "reset человека чинит состояние, и проверка снова работает" \
+  || bad "после починки" 1 "$(r2 check 40)"
+r2 check 55 >/dev/null; r2 reset 45 >/dev/null
+# Сброс — запись в истории, а не её стирание: «стало хуже за квартал» иначе
+# не восстановить, а debt.sh историю при сбросе и так сохранял.
+got=$(jq -r '.history | length' "$R2/.claude/.ratchet.json" 2>/dev/null)
+[[ "$got" == "4" ]] && ok "reset дописывает историю, а не стирает её" || bad "история после reset" 4 "$got"
+got=$(jq -r '.history[-1].note' "$R2/.claude/.ratchet.json" 2>/dev/null)
+[[ "$got" == "установлено вручную" ]] && ok "ручной сброс виден в истории" || bad "заметка reset" "установлено вручную" "$got"
+
+# Дробная стартовая планка в конфиге давала «MIN_ALLOWED: unbound variable»,
+# и гейт падал на любом результате.
+R3="$TMP/ratchet3"; mkdir -p "$R3/.claude"
+echo '{"mutation":{"floor":45.5}}' > "$R3/.claude/gauntlet.json"
+got=$(CLAUDE_PROJECT_DIR="$R3" bash "$RATCHET" check 50 >/dev/null 2>&1; echo $?)
+[[ "$got" == "0" ]] && ok "дробная планка в конфиге не ломает храповик" || bad "floor 45.5" 0 "$got"
+R4="$TMP/ratchet4"; mkdir -p "$R4/.claude"
+echo '{"mutation":{"floor":45.5}}' > "$R4/.claude/gauntlet.json"
+got=$(CLAUDE_PROJECT_DIR="$R4" bash "$RATCHET" check 30 >/dev/null 2>&1; echo $?)
+[[ "$got" == "1" ]] && ok "и падение ниже дробной планки ловится" || bad "floor 45.5, 30" 1 "$got"
+got=$(CLAUDE_PROJECT_DIR="$R4" bash "$RATCHET" check 63,45 >/dev/null 2>&1; echo $?)
+[[ "$got" == "0" && "$(jq -r .floor "$R4/.claude/.ratchet.json")" == "63" ]] \
+  && ok "результат с запятой читается как целое" || bad "63,45" "0 и планка 63" "$got / $(jq -r .floor "$R4/.claude/.ratchet.json")"
+
 echo "== профиль управляет строгостью замка тестов =="
 G="$TMP/guard"; mkdir -p "$G/.claude/tests"
 echo '<?php' > "$G/.claude/tests/ExistingTest.php"

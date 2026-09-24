@@ -14,6 +14,9 @@
 #   ratchet.sh show                       показать историю
 #   ratchet.sh reset <значение>           установить планку вручную
 #
+# Коды возврата: 0 — планка удержана или поднята; 1 — падение ниже планки;
+# 2 — проверить нельзя: неверный аргумент, повреждённое состояние, нет jq.
+#
 # Состояние: .claude/.ratchet.json (в git не идёт — у каждого свой прогон).
 set -uo pipefail
 export LC_NUMERIC=C
@@ -36,32 +39,92 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 2
 fi
 
+# Состояние читается целиком или не читается вовсе. Раньше битый файл давал
+# пустую строку, та читалась как планка 0 — и любой результат проходил,
+# а запись поверх битого файла снова давала пустой файл, навсегда.
+state_ok() {
+  jq -e 'type == "object"
+         and (.floor | type) == "number" and (.best | type) == "number"
+         and .floor >= 0 and .best >= 0' "$STATE" >/dev/null 2>&1
+}
+
+state_broken() {
+  echo "состояние храповика повреждено: ${STATE#"$PROJECT_DIR"/}"
+  echo "Без него планку не с чем сравнить, а считать её нулевой значило бы"
+  echo "пропускать любой результат. Восстановить планку — решение человека:"
+  echo "остановись и скажи ему. Сам файл состояния не правь и не удаляй."
+  exit 2
+}
+
+# Планка — целое число. Дробная стартовая планка в конфиге (45.5) раньше
+# роняла арифметику bash, и гейт падал на любом результате.
 read_floor() {
   if [[ -f "$STATE" ]]; then
-    jq -r '.floor // 0' "$STATE" 2>/dev/null
+    jq -r '.floor | floor' "$STATE"
   elif [[ -f "$CFG" ]]; then
-    jq -r '.mutation.floor // 0' "$CFG" 2>/dev/null
+    jq -r '(.mutation.floor // 0) | if type == "number" then floor else error("не число") end' "$CFG" 2>/dev/null
   else
     echo 0
   fi
 }
 
+# Результат прогона: целое, с точкой или запятой — дробная часть отбрасывается.
+to_int() { # <значение> → целое или код 1
+  [[ "$1" =~ ^[0-9]+([.,][0-9]+)?$ ]] || return 1
+  local v="${1%%[.,]*}"
+  printf '%s' "$((10#$v))"
+}
+
+write_state() { # <jq-выражение> <аргументы jq…> — атомарная запись
+  local tmp rc
+  mkdir -p "$(dirname "$STATE")"
+  # Временный файл рядом с состоянием: mv в пределах каталога атомарен,
+  # и прерванная запись не оставляет полупустой файл.
+  tmp=$(mktemp "$STATE.XXXXXX") || return 1
+  if [[ -f "$STATE" ]] && state_ok; then
+    jq "$@" "$STATE" > "$tmp"; rc=$?
+  else
+    jq -n "$@" > "$tmp"; rc=$?
+  fi
+  if [[ $rc -ne 0 || ! -s "$tmp" ]]; then
+    rm -f "$tmp"
+    echo "не удалось записать состояние храповика: $STATE" >&2
+    return 1
+  fi
+  mv "$tmp" "$STATE"
+}
+
+TS=$(date -u +%Y-%m-%dT%H:%MZ)
+
 case "${1:-}" in
   show)
     if [[ -f "$STATE" ]]; then
+      state_ok || state_broken
       jq -r '"планка: \(.floor)%\nлучшее:  \(.best)%\nистория:",
-             (.history[-10:][] | "  \(.ts)  \(.value)%")' "$STATE"
+             ((.history // [])[-10:][] | "  \(.ts)  \(.value)%  \(.note // "")")' "$STATE"
     else
-      echo "храповик ещё не запускался (планка из конфига: $(read_floor)%)"
+      f=$(read_floor) || { echo "стартовая планка в конфиге — не число: .mutation.floor"; exit 2; }
+      echo "храповик ещё не запускался (планка из конфига: ${f}%)"
     fi
     exit 0 ;;
 
   reset)
     NEW="${2:-}"
     [[ -z "$NEW" ]] && { echo "укажи значение: ratchet.sh reset 45"; exit 2; }
-    mkdir -p "$(dirname "$STATE")"
-    jq -n --argjson f "$NEW" --arg ts "$(date -u +%Y-%m-%dT%H:%MZ)" \
-      '{floor:$f, best:$f, history:[{ts:$ts, value:$f, note:"установлено вручную"}]}' > "$STATE"
+    # Проверка до записи: раньше «reset 70%» ронял jq, файл состояния
+    # оставался пустым, а команда печатала «планка установлена».
+    if [[ ! "$NEW" =~ ^[0-9]+$ ]] || (( 10#$NEW > 100 )); then
+      echo "укажи целое число от 0 до 100: ratchet.sh reset 45 (получено: «${NEW}»)"
+      exit 2
+    fi
+    NEW=$((10#$NEW))
+    # История не стирается: сброс — одна из записей в ней. Иначе после него
+    # не восстановить, как качество менялось до решения человека.
+    write_state --argjson f "$NEW" --arg ts "$TS" \
+      'if . == null then {} else . end
+       | .floor=$f | .best=$f
+       | .history = ((.history // []) + [{ts:$ts, value:$f, note:"установлено вручную"}])
+       | .history |= .[-50:]' || exit 2
     echo "планка установлена: ${NEW}%"
     exit 0 ;;
 
@@ -69,29 +132,29 @@ case "${1:-}" in
   *) echo "использование: ratchet.sh check <значение> | show | reset <значение>"; exit 2 ;;
 esac
 
-CURRENT="${2:-}"
-[[ -z "$CURRENT" ]] && { echo "нужно текущее значение: ratchet.sh check 63"; exit 2; }
+[[ -n "${2:-}" ]] || { echo "нужно текущее значение: ratchet.sh check 63"; exit 2; }
+CURRENT=$(to_int "$2") || { echo "результат мутационного прогона — не число: «$2»"; exit 2; }
 
-FLOOR=$(read_floor)
-BEST=$( [[ -f "$STATE" ]] && jq -r '.best // 0' "$STATE" || echo "$FLOOR" )
-TS=$(date -u +%Y-%m-%dT%H:%MZ)
-mkdir -p "$(dirname "$STATE")"
+[[ -f "$STATE" ]] && { state_ok || state_broken; }
+FLOOR=$(read_floor) || { echo "стартовая планка в конфиге — не число: .mutation.floor"; exit 2; }
+[[ "$FLOOR" =~ ^[0-9]+$ ]] || { echo "стартовая планка в конфиге — не число: «$FLOOR»"; exit 2; }
+if [[ -f "$STATE" ]]; then
+  BEST=$(jq -r '.best | floor' "$STATE")
+else
+  BEST=$FLOOR
+fi
 
 append_history() { # <значение> <заметка>
-  local tmp
-  tmp=$(mktemp)
-  if [[ -f "$STATE" ]]; then
-    jq --argjson v "$1" --arg n "$2" --arg ts "$TS" --argjson f "$NEW_FLOOR" --argjson b "$NEW_BEST" \
-      '.floor=$f | .best=$b | .history += [{ts:$ts, value:$v, note:$n}] | .history |= .[-50:]' "$STATE" > "$tmp"
-  else
-    jq -n --argjson v "$1" --arg n "$2" --arg ts "$TS" --argjson f "$NEW_FLOOR" --argjson b "$NEW_BEST" \
-      '{floor:$f, best:$b, history:[{ts:$ts, value:$v, note:$n}]}' > "$tmp"
-  fi
-  mv "$tmp" "$STATE"
+  write_state --argjson v "$1" --arg n "$2" --arg ts "$TS" \
+    --argjson f "$NEW_FLOOR" --argjson b "$NEW_BEST" \
+    'if . == null then {} else . end
+     | .floor=$f | .best=$b
+     | .history = ((.history // []) + [{ts:$ts, value:$v, note:$n}])
+     | .history |= .[-50:]' || exit 2
 }
 
 MIN_ALLOWED=$(( FLOOR - TOLERANCE ))
-[[ $MIN_ALLOWED -lt 0 ]] && MIN_ALLOWED=0
+(( MIN_ALLOWED < 0 )) && MIN_ALLOWED=0
 
 if (( CURRENT < MIN_ALLOWED )); then
   NEW_FLOOR=$FLOOR; NEW_BEST=$BEST
@@ -102,8 +165,9 @@ if (( CURRENT < MIN_ALLOWED )); then
   echo "значит новый код проверен хуже, чем существующий."
   echo
   echo "Что делать: разобрать выживших мутантов и усилить ассерты (скилл"
-  echo "mutation-harden). Понижать планку — только осознанным решением человека:"
-  echo "  ratchet.sh reset <значение>"
+  echo "mutation-harden). Если планку и правда нужно понизить (удалён хорошо"
+  echo "покрытый модуль), это решение человека: остановись и спроси человека."
+  echo "Сам планку не сбрасывай и файл состояния не трогай."
   exit 1
 fi
 
