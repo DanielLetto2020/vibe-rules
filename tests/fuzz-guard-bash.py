@@ -12,20 +12,33 @@
   2. Не зависает    — укладывается в таймаут.
   3. Не пропускает  — разрушающая команда в любой обёртке не получает «pass».
   4. Не мешает      — безобидная команда в любой обёртке не получает «deny».
+  5. Запрет остаётся запретом при выключенных вопросах (.claude/std-hooks-off):
+     вопрос маркер глушит, и если разрушающее ловилось только вопросом,
+     при маркере оно проходило молча.
 
 Генерация детерминированная (фиксированное зерно): падение обязано
 воспроизводиться, иначе его нельзя чинить. Зерно можно задать аргументом.
 
   tests/fuzz-guard-bash.py [число кейсов] [зерно]
 """
+import atexit
 import json
+import os
 import random
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 GUARD = ROOT / "plugins" / "std-core" / "scripts" / "guard-bash.sh"
+
+OFF_PROJECT = Path(tempfile.mkdtemp(prefix="fuzz-off-"))
+(OFF_PROJECT / ".claude").mkdir()
+(OFF_PROJECT / ".claude" / "std-hooks-off").touch()
+atexit.register(shutil.rmtree, OFF_PROJECT, ignore_errors=True)
 
 GREEN, RED, DIM, OFF = "\033[32m", "\033[31m", "\033[2m", "\033[0m"
 TIMEOUT = 15
@@ -67,6 +80,12 @@ WRAPPERS = [
     "bash -c \"{}\"",
     "sh -c '{}'",
     "VAR=1 {}",
+    # Найдено аудитом: подоболочка, опции обёрток, флаги перед -c
+    "({})",
+    "{{ {}; }}",
+    "sudo -u root {}",
+    "bash -e -c \"{}\"",
+    "x=$({})",
 ]
 
 # Шум, который не меняет смысла команды, но ломает наивное сопоставление.
@@ -80,14 +99,20 @@ NOISE = [
     lambda c: f"{c} 2>/dev/null",
     lambda c: f"  {c}  ",
     lambda c: f"{c} | tee /tmp/лог.txt",
+    # Перенос строки обратным слэшем резал команду на две
+    lambda c: c.replace(" ", " \\\n  ", 1),
+    lambda c: f"# сначала почистим\n{c}",
 ]
 
 
-def decide(command: str) -> tuple[str, str]:
+def decide(command: str, project: Optional[Path] = None) -> tuple[str, str]:
     """Возвращает (решение, проблема). Решение: pass|deny|ask."""
     payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
+    env = dict(os.environ)
+    if project is not None:
+        env["CLAUDE_PROJECT_DIR"] = str(project)
     try:
-        p = subprocess.run(["bash", str(GUARD)], input=payload,
+        p = subprocess.run(["bash", str(GUARD)], input=payload, env=env,
                            capture_output=True, text=True, timeout=TIMEOUT)
     except subprocess.TimeoutExpired:
         return "", f"разбор не завершился за {TIMEOUT} с"
@@ -135,6 +160,11 @@ def main() -> int:
             continue
         if dangerous and decision == "pass":
             failures.append(f"разрушающая команда прошла\n     команда: {cmd[:160]}")
+        if dangerous and decision != "pass":
+            off, problem = decide(cmd, OFF_PROJECT)
+            if problem or off == "pass":
+                failures.append(f"при std-hooks-off разрушающая команда прошла "
+                                f"({problem or off})\n     команда: {cmd[:160]}")
         if not dangerous and decision == "deny":
             failures.append(f"безобидная команда заблокирована\n     команда: {cmd[:160]}")
 

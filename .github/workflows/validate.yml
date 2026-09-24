@@ -83,3 +83,10 @@ jobs:
         run: |
           brew install bash
           bash tests/test-real-old-bash.sh
+
+      # Разбор команд в guard-bash — на awk, а awk в macOS свой (BSD),
+      # не mawk и не gawk из Linux. Корпус и фаззинг — здесь же, на нём.
+      - name: Корпус и фаззинг замка на BSD awk
+        run: |
+          python3 tests/test-hook-corpus.py
+          python3 tests/fuzz-guard-bash.py
