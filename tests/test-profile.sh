@@ -463,6 +463,29 @@ VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
   && ok "повторный запуск без аргумента профиль не меняет" \
   || bad "повторный запуск" prototype "$(jq -r '.profile' "$SW/.claude/gauntlet.json")"
 
+echo "== покрытие и долг переживают настройку =="
+# Раздел gates заменяет гейты по умолчанию целиком. setup писал туда только
+# style/types/test, и после --profile solo проект терял diff-coverage и debt,
+# которые без конфигурации запускались, — а skill std-modernize зовёт
+# --only debt.
+SD="$TMP/setup-gates"; mkdir -p "$SD"
+( cd "$SD" && echo '{"require":{"laravel/framework":"^11.0"}}' > composer.json && touch artisan
+  git init -q 2>/dev/null; git add -A >/dev/null 2>&1
+  git -c user.email=a@x -c user.name=a commit -qm init >/dev/null 2>&1 ) >/dev/null 2>&1
+VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
+  CLAUDE_PROJECT_DIR="$SD" bash "$SETUP" --profile solo --no-install >/dev/null 2>&1
+GL=$(CLAUDE_PROJECT_DIR="$SD" bash "$ROOT/plugins/std-gauntlet/scripts/gauntlet.sh" --list 2>&1)
+for g in diff-coverage debt; do
+  grep -qE "^  $g " <<<"$GL" && ok "после setup --profile solo гейт $g на месте" \
+    || bad "гейт $g после setup" "в списке" "$GL"
+done
+# Прототипу хватает стиля: планка качества там не поднимается сама
+SPR="$TMP/setup-proto"; mkdir -p "$SPR"; echo '{}' > "$SPR/composer.json"
+VIBE_RULES_HOME="$ROOT" VIBE_RULES_INSTALLED_DB="$TMP/empty-plugins.json" \
+  CLAUDE_PROJECT_DIR="$SPR" bash "$SETUP" --profile prototype --no-install >/dev/null 2>&1
+[[ "$(jq -r '.gates | has("debt")' "$SPR/.claude/gauntlet.json" 2>/dev/null)" == "false" ]] \
+  && ok "prototype долг не добавляет" || bad "prototype" "без debt" "$(jq -c '.gates' "$SPR/.claude/gauntlet.json" 2>/dev/null)"
+
 echo "== отключение проекта от стандартов =="
 # Обратная операция живёт в той же команде: подключение и отключение —
 # одно решение, принятое в разные стороны.

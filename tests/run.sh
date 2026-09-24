@@ -15,11 +15,11 @@ hdr "1/18 Страж приватных данных"
 python3 "$ROOT/tests/no-private-data.py" || RC=1
 
 hdr "2/18 Права на исполнение скриптов"
-missing=0
+not_exec=0
 while IFS= read -r s; do
-  [[ -x "$s" ]] || { printf '  не исполняемый: %s\n' "${s#$ROOT/}"; missing=1; }
+  [[ -x "$s" ]] || { printf '  не исполняемый: %s\n' "${s#$ROOT/}"; not_exec=1; }
 done < <(find "$ROOT/plugins" "$ROOT/tests" -name '*.sh' -type f)
-[[ $missing -eq 0 ]] && echo "  ok" || { echo "  почини: chmod +x"; RC=1; }
+[[ $not_exec -eq 0 ]] && echo "  ok" || { echo "  почини: chmod +x"; RC=1; }
 
 hdr "3/18 Структура модулей и frontmatter"
 python3 "$ROOT/tests/lint-modules.py" || RC=1

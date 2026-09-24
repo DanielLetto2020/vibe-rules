@@ -39,7 +39,9 @@
       "gates": [
         "style",
         "types",
-        "test"
+        "test",
+        "diff-coverage",
+        "debt"
       ],
       "mutation": {
         "enabled": true,
@@ -57,7 +59,9 @@
       "gates": [
         "style",
         "types",
-        "test"
+        "test",
+        "diff-coverage",
+        "debt"
       ],
       "mutation": {
         "enabled": true,
@@ -77,7 +81,9 @@
       "guardTests": "ask",
       "gates": [
         "style",
-        "test"
+        "test",
+        "diff-coverage",
+        "debt"
       ],
       "mutation": {
         "enabled": true,

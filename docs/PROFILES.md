@@ -63,7 +63,9 @@
   "gates": {
     "style": "./vendor/bin/pint --test",
     "types": "./vendor/bin/phpstan analyse --no-progress",
-    "test": "php artisan test"
+    "test": "php artisan test",
+    "diff-coverage": "python3 \"$STD_GAUNTLET_ROOT\"/scripts/diff-coverage.py",
+    "debt": "\"$STD_GAUNTLET_ROOT\"/scripts/debt.sh check"
   },
   "mutation": { "enabled": true, "mode": "ratchet", "floor": 50 },
   "requireBeforeCommit": true,
@@ -74,6 +76,12 @@
 
 **Этот файл коммитится.** У всей команды одинаковые требования, и они видны
 в истории — когда и почему поменялись.
+
+Раздел `gates` заменяет гейты по умолчанию целиком: что в нём не названо, то
+не запускается. Поэтому setup пишет туда и покрытие изменённых строк, и храповик
+долга — раньше их там не было, и настроенный проект терял обе проверки,
+которые без конфигурации работали. `$STD_GAUNTLET_ROOT` остаётся переменной:
+путь модуля содержит версию, его подставляет прогон.
 
 ---
 
@@ -158,7 +166,7 @@
   "specFirst": false,
   "requireBeforeCommit": true,
   "guardTests": "ask",
-  "gates": ["style", "test"],
+  "gates": ["style", "test", "diff-coverage", "debt"],
   "mutation": { "enabled": true, "mode": "ratchet", "floor": 30 },
   "rationale": "Спека избыточна: заказчик и исполнитель — один человек. Но тесты нужны, потому что инструментом пользуются другие команды и о поломке узнают не сразу."
 }
@@ -173,7 +181,7 @@
 | `specFirst` | требовать ли критерий приёмки до кода |
 | `requireBeforeCommit` | гонять ли гейты перед коммитом |
 | `guardTests` | `off` / `ask` / `deny` при правке существующего теста |
-| `gates` | какие проверки обязательны: `style`, `types`, `test`, `security` |
+| `gates` | какие проверки обязательны: `style`, `types`, `test`, `security`, `diff-coverage`, `debt` |
 | `mutation` | [храповик](RATCHET.md) от планки, `absolute` с порогом, или выключено |
 | `rationale` | **почему именно так** — обязательно |
 

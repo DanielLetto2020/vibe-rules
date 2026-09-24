@@ -319,6 +319,20 @@ gate_cmd() { # <имя гейта> -> команда или пусто
         # спецификаций подставляется значением — он свойство проекта.
         [[ -n "$tcmd" ]] && { echo "python3 \"\$STD_GAUNTLET_ROOT/scripts/gherkin-mutate.py\" --features $FEATURES_DIR --run '$tcmd'"; return; }
       fi ;;
+    # Раздел gates в конфиге заменяет гейты по умолчанию gauntlet.sh целиком.
+    # Раньше setup писал сюда только style/types/test, и настроенный проект
+    # терял покрытие изменённых строк и храповик долга, которые без
+    # конфигурации запускались. Оба гейта сами говорят «не проверено» или
+    # «не измерен», когда отчёта или анализатора ещё нет, — прогон от этого
+    # не краснеет, поэтому ставятся везде, где есть код с тестами.
+    diff-coverage)
+      if have composer.json || have package.json || have pyproject.toml || have requirements.txt; then
+        echo 'python3 "$STD_GAUNTLET_ROOT"/scripts/diff-coverage.py'; return
+      fi ;;
+    debt)
+      if have composer.json || have package.json || have pyproject.toml || have requirements.txt; then
+        echo '"$STD_GAUNTLET_ROOT"/scripts/debt.sh check'; return
+      fi ;;
     mutation)
       have artisan && { echo './vendor/bin/infection --threads=max --min-msi=$MSI --no-progress'; return; }
       have composer.json && { echo './vendor/bin/infection --threads=max --min-msi=$MSI --no-progress'; return; }
@@ -350,7 +364,6 @@ MUT_ON=$(jq -r '.mutation.enabled' <<<"$P")
 MUT_JSON='{"enabled": false}'
 if [[ "$MUT_ON" == "true" ]]; then
   c=$(gate_cmd mutation)
-  MODE=$(jq -r '.mutation.mode' <<<"$P")
   if [[ -n "$c" ]] && jq -e '.facts.hasMutation' <<<"$FACTS" >/dev/null; then
     GATES_JSON=$(jq --arg v "$c" '. + {mutation: $v}' <<<"$GATES_JSON")
     printf '  \033[32m✓\033[0m %-9s %s\n' "mutation" "$c"
