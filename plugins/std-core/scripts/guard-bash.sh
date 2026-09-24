@@ -350,7 +350,7 @@ rm_zone() { # <аргумент> -> system|outside|inside
   # замка это тот же самый путь, только записанный короче.
   case "$p" in
     '~')               p="$home" ;;
-    '~/'*)             p="$home/${p#\~/}" ;;
+    \~/*)             p="$home/${p#\~/}" ;;
     '$HOME'|'${HOME}') p="$home" ;;
     '$HOME/'*)         p="$home/${p#\$HOME/}" ;;
     '${HOME}/'*)       p="$home/${p#\$\{HOME\}/}" ;;

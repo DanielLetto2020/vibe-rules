@@ -90,7 +90,7 @@ python3 "$MUT" --run "false" >/dev/null 2>&1
 [[ $? -eq 2 ]] && ok "тесты красные до мутаций — прогон отменяется" || bad "красная база" "код не 2"
 
 echo "== сценарий без конкретных значений =="
-mkdir -p "$TMP/vague/features"; cd "$TMP/vague"
+mkdir -p "$TMP/vague/features"; cd "$TMP/vague" || exit 1
 cat > features/vague.feature <<'EOF'
 Функция: Заказ
 

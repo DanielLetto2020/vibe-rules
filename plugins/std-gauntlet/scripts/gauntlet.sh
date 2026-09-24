@@ -19,7 +19,7 @@ CFG="$PROJECT_DIR/.claude/gauntlet.json"
 # Команды гейтов могут ссылаться на скрипты модуля — например мутация данных
 # спецификации. Путь подставляется здесь, чтобы в конфигурации проекта его
 # не хардкодили: при обновлении плагина он меняется.
-export STD_GAUNTLET_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STD_GAUNTLET_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; export STD_GAUNTLET_ROOT
 MODE="full"; ONLY=""
 
 while [[ $# -gt 0 ]]; do

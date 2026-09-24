@@ -35,6 +35,21 @@ jobs:
       - name: Установить jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
+      # shellcheck — из PyPI закреплённой версией, а не из apt: в 22.04 и 24.04
+      # разные версии, и одна и та же строка краснела бы только на одной из них.
+      - name: Установить shellcheck
+        run: pipx install shellcheck-py==0.10.0.1
+
+      # Без CLI шаг валидации манифестов в CI пропускался: зелёная галочка
+      # не включала проверку, которую README обещает «по каждому модулю».
+      # `plugin validate` работает локально и не требует ключа.
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af  # v4.1.0
+        with:
+          node-version: 22
+
+      - name: Установить Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code@2.1.281
+
       - name: Настроить git для тестов, создающих репозитории
         run: |
           git config --global user.email ci@example.com

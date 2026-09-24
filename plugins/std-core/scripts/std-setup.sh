@@ -350,7 +350,6 @@ MUT_ON=$(jq -r '.mutation.enabled' <<<"$P")
 MUT_JSON='{"enabled": false}'
 if [[ "$MUT_ON" == "true" ]]; then
   c=$(gate_cmd mutation)
-  MODE=$(jq -r '.mutation.mode' <<<"$P")
   if [[ -n "$c" ]] && jq -e '.facts.hasMutation' <<<"$FACTS" >/dev/null; then
     GATES_JSON=$(jq --arg v "$c" '. + {mutation: $v}' <<<"$GATES_JSON")
     printf '  \033[32m✓\033[0m %-9s %s\n' "mutation" "$c"
