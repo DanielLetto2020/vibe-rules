@@ -77,6 +77,76 @@ python3 "$MUT" --run "python3 fake.py" >/dev/null 2>&1
 AFTER=$(md5sum features/discount.feature | cut -d' ' -f1)
 [[ "$ORIG" == "$AFTER" ]] && ok "файл восстановлен после прогона" || bad "восстановление" "файл изменён"
 
+echo "== прерванный прогон не оставляет спецификацию испорченной =="
+# Bash-инструмент по таймауту шлёт SIGTERM. finally при этом не выполнялся,
+# и в спецификации оставалось «Дано заказ на 1001 рублей».
+cp features/discount.feature "$TMP/discount.orig"
+cat > "$P/slow.sh" <<SH
+#!/usr/bin/env bash
+# Исходная спецификация — быстро и зелено, испорченная — долго
+cmp -s features/discount.feature "$TMP/discount.orig" && exit 0
+sleep 30
+SH
+wait_mutated() { # ждём, пока файл испорчен (до 10 секунд)
+  local _
+  for _ in $(seq 1 100); do
+    cmp -s features/discount.feature "$TMP/discount.orig" || return 0
+    sleep 0.1
+  done
+  return 1
+}
+python3 "$MUT" --run "bash slow.sh" >/dev/null 2>&1 &
+pid=$!
+wait_mutated; kill -TERM "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
+cmp -s features/discount.feature "$TMP/discount.orig" \
+  && ok "SIGTERM: спецификация восстановлена" || bad "SIGTERM" "файл испорчен: $(grep -n 'заказ на' features/discount.feature)"
+cp "$TMP/discount.orig" features/discount.feature
+
+# SIGKILL не перехватить. Копия исходника лежит рядом, и следующий запуск
+# возвращает её на место прежде всего остального.
+python3 "$MUT" --run "bash slow.sh" >/dev/null 2>&1 &
+pid=$!
+wait_mutated; kill -KILL "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
+OUT=$(python3 "$MUT" --dry-run 2>&1)
+cmp -s features/discount.feature "$TMP/discount.orig" \
+  && ok "после SIGKILL следующий запуск восстанавливает спецификацию" \
+  || bad "SIGKILL" "файл испорчен: $(grep -n 'заказ на' features/discount.feature)"
+grep -q "восстановлен" <<<"$OUT" && ok "о восстановлении сказано вслух" || bad "SIGKILL: текст" "«восстановлен»"
+[[ -z "$(find features -name '*gherkin-mutate*')" ]] && ok "копия после восстановления убрана" \
+  || bad "SIGKILL: копия" "$(find features -name '*gherkin-mutate*')"
+cp "$TMP/discount.orig" features/discount.feature; rm -f "$P/slow.sh"
+sleep 0.2
+
+echo "== все значения строки, включая колонки примеров =="
+# Портилось только первое число строки: в «| 1000 | 900 |» колонка ожидаемого
+# результата не трогалась, и тест с захардкоженным итогом получал 100%.
+EX="$TMP/examples"; mkdir -p "$EX/features"
+cat > "$EX/features/outline.feature" <<'EOF'
+Функция: Скидка
+
+  Структура сценария: скидка десять процентов
+    Дано заказ на <order> рублей
+    Тогда итоговая сумма равна <total> рублей
+
+    Примеры:
+      | order | total |
+      | 1000  | 900   |
+EOF
+# Читает из примера сумму заказа, итог держит в себе
+cat > "$EX/half.py" <<'PY'
+import re, sys, pathlib
+rows = [l for l in pathlib.Path("features/outline.feature").read_text().splitlines()
+        if re.match(r"\s*\|\s*\d", l)]
+order = int(rows[0].split("|")[1])
+sys.exit(0 if order == 1000 and 900 == order - order // 10 else 1)
+PY
+( cd "$EX" && python3 "$MUT" --run "python3 half.py" --json ) > "$TMP/half.json" 2>/dev/null
+HS=$(jq -r '.score' "$TMP/half.json" 2>/dev/null)
+[[ -n "$HS" && "$HS" != "100" ]] && ok "итог в колонке примера портится — захардкоженный итог выжил (score $HS%)" \
+  || bad "колонка примера" "score ниже 100, получили $HS"
+jq -e '[.survived[] | select(.mutated | test("1000 +\\| +(901|0) "))] | length > 0' "$TMP/half.json" >/dev/null 2>&1 \
+  && ok "выжившие мутанты — именно в колонке итога" || bad "колонка итога" "$(jq -c '.survived' "$TMP/half.json")"
+
 echo "== отказы понятны, а не молчаливы =="
 python3 "$MUT" --features nowhere --run "true" >/dev/null 2>&1
 [[ $? -eq 2 ]] && ok "нет спецификаций — код 2, а не «всё хорошо»" || bad "нет файлов" "код не 2"
@@ -90,7 +160,7 @@ python3 "$MUT" --run "false" >/dev/null 2>&1
 [[ $? -eq 2 ]] && ok "тесты красные до мутаций — прогон отменяется" || bad "красная база" "код не 2"
 
 echo "== сценарий без конкретных значений =="
-mkdir -p "$TMP/vague/features"; cd "$TMP/vague"
+mkdir -p "$TMP/vague/features"; cd "$TMP/vague" || exit 1
 cat > features/vague.feature <<'EOF'
 Функция: Заказ
 

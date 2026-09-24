@@ -65,20 +65,32 @@ bash_case "запуск тестов разрешён"                 'php arti
 echo "== guard-bash: зоны рекурсивного удаления =="
 # Регулярка по корням видела только их: `rm -rf /var` блокировался,
 # `rm -rf /var/lib/postgresql` проходил. Зона определяется по пути целиком.
-bash_case "подпуть системного каталога"            'rm -rf /var/lib/postgresql'   deny
-bash_case "подпуть /etc"                           'rm -rf /etc/nginx/sites'      deny
-bash_case "sudo не меняет зону"                    'sudo rm -rf /usr/local/lib'   deny
-bash_case "чужой домашний каталог"                 'rm -rf /home/other/work'      deny
-bash_case "маска в корне"                          'rm -rf /*'                    deny
-bash_case "домашний каталог целиком"               'rm -rf ~'                     deny
-bash_case "маска в домашнем каталоге"              'rm -rf ~/*'                   deny
-bash_case "своё вне проекта — вопрос"              'rm -rf ~/projects/old'        ask
-bash_case "кэш в домашней — вопрос"                'rm -rf ~/.cache/pip'          ask
-bash_case "абсолютный путь вне проекта — вопрос"   'rm -rf /tmp/scratch'          ask
-bash_case "выход вверх из проекта — вопрос"        'rm -rf ../soseD'              ask
-bash_case "внутри проекта — свободно"              'rm -rf ./build/cache'         allow
-bash_case "node_modules — свободно"                'rm -rf node_modules'          allow
-bash_case "нерекурсивное удаление не трогаем"      'rm /tmp/scratch/one.log'      allow
+#
+# Домашний каталог и проект заданы явно: относительные пути теперь приводятся
+# к абсолютным, и `../soseD` из клона в /home/user при HOME=/root — это чужой
+# домашний каталог, то есть запрет. Результат не должен зависеть от того,
+# где лежит клон и от чьего имени идёт прогон.
+zone_case() { HOME=/home/dev CLAUDE_PROJECT_DIR=/home/dev/proj bash_case "$@"; }
+zone_case "подпуть системного каталога"            'rm -rf /var/lib/postgresql'   deny
+zone_case "подпуть /etc"                           'rm -rf /etc/nginx/sites'      deny
+zone_case "sudo не меняет зону"                    'sudo rm -rf /usr/local/lib'   deny
+zone_case "чужой домашний каталог"                 'rm -rf /home/other/work'      deny
+zone_case "маска в корне"                          'rm -rf /*'                    deny
+zone_case "домашний каталог целиком"               'rm -rf ~'                     deny
+zone_case "маска в домашнем каталоге"              'rm -rf ~/*'                   deny
+zone_case "своё вне проекта — вопрос"              'rm -rf ~/projects/old'        ask
+zone_case "кэш в домашней — вопрос"                'rm -rf ~/.cache/pip'          ask
+zone_case "абсолютный путь вне проекта — вопрос"   'rm -rf /tmp/scratch'          ask
+zone_case "выход вверх из проекта — вопрос"        'rm -rf ../soseD'              ask
+zone_case "внутри проекта — свободно"              'rm -rf ./build/cache'         allow
+zone_case "node_modules — свободно"                'rm -rf node_modules'          allow
+zone_case "нерекурсивное удаление не трогаем"      'rm /tmp/scratch/one.log'      allow
+# Путь нормализуется до сравнения: раньше всё, что начиналось с имени
+# проекта или с точки, считалось «внутри», включая выход из него наверх
+zone_case "имя проекта и .. — домашний каталог"    'rm -rf /home/dev/proj/..'             deny
+zone_case "каталог проекта выше корня — корень"     'rm -rf /home/dev/proj/../../../..'   deny
+zone_case "две точки из проекта — соседний"        'rm -rf ./../other'                    ask
+zone_case "две ступени вверх из проекта — /home"   'rm -rf ./../..'                       deny
 
 echo "== guard-tests: защита надзорного слоя =="
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
@@ -101,6 +113,50 @@ write_case "правка существующего теста -> ask"  "$TMP/te
 write_case "создание нового теста -> allow"     "$TMP/tests/Feature/NewTest.php"        allow
 write_case "правка обычного кода -> allow"      "$TMP/app/Order.php"                    allow
 write_case "правка .spec.ts -> ask"             "$(touch "$TMP/cart.spec.ts"; echo "$TMP/cart.spec.ts")" ask
+# Маски без якоря находили test_ внутри имени, а короткий список пропускал
+# тесты фронтенда: .tsx, __tests__/, test/, spec/, Cypress.
+mkdir -p "$TMP/src/__tests__" "$TMP/test" "$TMP/spec" "$TMP/cypress/e2e"
+touch "$TMP/src/Cart.test.tsx" "$TMP/src/__tests__/cart.js" "$TMP/test/cart.mjs" \
+      "$TMP/spec/cart_spec.rb" "$TMP/cypress/e2e/cart.cy.ts" \
+      "$TMP/app/latest_prices.py" "$TMP/app/contest_rules.py"
+write_case "правка .test.tsx -> ask"            "$TMP/src/Cart.test.tsx"                ask
+write_case "правка в __tests__/ -> ask"         "$TMP/src/__tests__/cart.js"            ask
+write_case "правка в test/ -> ask"              "$TMP/test/cart.mjs"                    ask
+write_case "правка в spec/ -> ask"              "$TMP/spec/cart_spec.rb"                ask
+write_case "правка .cy.ts -> ask"               "$TMP/cypress/e2e/cart.cy.ts"           ask
+write_case "latest_prices.py — не тест"         "$TMP/app/latest_prices.py"             allow
+write_case "contest_rules.py — не тест"         "$TMP/app/contest_rules.py"             allow
+# Проект, лежащий внутри каталога tests, не превращается в тест целиком
+NESTED="$TMP/tests/sandbox/proj"; mkdir -p "$NESTED/.claude" "$NESTED/app"
+echo '{"guardTests":"ask"}' > "$NESTED/.claude/gauntlet.json"; touch "$NESTED/app/Order.php"
+json=$(jq -n --arg p "$NESTED/app/Order.php" '{tool_name:"Edit",tool_input:{file_path:$p}}')
+got=$(CLAUDE_PROJECT_DIR="$NESTED" decision "$SCRIPTS/guard-tests.sh" "$json")
+[[ "$got" == "allow" ]] && ok "проект внутри …/tests/… — код не считается тестом" \
+  || bad "проект внутри tests" allow "$got"
+# NotebookEdit передаёт путь в notebook_path
+touch "$TMP/tests/test_model.ipynb"
+json=$(jq -n --arg p "$TMP/tests/test_model.ipynb" '{tool_name:"NotebookEdit",tool_input:{notebook_path:$p,new_source:"x"}}')
+got=$(decision "$SCRIPTS/guard-tests.sh" "$json")
+[[ "$got" == "ask" ]] && ok "NotebookEdit теста -> ask" || bad "NotebookEdit теста" ask "$got"
+
+# Тот же короткий путь другим инструментом: Edit спрашивает, а `sed -i` шёл
+# мимо. Маски и строгость общие (tests-lib.sh).
+tb_case() { # <описание> <команда> <ожидаемое>
+  local json got
+  json=$(jq -n --arg c "$2" '{tool_name:"Bash",tool_input:{command:$c}}')
+  got=$(cd "$TMP" && decision "$SCRIPTS/guard-bash.sh" "$json")
+  [[ "$got" == "$3" ]] && ok "$1" || bad "$1" "$3" "$got"
+}
+tb_case "sed -i по тесту -> ask"               "sed -i 's/assert/#assert/' tests/Feature/OrderTest.php" ask
+tb_case "perl -pi по тесту -> ask"             "perl -pi -e 's/a/b/' cart.spec.ts"                    ask
+tb_case "перезапись теста через > -> ask"      "echo '<?php' > tests/Feature/OrderTest.php"           ask
+tb_case "удаление теста -> ask"                'rm tests/Feature/OrderTest.php'                       ask
+tb_case "cp поверх теста -> ask"               'cp /tmp/x tests/Feature/OrderTest.php'                ask
+tb_case "откат тестов к старой версии -> ask"  'git checkout HEAD~3 -- tests/'                        ask
+tb_case "sed -i по коду -> allow"              "sed -i 's/a/b/' app/Order.php"                        allow
+tb_case "новый тест через > -> allow"          "echo x > tests/Feature/BrandNewTest.php"              allow
+tb_case "чтение теста -> allow"                'sed -n 1,5p tests/Feature/OrderTest.php'             allow
+tb_case "запуск теста -> allow"                'phpunit tests/Feature/OrderTest.php'                 allow
 
 echo "== guard-infra: то, что тестами не откатишь =="
 mkdir -p "$TMP/k8s" "$TMP/ansible" "$TMP/database/migrations" "$TMP/.github/workflows"
@@ -134,6 +190,15 @@ infra_case "конфигурация гейтов"          "$TMP/.claude/gauntl
 infra_case "политика стека"               "$TMP/.claude/policy.json"        ask
 infra_case "правило уровня проекта"       "$TMP/.claude/rules/50-project.md" ask
 infra_case "git-хук"                      "$TMP/.githooks/pre-push"         ask
+# Слои, которые модель могла снять правкой одного файла: исключения словаря
+# секретов (единственный запрет, а не вопрос) и состояние храповиков.
+infra_case "исключения словаря секретов"  "$TMP/.claude/secret-allow"       ask
+infra_case "дополнения словаря секретов"  "$TMP/.claude/secret-patterns"    ask
+infra_case "планка мутационного храповика" "$TMP/.claude/.ratchet.json"     ask
+infra_case "планка храповика долга"       "$TMP/.claude/.debt.json"         ask
+infra_case "отметка прохода гейтов"       "$TMP/.claude/.gauntlet-pass"     ask
+infra_case "скрипт проверки коммита"      "$TMP/plugins/std-core/scripts/precommit-secrets.sh" ask
+infra_case "скрипт храповика"             "$TMP/plugins/std-gauntlet/scripts/ratchet.sh" ask
 
 echo "== guard-deps: обход через прямую правку файла зависимостей =="
 printf '{"require":{"php":"^8.3"}}' > "$TMP/composer.json"
@@ -150,6 +215,44 @@ deps_case "новый пакет в composer.json"  "$TMP/composer.json" '"guzzl
 deps_case "новый пакет в package.json"   "$TMP/package.json"  '"lodash": "^4.17.21"'         ask
 deps_case "правка скриптов не трогает"   "$TMP/package.json"  '"scripts": { "dev": "vite" }' allow
 deps_case "обычный файл не трогает"      "$TMP/app/Order.php" 'class Order {}'               allow
+# Формы, которыми пакет подменяют, и манифесты, которые раньше не проверялись
+# никогда: признак «значение начинается с цифры» был только у JSON.
+for f in pyproject.toml requirements.txt requirements-dev.txt go.mod Cargo.toml; do printf 'x\n' > "$TMP/$f"; done
+deps_case "версия latest"                "$TMP/package.json"  '"lodahs": "latest"'           ask
+deps_case "пакет из github:"             "$TMP/package.json"  '"evil": "github:attacker/evil"' ask
+deps_case "пакет из git+https"           "$TMP/package.json"  '"x": "git+https://e.com/x.git"' ask
+deps_case "псевдоним npm:"               "$TMP/package.json"  '"lodash": "npm:lodahs@4"'     ask
+deps_case "скрипт postinstall"           "$TMP/package.json"  '"postinstall": "node x.js"'   ask
+deps_case "версия пакета и новый пакет"  "$TMP/package.json"  "$(printf '"version": "1.2.4",\n"lodahs": "latest"')" ask
+deps_case "поднятая версия проекта"      "$TMP/package.json"  '"version": "1.2.4"'           allow
+deps_case "источник пакетов composer"    "$TMP/composer.json" '"repositories": [{"type": "vcs", "url": "https://github.com/a/b"}]' ask
+deps_case "requirements: опечатка"       "$TMP/requirements.txt" 'reqeusts'                  ask
+deps_case "requirements: git+"           "$TMP/requirements.txt" 'evil @ git+https://e.com/x' ask
+deps_case "requirements: чужой индекс"   "$TMP/requirements.txt" '--extra-index-url https://evil' ask
+deps_case "requirements-dev.txt"         "$TMP/requirements-dev.txt" 'pytest==8.0'           ask
+deps_case "pyproject: PEP 621"           "$TMP/pyproject.toml" '"reqeusts>=2.0",'            ask
+deps_case "pyproject: Poetry"            "$TMP/pyproject.toml" 'requests = "^2.31"'          ask
+deps_case "pyproject: настройка ruff"    "$TMP/pyproject.toml" 'line-length = 100'           allow
+deps_case "go.mod: require"              "$TMP/go.mod"         'require github.com/evil/x v1.0.0' ask
+deps_case "go.mod: версия Go"            "$TMP/go.mod"         'go 1.22'                     allow
+deps_case "Cargo: опечатка"              "$TMP/Cargo.toml"     'serde_jsonn = "1.0"'         ask
+deps_case "Cargo: edition"               "$TMP/Cargo.toml"     'edition = "2021"'            allow
+json=$(jq -n --arg p "$TMP/package.json" '{tool_name:"MultiEdit",tool_input:{file_path:$p,edits:[{old_string:"a",new_string:"\"lodahs\": \"latest\""}]}}')
+got=$(decision "$SCRIPTS/guard-deps.sh" "$json")
+[[ "$got" == "ask" ]] && ok "MultiEdit: пакет в массиве правок" || bad "MultiEdit в guard-deps" ask "$got"
+
+echo "== guard-bash: секрет, который достают поиском по каталогу =="
+# grep -r печатает строки всех файлов, включая .env. Спрашивать на каждый
+# рекурсивный поиск нельзя — поэтому вопрос только там, где файл с секретом
+# действительно лежит в каталоге и не исключён. Каталог $TMP с .env выше.
+mkdir -p "$TMP/src"; echo 'x' > "$TMP/src/app.js"
+bash_case "grep -r по ключу в каталоге с .env"      'grep -rn PASSWORD .'                   ask
+bash_case "тот же поиск с исключением .env"         'grep -rn PASSWORD --exclude=.env .'    allow
+bash_case "поиск не по ключу — не спрашиваем"       'grep -rn TODO .'                       allow
+bash_case "каталог без секретов — не спрашиваем"    'grep -rn PASSWORD src'                 allow
+# Буквальная часть маски короче двух символов, по образцам имён она не
+# проверяется — поймать её может только раскрытие по настоящим файлам
+bash_case "маска, раскрывающаяся в .env"            'cat .?nv'                              ask
 
 echo "== guard-commit: коммит без прогона гейтов =="
 GT="$ROOT/plugins/std-gauntlet/scripts/guard-commit.sh"
@@ -506,6 +609,16 @@ out=$(printf '%s' "$SAFE" | PATH="$BARE" bash "$SCRIPTS/guard-bash.sh" 2>/dev/nu
 grep -q 'jq' <<<"$out" && ok "в отказе сказано, чего не хватает" \
   || bad "текст отказа" "упоминание jq" "$out"
 
+# Битый JSON: ошибку разборщика глотали, и вход выглядел как пустая команда —
+# exit 0 без решения. Проверяем оба разборщика.
+BROKEN='{"tool_name":"Bash","tool_input":{"command":"rm -rf /etc"'
+got=$(decision "$SCRIPTS/guard-bash.sh" "$BROKEN")
+[[ "$got" == "ask" ]] && ok "битый JSON — вопрос, а не тихий пропуск" \
+  || bad "битый JSON через jq" ask "$got"
+got=$(nojq_decision "$NOJQ" "$SCRIPTS/guard-bash.sh" "$BROKEN")
+[[ "$got" == "ask" ]] && ok "битый JSON без jq — тоже вопрос" \
+  || bad "битый JSON через python3" ask "$got"
+
 # Замки, работающие только в подключённых проектах, ведут себя так же
 STDP="$TMP/подключённый"; mkdir -p "$STDP/.claude/rules/std-core" "$STDP/tests"
 echo '{}' > "$STDP/.claude/gauntlet.json"; echo '<?php' > "$STDP/tests/BTest.php"
@@ -526,6 +639,36 @@ grep -q 'jq' <<<"$out" && ok "старт сессии сообщает, что �
 PATH="$BARE" bash "$ROOT/plugins/std-gauntlet/scripts/ratchet.sh" check 5 >/dev/null 2>&1
 [[ $? -ne 0 ]] && ok "храповик без jq падает, а не пропускает" \
   || bad "ratchet без jq" "ненулевой код" "0"
+
+echo "== старый bash не выключает замки молча =="
+# В macOS по умолчанию bash 3.2. На нём mapfile и declare -A — ошибки
+# выполнения, а не синтаксиса: guard-bash делил команду на ноль сегментов
+# и пропускал всё. Версия подменяется переменной — собирать bash 3.2 в CI
+# дороже, чем проверить ветку решения.
+DANGER=$(jq -n '{tool_name:"Bash",tool_input:{command:"rm -rf /etc"}}')
+old_case() { # <описание> <кандидаты> <ожидаемое>
+  local got
+  got=$(printf '%s' "$DANGER" | STD_TEST_BASH_VERSION=3.2 STD_BASH_CANDIDATES="$2" \
+          bash "$SCRIPTS/guard-bash.sh" 2>/dev/null | jq -r '.hookSpecificOutput.permissionDecision // "allow"')
+  [[ "$got" == "$3" ]] && ok "$1" || bad "$1" "$3" "$got"
+}
+old_case "bash 3.2 без нового рядом — вопрос, а не пропуск" ""              ask
+old_case "bash 3.2, рядом есть новый — перезапуск и запрет"  "$(command -v bash)" deny
+for h in guard-secrets guard-tests guard-infra guard-deps precommit-secrets; do
+  got=$(printf '{}' | STD_TEST_BASH_VERSION=4.3 STD_BASH_CANDIDATES="" bash "$SCRIPTS/$h.sh" 2>/dev/null \
+          | jq -r '.hookSpecificOutput.permissionDecision // "allow"')
+  [[ "$got" == "ask" ]] && ok "$h на bash 4.3 спрашивает" || bad "$h на старом bash" ask "$got"
+done
+printf '{}' | STD_TEST_BASH_VERSION=3.2 STD_BASH_CANDIDATES="" bash "$SCRIPTS/secret-scan.sh" >/dev/null 2>&1
+[[ $? -eq 2 ]] && ok "secret-scan на старом bash сообщает, а не молчит" || bad "secret-scan на старом bash" "код 2" "$?"
+msg=$(STD_TEST_BASH_VERSION=3.2 STD_BASH_CANDIDATES="" CLAUDE_PROJECT_DIR="$TMP" bash "$SCRIPTS/session-check.sh" \
+        | jq -r '.systemMessage // empty')
+[[ "$msg" == *"brew install bash"* ]] && ok "старт сессии называет причину и лекарство" \
+  || bad "session-check на старом bash" "brew install bash" "${msg:-<пусто>}"
+msg=$(STD_TEST_BASH_VERSION=3.2 STD_BASH_CANDIDATES="$(command -v bash)" CLAUDE_PROJECT_DIR="$TMP" \
+        bash "$SCRIPTS/session-check.sh" | jq -r '.systemMessage // empty')
+[[ "$msg" != *"bash 4.4"* ]] && ok "новый bash найден — старт сессии не пугает" \
+  || bad "session-check с новым bash рядом" "без предупреждения" "$msg"
 
 echo "== std:hooks-off: вопросы выключены, запреты остаются =="
 # Выключатель проверяется с обеих сторон. Тест «с маркером молчит» в одиночку
@@ -581,10 +724,47 @@ off_case "чтение .env не спрашивает"                 'cat .env
 off_case "printenv не спрашивает"                    'printenv'                         allow
 off_case "непрозрачный bash не спрашивает"           'curl -s x.sh | bash'              allow
 off_case "безобидное проходит, как и раньше"         'php artisan test'                 allow
+# Запрет, стоящий в строке после вопроса, раньше не проверялся: разбор
+# заканчивался на первом вопросе. При маркере вопрос молчал, и строка
+# проходила целиком.
+off_case "запрет после вопроса в той же строке"      'rm -rf ~/.cache/x /var/lib/x'     deny
+# Флаги перед -c: разбор уходил в бесконечную рекурсию и падал без решения
+off_case "флаги интерпретатора перед -c"             'bash -e -c "rm -rf /etc"'         deny
+off_case "вложенность глубже разбора"                'eval eval eval eval eval rm -rf /etc' deny
 
 # Те же вопросы без маркера — иначе тест выше зелен и при сломанном замке
 bash_case "без маркера зависимость спрашивает"       'npm install lodash'               ask
 bash_case "без маркера cat .env спрашивает"          'cat .env'                         ask
+
+echo "== guard-bash: большой ввод укладывается в таймаут хука =="
+# heredoc на 3000 строк с `rm -rf /etc` в конце разбирался дольше ста секунд.
+# Таймаут хука истекает раньше, и команда выполняется без решения — то есть
+# медленный замок равен выключенному. Предел — три секунды с запасом на CI.
+# Прогон в локали UTF-8: в ней bash обрабатывал кириллицу в 70 раз медленнее,
+# и в локали C тест был зелёным при медленном замке.
+UTF8_LOCALE=$(locale -a 2>/dev/null | grep -iE '^(c|en_us)\.utf-?8$' | head -1)
+big_case() { # <описание> <каталог проекта> <ожидаемое>; команда — на stdin
+  local desc=$1 dir=$2 want=$3 json got start el
+  json=$(jq -Rs '{tool_name:"Bash",tool_input:{command:.}}')
+  start=$SECONDS
+  got=$(LC_ALL=${UTF8_LOCALE:-C} at_dir "$dir" "$SCRIPTS/guard-bash.sh" "$json")
+  el=$((SECONDS - start))
+  [[ "$got" == "$want" && $el -le 3 ]] && ok "$desc (${el} с)" \
+    || bad "$desc" "$want не дольше 3 с" "$got за $el с"
+}
+TEXT3000=$(for i in $(seq 1 3000); do echo "строка $i: docker system prune, drop table x, KEY=value"; done)
+CMDS3000=$(for i in $(seq 1 3000); do echo "echo $i"; done)
+printf "cat > notes.md <<'EOF'\n%s\nEOF\nrm -rf /etc" "$TEXT3000" \
+  | big_case "heredoc на 3000 строк и rm -rf /etc после него"      "$ON"  deny
+printf "cat > notes.md <<'EOF'\n%s\nEOF\nrm -rf /etc" "$TEXT3000" \
+  | big_case "то же при выключенных вопросах"                      "$OFF" deny
+printf "cat > notes.md <<'EOF'\n%s\nEOF" "$TEXT3000" \
+  | big_case "heredoc — данные: опасные слова в нём не команды"    "$ON"  allow
+# Сверх предела разбора запреты проверяются по тексту целиком
+printf '%s\nrm -rf /etc' "$CMDS3000" \
+  | big_case "3000 команд и rm -rf /etc сверх предела разбора"     "$OFF" deny
+printf '%s' "$CMDS3000" \
+  | big_case "3000 команд без опасного — вопрос, а не тишина"       "$ON"  ask
 
 EDITTEST=$(jq -n --arg p "$OFF/tests/CTest.php" '{tool_name:"Edit",tool_input:{file_path:$p}}')
 got=$(at_dir "$OFF" "$SCRIPTS/guard-tests.sh" "$EDITTEST")

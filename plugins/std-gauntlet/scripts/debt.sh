@@ -17,6 +17,10 @@
 #   debt.sh show            планка, лучшее достигнутое, история
 #   debt.sh reset <число>   установить планку вручную (смена линтера или конфига)
 #
+# Коды возврата: 0 — планка удержана или опущена (или считать нечем — об этом
+# сказано вслух); 1 — долг вырос; 2 — не измерено: инструмент подсчёта упал,
+# состояние повреждено, нет jq, неверный аргумент.
+#
 # Состояние: .claude/.debt.json — локальное, в git не идёт: планка отражает
 # прогон на конкретной машине с конкретными версиями инструментов.
 set -uo pipefail
@@ -34,11 +38,17 @@ fi
 
 have() { [[ -e "$PROJECT_DIR/$1" ]]; }
 
+# ESLint 9 убрал форматтер unix из ядра: прежняя команда падала с кодом 2,
+# пустой вывод читался как «ДОЛГ: 0», и планка фиксировалась на нуле. JSON есть
+# во всех версиях; строки «путь:строка: …» из него собирает jq.
+# shellcheck disable=SC2016  # $f и \(…) — синтаксис jq, раскрывать их bash не должен
+ESLINT_CMD='./node_modules/.bin/eslint . -f json | jq -r '\''.[] | .filePath as $f | .messages[] | "\($f):\(.line // 0): \(.message | gsub("\n"; " "))"'\'''
+
 # Команда подсчёта. Требование к ней одно: печатать по строке на нарушение
 # в формате «путь:строка: …» — так делают phpstan --error-format=raw,
-# eslint -f unix, ruff --output-format=concise и mypy. Считаются именно
-# такие строки, а не весь вывод: заголовки и сводки инструментов иначе
-# попали бы в долг и меняли бы его при обновлении версии.
+# ruff --output-format=concise и mypy. Считаются именно такие строки, а не
+# весь вывод: заголовки и сводки инструментов иначе попали бы в долг
+# и меняли бы его при обновлении версии.
 debt_command() {
   local c=""
   if [[ -f "$CFG" ]]; then
@@ -49,7 +59,7 @@ debt_command() {
   if have vendor/bin/phpstan; then
     printf '%s' './vendor/bin/phpstan analyse --error-format=raw --no-progress'
   elif have package.json && have node_modules/.bin/eslint; then
-    printf '%s' './node_modules/.bin/eslint . -f unix'
+    printf '%s' "$ESLINT_CMD"
   elif have pyproject.toml || have requirements.txt; then
     printf '%s' 'ruff check . --output-format=concise'
   else
@@ -57,46 +67,91 @@ debt_command() {
   fi
 }
 
+# Подсчёт. Коды: 0 — число напечатано; 2 — считать нечем (инструмента нет
+# ни в конфиге, ни в проекте); 3 — инструмент есть, но упал.
+#
+# Код 1 у линтеров означает «нарушения найдены» — это и есть подсчёт. Всё, что
+# выше, — сбой самого инструмента (нет форматтера, не установлен, сломан
+# конфиг), и его вывод ничего не значит. Раньше код не читали вовсе: упавший
+# ruff давал «ДОЛГ: 0», первый прогон фиксировал планку на нуле, а после
+# починки инструмента реальный долг навсегда оказывался «выше планки».
 count_debt() {
-  local cmd out
+  local cmd out rc err
   cmd=$(debt_command) || return 2
-  out=$( cd "$PROJECT_DIR" && eval "$cmd" 2>/dev/null )
+  err=$(mktemp)
+  out=$( cd "$PROJECT_DIR" && eval "$cmd" 2>"$err" ); rc=$?
+  if (( rc > 1 )); then
+    {
+      echo "инструмент подсчёта завершился с кодом $rc: $cmd"
+      sed -n '1,5p' "$err" | sed 's/^/  /'
+    } >&2
+    rm -f "$err"
+    return 3
+  fi
+  rm -f "$err"
+  # Путь может содержать пробел (eslint и phpstan печатают абсолютные пути),
+  # поэтому от строки требуется только непустое начало и «:число:».
   # grep -c без совпадений возвращает 1 и печатает 0 — читаем вывод, а не код.
-  printf '%s\n' "$out" | grep -cE '^[^[:space:]]+:[0-9]+' 2>/dev/null || true
+  printf '%s\n' "$out" | grep -cE '^[^[:space:]].*:[0-9]+:' 2>/dev/null || true
 }
 
-read_num() { # <ключ> <значение по умолчанию>
-  [[ -f "$STATE" ]] || { printf '%s' "$2"; return 0; }
-  local v; v=$(jq -r --arg k "$1" 'if has($k) then .[$k] else empty end' "$STATE" 2>/dev/null)
-  [[ -z "$v" || "$v" == "null" ]] && v="$2"
-  printf '%s' "$v"
+# Состояние читается целиком или не читается вовсе. Раньше пустой или битый
+# файл давал пустую строку, пустая строка — «планки нет», и проходил любой
+# долг; запись поверх битого файла снова давала пустой файл, и проверка
+# оставалась выключенной навсегда.
+state_ok() {
+  jq -e 'type == "object"
+         and (.ceiling | type) == "number" and (.best | type) == "number"
+         and .ceiling >= 0 and .best >= 0
+         and (.ceiling | floor) == .ceiling and (.best | floor) == .best' \
+     "$STATE" >/dev/null 2>&1
+}
+
+state_broken() {
+  echo "состояние храповика долга повреждено: ${STATE#"$PROJECT_DIR"/}"
+  echo "Без него планку не с чем сравнить, а считать её нулевой или отсутствующей"
+  echo "значило бы пропускать любой долг. Восстановить планку — решение человека:"
+  echo "остановись и скажи ему. Сам файл состояния не правь и не удаляй."
+  exit 2
 }
 
 write_state() { # <потолок> <лучшее> <текущее> <заметка>
-  local tmp; tmp=$(mktemp)
-  local ts; ts=$(date -u +%Y-%m-%dT%H:%MZ)
-  if [[ -f "$STATE" ]]; then
+  local tmp ts rc
+  ts=$(date -u +%Y-%m-%dT%H:%MZ)
+  mkdir -p "$(dirname "$STATE")"
+  # Временный файл рядом с состоянием: mv в пределах каталога атомарен,
+  # и прерванная запись не оставляет полупустой файл.
+  tmp=$(mktemp "$STATE.XXXXXX") || return 1
+  if [[ -f "$STATE" ]] && state_ok; then
     jq --argjson c "$1" --argjson b "$2" --argjson v "$3" --arg n "$4" --arg ts "$ts" \
-      '.ceiling=$c | .best=$b | .history += [{ts:$ts, value:$v, note:$n}] | .history |= .[-50:]' \
-      "$STATE" > "$tmp"
+      '.ceiling=$c | .best=$b | .history = ((.history // []) + [{ts:$ts, value:$v, note:$n}]) | .history |= .[-50:]' \
+      "$STATE" > "$tmp"; rc=$?
   else
-    mkdir -p "$(dirname "$STATE")"
     jq -n --argjson c "$1" --argjson b "$2" --argjson v "$3" --arg n "$4" --arg ts "$ts" \
-      '{ceiling:$c, best:$b, history:[{ts:$ts, value:$v, note:$n}]}' > "$tmp"
+      '{ceiling:$c, best:$b, history:[{ts:$ts, value:$v, note:$n}]}' > "$tmp"; rc=$?
+  fi
+  if [[ $rc -ne 0 || ! -s "$tmp" ]]; then
+    rm -f "$tmp"
+    echo "не удалось записать состояние храповика долга: $STATE" >&2
+    return 1
   fi
   mv "$tmp" "$STATE"
 }
 
 case "${1:-check}" in
   count)
-    n=$(count_debt) || { echo "нечем считать долг: не найден ни phpstan, ни eslint, ни ruff" >&2; exit 2; }
-    echo "$n"
-    exit 0 ;;
+    n=$(count_debt); rc=$?
+    case $rc in
+      0) echo "$n"; exit 0 ;;
+      2) echo "нечем считать долг: не найден ни phpstan, ни eslint, ни ruff" >&2; exit 2 ;;
+      *) echo "долг не измерен: инструмент подсчёта упал" >&2; exit 2 ;;
+    esac ;;
 
   show)
     if [[ -f "$STATE" ]]; then
+      state_ok || state_broken
       jq -r '"планка (не выше): \(.ceiling)\nлучшее достигнутое: \(.best)\nистория:",
-             (.history[-10:][] | "  \(.ts)  \(.value)")' "$STATE"
+             ((.history // [])[-10:][] | "  \(.ts)  \(.value)  \(.note // "")")' "$STATE"
     else
       echo "храповик долга ещё не запускался"
       echo "команда подсчёта: $(debt_command || echo 'не определена')"
@@ -105,8 +160,14 @@ case "${1:-check}" in
 
   reset)
     NEW="${2:-}"
-    [[ -z "$NEW" ]] && { echo "укажи число: debt.sh reset 120"; exit 2; }
-    write_state "$NEW" "$NEW" "$NEW" "установлено вручную"
+    # Проверка до записи: раньше «reset 1O» ронял jq, файл состояния
+    # оставался пустым, а команда печатала «планка установлена».
+    if [[ ! "$NEW" =~ ^[0-9]+$ ]]; then
+      echo "укажи целое неотрицательное число: debt.sh reset 120 (получено: «${NEW}»)"
+      exit 2
+    fi
+    NEW=$((10#$NEW))
+    write_state "$NEW" "$NEW" "$NEW" "установлено вручную" || exit 2
     echo "планка долга установлена: $NEW"
     exit 0 ;;
 
@@ -114,30 +175,40 @@ case "${1:-check}" in
   *) echo "использование: debt.sh check | count | show | reset <число>"; exit 2 ;;
 esac
 
+[[ -f "$STATE" ]] && { state_ok || state_broken; }
+
 CURRENT=$(count_debt)
 rc=$?
-if [[ $rc -ne 0 ]]; then
+if [[ $rc -eq 2 ]]; then
   # Молча пропустить нельзя: «нечем измерить» выглядело бы как «долга нет».
   echo "долг не измерен: не найден инструмент подсчёта (phpstan, eslint или ruff)."
   echo "Укажи команду явно: .claude/gauntlet.json → \"debt\": { \"command\": \"…\" }"
   echo "Команда должна печатать по строке на нарушение в виде «путь:строка: …»."
   exit 0
 fi
+if [[ $rc -ne 0 ]]; then
+  # Упавший инструмент — не «долга нет». Планка не трогается: иначе первая
+  # же поломка зафиксировала бы её на нуле, и после починки реальный долг
+  # навсегда оказался бы «ростом».
+  echo "долг не измерен: инструмент подсчёта упал — планка не тронута."
+  echo "Почини команду или задай её явно: .claude/gauntlet.json → \"debt\": { \"command\": \"…\" }"
+  exit 2
+fi
 
 # Первый прогон фиксирует то, что есть: планка — это факт, а не пожелание.
 if [[ ! -f "$STATE" ]]; then
-  write_state "$CURRENT" "$CURRENT" "$CURRENT" "первый прогон, планка зафиксирована"
+  write_state "$CURRENT" "$CURRENT" "$CURRENT" "первый прогон, планка зафиксирована" || exit 2
   printf '\033[32mДОЛГ: %s — планка зафиксирована\033[0m\n' "$CURRENT"
   echo "Дальше её можно только опускать: каждый тронутый файл, приведённый"
   echo "к правилам, снижает число, и новая планка становится обязательной."
   exit 0
 fi
 
-CEILING=$(read_num ceiling "$CURRENT")
-BEST=$(read_num best "$CURRENT")
+CEILING=$(jq -r '.ceiling' "$STATE")
+BEST=$(jq -r '.best' "$STATE")
 
 if (( CURRENT > CEILING )); then
-  write_state "$CEILING" "$BEST" "$CURRENT" "рост долга"
+  write_state "$CEILING" "$BEST" "$CURRENT" "рост долга" || exit 2
   printf '\033[31mДОЛГ: %s — выше планки %s (стало на %s больше)\033[0m\n' \
     "$CURRENT" "$CEILING" "$(( CURRENT - CEILING ))"
   echo
@@ -148,16 +219,17 @@ if (( CURRENT > CEILING )); then
   echo "Что делать:"
   echo "  1. Посмотреть, какие нарушения добавились: $(debt_command)"
   echo "  2. Починить их в своём коде — это дешевле, чем в чужом."
-  echo "  3. Если рост объективен (новый строгий конфиг, обновлённый линтер) —"
-  echo "     это решение человека: debt.sh reset $CURRENT"
+  echo "  3. Если рост объективен (новый строгий конфиг, обновлённый линтер),"
+  echo "     поднять планку может только человек. Остановись и спроси человека;"
+  echo "     сам планку не сбрасывай и файл состояния не трогай."
   exit 1
 fi
 
 if (( CURRENT < BEST )); then
-  write_state "$CURRENT" "$CURRENT" "$CURRENT" "новый минимум, планка опущена"
+  write_state "$CURRENT" "$CURRENT" "$CURRENT" "новый минимум, планка опущена" || exit 2
   printf '\033[32mДОЛГ: %s — новый минимум, планка опущена с %s\033[0m\n' "$CURRENT" "$CEILING"
 else
-  write_state "$CEILING" "$BEST" "$CURRENT" "в пределах планки"
+  write_state "$CEILING" "$BEST" "$CURRENT" "в пределах планки" || exit 2
   printf '\033[32mДОЛГ: %s — планка %s удержана\033[0m\n' "$CURRENT" "$CEILING"
 fi
 exit 0

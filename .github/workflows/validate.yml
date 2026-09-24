@@ -30,10 +30,25 @@ jobs:
     steps:
       # Action запинен на полный SHA, а не на тег: тег подвижен, и его владелец
       # может изменить содержимое задним числом.
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
 
       - name: Установить jq
         run: sudo apt-get update && sudo apt-get install -y jq
+
+      # shellcheck — из PyPI закреплённой версией, а не из apt: в 22.04 и 24.04
+      # разные версии, и одна и та же строка краснела бы только на одной из них.
+      - name: Установить shellcheck
+        run: pipx install shellcheck-py==0.10.0.1
+
+      # Без CLI шаг валидации манифестов в CI пропускался: зелёная галочка
+      # не включала проверку, которую README обещает «по каждому модулю».
+      # `plugin validate` работает локально и не требует ключа.
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38  # v6.5.0
+        with:
+          node-version: 22
+
+      - name: Установить Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code@2.1.281
 
       - name: Настроить git для тестов, создающих репозитории
         run: |
@@ -47,3 +62,31 @@ jobs:
 
       # test-context.sh не запускается в CI: он поднимает модель.
       # Прогоняйте его локально перед релизом модуля.
+
+  # Замки на настоящем bash 3.2. В macOS он стоит по умолчанию, и на нём
+  # mapfile и declare -A — ошибки выполнения, а не разбора: замок работал
+  # с пустыми данными и пропускал всё. Здесь проверяется, что старый bash
+  # приводит к вопросу человеку или к перезапуску под новым — но не к тишине.
+  old-bash-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
+
+      - name: Замки под /bin/bash 3.2, нового bash нет
+        run: |
+          command -v jq >/dev/null || brew install jq
+          bash tests/test-real-old-bash.sh
+
+      # Второй прогон — с Homebrew bash: проверяется, что замок, запущенный
+      # старым bash, находит новый и перезапускается под ним.
+      - name: Замки под /bin/bash 3.2, рядом Homebrew bash
+        run: |
+          brew install bash
+          bash tests/test-real-old-bash.sh
+
+      # Разбор команд в guard-bash — на awk, а awk в macOS свой (BSD),
+      # не mawk и не gawk из Linux. Корпус и фаззинг — здесь же, на нём.
+      - name: Корпус и фаззинг замка на BSD awk
+        run: |
+          python3 tests/test-hook-corpus.py
+          python3 tests/fuzz-guard-bash.py

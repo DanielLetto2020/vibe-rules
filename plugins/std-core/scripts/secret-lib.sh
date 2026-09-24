@@ -19,7 +19,10 @@
 # а не наоборот: `.env.example` совпадает с маской `.env.*`.
 secret_path_kind() { # <путь> -> печатает вид секрета, код 0; иначе код 1
   local p="$1" base
-  base=${p##*/}
+  # Регистр приводится: на macOS файловая система к нему нечувствительна,
+  # и Read .ENV возвращает содержимое .env. Для имени файла-секрета регистр
+  # ничего не меняет и в Linux: SERVER.PEM — такой же ключ.
+  base=${p##*/}; base=${base,,}
 
   case "$base" in
     *.example|*.sample|*.dist|*.template|*.tpl|*.tmpl) return 1 ;;
@@ -27,21 +30,26 @@ secret_path_kind() { # <путь> -> печатает вид секрета, к�
   esac
 
   case "$base" in
-    .env|.env.*|*.env)
+    .env|.env.*|*.env|.env~|.dev.vars)
       printf 'файл окружения'; return 0 ;;
-    id_rsa|id_dsa|id_ecdsa|id_ed25519|identity)
+    # Ключи SSH часто лежат с суффиксом: id_rsa_github, id_ed25519.bak.
+    # Публичная половина (*.pub) отсеяна выше.
+    id_rsa*|id_dsa*|id_ecdsa*|id_ed25519*|identity|deploy_key|deploy_key.*)
       printf 'приватный ключ SSH'; return 0 ;;
     *.pem|*.p12|*.pfx|*.jks|*.keystore|*.ppk|*.asc|*.gpg)
       printf 'ключ или хранилище ключей'; return 0 ;;
     *.key)
       printf 'ключ'; return 0 ;;
-    .netrc|_netrc|.pgpass|.my.cnf|.git-credentials|.npmrc|.pypirc|.dockercfg)
+    .netrc|_netrc|.pgpass|.my.cnf|.git-credentials|.npmrc|.pypirc|.dockercfg|\
+    .vault-token|.s3cfg|.boto|.htpasswd)
       printf 'файл учётных данных'; return 0 ;;
+    credentials.json|client_secret*.json|service-account*.json|service_account*.json)
+      printf 'учётные данные облачного сервиса'; return 0 ;;
     auth.json)
       printf 'учётные данные пакетного менеджера'; return 0 ;;
-    *.tfstate|*.tfstate.backup|*.tfvars)
+    *.tfstate|*.tfstate.backup|*.tfvars|*.tfvars.json)
       printf 'состояние Terraform: значения секретов лежат в нём открытым текстом'; return 0 ;;
-    secrets.yaml|secrets.yml|secret.yaml|secret.yml|*.secret.*|sealed-secret*.yaml)
+    secrets.yaml|secrets.yml|secret.yaml|secret.yml|secrets.json|secrets.toml|*.secret.*|sealed-secret*.yaml)
       printf 'манифест секретов'; return 0 ;;
     kubeconfig|kubeconfig.*)
       printf 'доступ к кластеру'; return 0 ;;
@@ -49,7 +57,9 @@ secret_path_kind() { # <путь> -> печатает вид секрета, к�
 
   # Каталоги, где секретом является всё содержимое. Проверяются по пути,
   # потому что имя файла там ни о чём не говорит: `config`, `credentials`.
-  case "$p" in
+  # Ведущий «/» дописывается: относительный путь .aws/credentials — тот же
+  # каталог, что и /home/u/.aws/credentials, а маска требует слэша перед ним.
+  case "/$p" in
     */.ssh/*)             printf 'каталог ключей SSH'; return 0 ;;
     */.aws/*)             printf 'учётные данные AWS'; return 0 ;;
     */.gnupg/*)           printf 'ключи GPG'; return 0 ;;
@@ -70,11 +80,14 @@ secret_path_kind() { # <путь> -> печатает вид секрета, к�
 # а без -i пропускал бы `Password:` с большой буквы. Разделение дешевле обеих
 # ошибок.
 _secret_re_nocase() {
+  # Ключ бывает в кавычках ('password' => …, "password": …), разделитель —
+  # =, :, := (Go) или => (PHP). Раньше требовалось `password` и сразу `=`/`:`,
+  # и мимо шли JSON, массивы конфигурации Laravel/Yii и Go.
   printf '%s\n' \
     '(aws_secret_access_key|aws_access_key_id|aws_session_token)[[:space:]]*[:=]' \
-    '(password|passwd|pwd|secret|api_?key|apikey|access_?key|auth_?token|token|private_?key|client_?secret)[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"'{$<]{8,}["'"'"']' \
+    '(password|passwd|pwd|secret|api_?key|apikey|access_?key|auth_?token|token|private_?key|client_?secret)["'"'"']?[[:space:]]*(=>|:=|[:=])[[:space:]]*["'"'"'][^"'"'"'{$<]{8,}["'"'"']' \
     '(authorization|proxy-authorization)[[:space:]]*:[[:space:]]*(bearer|basic)[[:space:]]+[A-Za-z0-9._~+/=-]{16,}' \
-    '^[[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*(key|token|secret|password|passwd|pwd|credentials?|dsn)[[:space:]]*[:=][[:space:]]*[^"'"'"'[:space:]${<]{12,}' \
+    '^[[:space:]]*(-[[:space:]]*)?(export[[:space:]]+)?[A-Za-z0-9_.]*(key|token|secret|password|passwd|pwd|credentials?|dsn)[[:space:]]*[:=][[:space:]]*[^"'"'"'[:space:]${<]{12,}' \
     '(postgres|postgresql|mysql|mariadb|mongodb|mongodb\+srv|redis|rediss|amqp|amqps|ftp|https?)://[^:@/[:space:]]+:[^@/[:space:]]{4,}@'
 }
 
@@ -83,6 +96,9 @@ _secret_re_case() {
     'AKIA[0-9A-Z]{16}' \
     'ASIA[0-9A-Z]{16}' \
     '-----BEGIN [A-Z ]*PRIVATE KEY-----' \
+    '-----BEGIN PGP PRIVATE KEY BLOCK-----' \
+    '(sk|rk)_live_[0-9A-Za-z]{20,}' \
+    'sk-(proj|svcacct|admin)-[A-Za-z0-9_-]{20,}' \
     'sk-ant-[A-Za-z0-9_-]{16,}' \
     'sk-[A-Za-z0-9]{32,}' \
     '(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{16,}' \
@@ -114,7 +130,7 @@ _secret_re_project() { # <корень проекта>
 # и настоящий ключ в фикстуре — два самых обычных места утечки.
 secret_is_placeholder() { # <строка> -> 0, если это заглушка
   printf '%s' "$1" | grep -qiE \
-    'your[-_]|my[-_]secret|<[^>]{1,40}>|x{4,}|X{4,}|changeme|change[-_]me|placeholder|example|sample|dummy|redacted|todo|fixme|\*{4,}|\.\.\.|\$\{|\$\(|%[A-Za-z_]+%|\{\{|process\.env|os\.environ|getenv|env\(|config\(|secret\(|Deno\.env|import\.meta\.env' \
+    '://[^:@/]+:(pass|password|passwd|pwd|secret|changeme)@|your[-_]|your(personal|own|real|actual|api|access|secret|bot)|[-_]here([^a-z0-9]|$)|my[-_]secret|<[^>]{1,40}>|x{4,}|X{4,}|changeme|change[-_]me|placeholder|example|sample|dummy|redacted|todo|fixme|\*{4,}|\.\.\.|\$\{|\$\(|%[A-Za-z_]+%|\{\{|process\.env|os\.environ|getenv|env\(|config\(|secret\(|Deno\.env|import\.meta\.env' \
     && return 0
   # Кириллица: `grep -i` не приводит её регистр в однобайтовой локали, поэтому
   # оба написания перечислены явно.
@@ -129,23 +145,41 @@ secret_is_placeholder() { # <строка> -> 0, если это заглушк�
 # соседство встречается ровно в тех конфигурациях, которые копируют с примера.
 # Формат сам по себе достаточно специфичен; отбрасываем только явный мусор.
 secret_is_stub() { # <строка> -> 0, если это очевидно не ключ
-  printf '%s' "$1" | grep -qE 'x{4,}|X{4,}|\*{4,}|\.{3,}|<[^>]{1,40}>|\$\{|\{\{|%[A-Za-z_]+%' && return 0
+  # «your-…», «…-here», «YourPersonal…» — заглушки из README и .env.example:
+  # формат префикса настоящий, значение — нет.
+  printf '%s' "$1" | grep -qE 'x{4,}|X{4,}|\*{4,}|\.{3,}|<[^>]{1,40}>|\$\{|\{\{|%[A-Za-z_]+%|[Yy]our[-_A-Z]|[-_][Hh]ere([^A-Za-z0-9]|$)' && return 0
   return 1
 }
 
 # Отбор находок из размеченного потока: TAG:номер:текст, где TAG — G (общий
-# паттерн, широкий фильтр) или S (строгий формат, узкий фильтр).
+# паттерн, широкий фильтр), S (строгий формат, узкий фильтр) или P (паттерн
+# проекта, узкий фильтр).
+#
+# Фильтр заглушек смотрит на совпавший фрагмент, а не на всю строку. Иначе
+# настоящий пароль терялся из-за соседства: `DB_PASSWORD="…"  # TODO: вынести`
+# или `postgres://app:…@db.example.com` — слово «todo» или «example» стояло
+# рядом со значением, а не было им.
+_secret_match() { # <тег> <строка> -> совпавший фрагмент (или вся строка)
+  local m=""
+  case "$1" in
+    G) m=$(printf '%s\n' "$2" | grep -oEi -f <(_secret_re_nocase) 2>/dev/null | head -1) ;;
+    S) m=$(printf '%s\n' "$2" | grep -oE  -f <(_secret_re_case)   2>/dev/null | head -1) ;;
+  esac
+  printf '%s' "${m:-$2}"
+}
+
 _secret_pick() { # <корень проекта>
-  local root="$1" line tag rest num text
+  local root="$1" line tag rest num text frag
   local -a chosen=() seen=()
   while IFS= read -r line; do
     tag=${line%%:*}; rest=${line#*:}
     num=${rest%%:*}; text=${rest#*:}
     [[ " ${seen[*]-} " == *" $num "* ]] && continue
+    frag=$(_secret_match "$tag" "$text")
     if [[ "$tag" == "G" ]]; then
-      secret_is_placeholder "$text" && continue
+      secret_is_placeholder "$frag" && continue
     else
-      secret_is_stub "$text" && continue
+      secret_is_stub "$frag" && continue
     fi
     secret_allowed "$text" "$root" && continue
     seen+=("$num")
@@ -183,7 +217,7 @@ secret_content_hits() { # <файл> [<корень проекта>]
     grep -nE  -f <(_secret_re_case)   "$f" 2>/dev/null | sed 's/^/S:/'
     if [[ -n "$root" ]]; then
       local extra; extra=$(_secret_re_project "$root")
-      [[ -n "$extra" ]] && grep -nEi -f <(printf '%s\n' "$extra") "$f" 2>/dev/null | sed 's/^/S:/'
+      [[ -n "$extra" ]] && grep -nEi -f <(printf '%s\n' "$extra") "$f" 2>/dev/null | sed 's/^/P:/'
     fi
   } | _secret_pick "$root"
 }
@@ -198,7 +232,7 @@ secret_text_hits() { # stdin -> строки находок [<корень пр�
     printf '%s\n' "$text" | grep -nE  -f <(_secret_re_case)   2>/dev/null | sed 's/^/S:/'
     if [[ -n "$root" ]]; then
       local extra; extra=$(_secret_re_project "$root")
-      [[ -n "$extra" ]] && printf '%s\n' "$text" | grep -nEi -f <(printf '%s\n' "$extra") 2>/dev/null | sed 's/^/S:/'
+      [[ -n "$extra" ]] && printf '%s\n' "$text" | grep -nEi -f <(printf '%s\n' "$extra") 2>/dev/null | sed 's/^/P:/'
     fi
   } | _secret_pick "$root"
 }

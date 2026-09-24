@@ -27,6 +27,8 @@ Stryker для JS/TS, mutmut для Python). Обычно его нет — эт
     "style": "./vendor/bin/pint --test",
     "types": "./vendor/bin/phpstan analyse --no-progress",
     "test": "php artisan test",
+    "diff-coverage": "python3 \"$STD_GAUNTLET_ROOT\"/scripts/diff-coverage.py",
+    "debt": "\"$STD_GAUNTLET_ROOT\"/scripts/debt.sh check",
     "mutation": "./vendor/bin/infection --threads=max --min-msi=$MSI --no-progress"
   },
   "mutation": { "minMsi": 70 },
@@ -36,6 +38,11 @@ Stryker для JS/TS, mutmut для Python). Обычно его нет — эт
 
 Порядок ключей — это порядок запуска: дешёвое и быстрое первым, чтобы
 очевидная ошибка находилась за секунды, а не после мутационного прогона.
+
+Раздел `gates` заменяет гейты по умолчанию целиком. `diff-coverage` и `debt`
+не выбрасывай: без них прогон перестаёт видеть непокрытый новый код и рост
+долга. Когда отчёта или анализатора ещё нет, они говорят «не проверено»
+и прогон не валят.
 
 ## 4. Определи стартовый порог честно
 

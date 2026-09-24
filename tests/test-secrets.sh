@@ -41,6 +41,36 @@ read_case "обычный исходник проходит"          "/app/src/
 read_case "README проходит"                    "/app/README.md"               allow
 read_case "tfstate эскалируется"               "/infra/terraform.tfstate"     ask
 read_case "Grep по .env эскалируется"          "/app/.env"                    ask
+read_case "регистр не спасает: .ENV"           "/app/.ENV"                    ask
+read_case "ключ SSH с суффиксом"               "/app/deploy/id_rsa_github"    ask
+read_case "публичный ключ с суффиксом проходит" "/app/deploy/id_rsa_github.pub" allow
+read_case "учётные данные облака"              "/app/credentials.json"        ask
+read_case "относительный путь .aws/credentials" ".aws/credentials"            ask
+read_case "package.json проходит"              "/app/package.json"            allow
+
+# Ссылка читается по цели: app.conf -> .env — это чтение .env.
+LNK="$TMP/lnk"; mkdir -p "$LNK"; printf 'DB_PASSWORD=x\n' > "$LNK/.env"; ln -s "$LNK/.env" "$LNK/app.conf"
+read_case "ссылка на .env эскалируется"        "$LNK/app.conf"                ask
+
+# Маска Grep перекрывает .gitignore: glob ".env*" печатал строки игнорируемого
+# .env, пока замок смотрел только на path.
+GREP="$TMP/grep"; mkdir -p "$GREP/src"; printf 'DB_PASSWORD=x\n' > "$GREP/.env"
+printf '{}\n' > "$GREP/package.json"; printf 'x\n' > "$GREP/src/a.ts"
+glob_case() { # <описание> <маска> <каталог поиска|""> <ожидание>
+  local json got
+  json=$(jq -n --arg g "$2" --arg p "$3" \
+    '{tool_name:"Grep",tool_input:({pattern:"PASSWORD",glob:$g} + (if $p=="" then {} else {path:$p} end))}')
+  got=$(decision "$SCRIPTS/guard-secrets.sh" "$json" "$GREP")
+  [[ "$got" == "$4" ]] && ok "$1" || bad "$1" "$4" "$got"
+}
+glob_case "маска .env* эскалируется"           '.env*'        ""            ask
+glob_case "маска **/.env эскалируется"         '**/.env'      ""            ask
+glob_case "маска со скобками *.{ts,env}"       '*.{ts,env}'   ""            ask
+glob_case "маска *.{js,ts} проходит"           '*.{js,ts}'    ""            allow
+glob_case "маска * проходит"                   '*'            ""            allow
+glob_case "*.json без секрета под ней проходит" '*.json'      ""            allow
+glob_case "маска вне каталога с .env проходит" '*.env'        "$GREP/src"   allow
+glob_case "каталога нет — решают образцы"      '.env*'        "/nonexistent" ask
 
 # --- 2. Команда ---------------------------------------------------------------
 echo "== команда: чтение секрета и отправка наружу =="
@@ -87,6 +117,22 @@ scan_case "пустое значение проходит"           "src/e.env.
 scan_case "токен в документации находится"     "docs/api.md"    'curl -H "Authorization: Bearer ghp_9z8y7x6w5v4u3t2s1r0q"' hit
 scan_case "живой ключ в фикстуре находится"    "tests/f.php"    'sk-ant-api03-RealLookingKey1234567890'      hit
 scan_case "пример в документации проходит"     "docs/howto.md"  'export API_KEY=<ваш ключ>'                  clean
+# Форматы конфигураций, мимо которых шёл паттерн «имя и сразу = или :»
+scan_case "пароль в JSON"                      "cfg/db.json"    '{"password": "Xk9mQr2vTn4wLp8s"}'           hit
+scan_case "пароль в массиве PHP"               "config/db.php"  "'password' => 'Xk9mQr2vTn4wLp8s',"          hit
+scan_case "пароль в YAML без кавычек"          "cfg/app.yml"    'password: Xk9mQr2vTn4wLp8s'                 hit
+scan_case "пароль в properties с точками"      "app.properties" 'spring.datasource.password=Xk9mQr2vTn4wLp8s' hit
+scan_case "токен в Go через :="                "cmd/main.go"    'token := "Xk9mQr2vTn4wLp8s"'                hit
+scan_case "переменная в списке compose"        "compose.yml"    '  - POSTGRES_PASSWORD=Xk9mQr2vTn4wLp8s'     hit
+scan_case "живой ключ Stripe в вызове"         "src/pay.js"     'Stripe("sk_live_51H8kQrLmNoPqRsTuVwXyZ")'   hit
+scan_case "проектный ключ OpenAI"              "src/ai.py"      'k = "sk-proj-AbCdEfGhIjKlMnOpQrStUv12"'     hit
+scan_case "приватный ключ PGP"                 "keys/k.txt"     '-----BEGIN PGP PRIVATE KEY BLOCK-----'      hit
+# Заглушка определяется по значению, а не по соседям в строке
+scan_case "TODO рядом не прячет пароль"        "src/s.py"       'DB_PASSWORD = "Xk9mQr2vTn4wLp8s"  # TODO: move to env' hit
+scan_case "example.com в хосте не прячет пароль" "src/d.py"     'url = "postgres://app:Xk9mQr2v@db.example.com/app"' hit
+scan_case "DSN с паролем-заглушкой проходит"   "e.env.txt"      'DATABASE_URL=postgres://user:password@localhost:5432/app' clean
+scan_case "ключ-заглушка your-…-here проходит" "f.env.txt"      'ANTHROPIC_API_KEY=sk-ant-your-api-key-here' clean
+scan_case "токен-заглушка YourPersonal…"       "g.env.txt"      'GITHUB_TOKEN=ghp_YourPersonalAccessTokenHere' clean
 
 # --- 4. Коммит ----------------------------------------------------------------
 echo "== коммит: последняя точка, где утечку можно отменить =="
@@ -116,6 +162,67 @@ mkdir -p "$REPO/.claude"; printf 'ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4\n' > "$REPO/.
 commit_case "разрешённая строка перестаёт блокировать" allow
 rm -f "$REPO/.claude/secret-allow"
 
+# Хук срабатывает ДО команды. Если команда сама наполняет индекс (git add в той
+# же строке, commit -a, commit <путь>), старый индекс — не то, что уедет.
+# Каждый случай — в свежем репозитории: состояние одного не влияет на другой.
+fresh_repo() { # -> путь к репозиторию с одним коммитом
+  local r; r=$(mktemp -d "$TMP/r.XXXX")
+  git -C "$r" init -q 2>/dev/null
+  git -C "$r" config user.email t@t; git -C "$r" config user.name t
+  printf 'ok\n' > "$r/README.md"; git -C "$r" add README.md; git -C "$r" commit -qm init
+  printf '%s' "$r"
+}
+form_case() { # <описание> <репозиторий> <команда> <ожидание>
+  local json got
+  json=$(jq -n --arg c "$3" '{tool_name:"Bash",tool_input:{command:$c}}')
+  got=$(decision "$SCRIPTS/precommit-secrets.sh" "$json" "$2")
+  [[ "$got" == "$4" ]] && ok "$1" || bad "$1" "$4" "$got"
+}
+TOKEN='const t = "ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4";'
+
+R=$(fresh_repo); printf '%s\n' "$TOKEN" > "$R/app.js"
+form_case "git add . && git commit: новый файл с токеном" "$R" 'git add . && git commit -m wip' deny
+form_case "git add -A; git commit"                      "$R" 'git add -A; git commit -m wip'  deny
+
+R=$(fresh_repo); printf 'DB_PASSWORD=Xk9mQr2vTn4wLp8s\n' > "$R/.env"; printf '.env\n' > "$R/.gitignore"
+git -C "$R" add .gitignore; git -C "$R" commit -qm ignore
+form_case "git add -f .env && commit: игнорируемый .env" "$R" 'git add -f .env && git commit -m wip' deny
+form_case "без add игнорируемый .env не мешает коммиту" "$R" 'git commit -m wip' allow
+
+R=$(fresh_repo); printf '%s\n' "$TOKEN" >> "$R/README.md"
+form_case "commit <путь> берёт файл из рабочей копии"   "$R" 'git commit -m wip README.md'     deny
+form_case "commit --only <путь>"                        "$R" 'git commit --only -m wip -- README.md' deny
+form_case "commit без индекса и без -a — нечего брать"  "$R" 'git commit -m wip'               allow
+form_case "обычная форма Claude Code с heredoc"         "$R" "$(printf 'git commit -m "$(cat <<%sEOF%s\nfix README.md\nEOF\n)"' "'" "'")" allow
+
+R=$(fresh_repo); printf '%s\n' "$TOKEN" > "$R/app.js"; git -C "$R" add app.js
+form_case "git -C . commit"                             "$R" 'git -C . commit -m wip'          deny
+form_case "git -c user.name=x commit"                   "$R" 'git -c user.name=x commit -m wip' deny
+form_case "git --no-pager commit"                       "$R" 'git --no-pager commit -m wip'    deny
+form_case "полный путь /usr/bin/git"                    "$R" '/usr/bin/git commit -m wip'      deny
+form_case "bash -c 'git commit'"                        "$R" "bash -c 'git commit -m wip'"     deny
+form_case "коммит в подоболочке"                        "$R" '(git commit -m wip)'             deny
+form_case "перенос строки перед commit"                 "$R" "$(printf 'git \\\ncommit -m wip')" deny
+form_case "git log не считается коммитом"               "$R" 'git log --oneline -3'            allow
+
+SUB=$(fresh_repo); mkdir -p "$SUB/inner"; mv "$(fresh_repo)" "$SUB/inner/repo"
+printf '%s\n' "$TOKEN" > "$SUB/inner/repo/app.js"; git -C "$SUB/inner/repo" add app.js
+form_case "git -C <другой репозиторий> проверяет его"   "$SUB" 'git -C inner/repo commit -m wip' deny
+
+# Имена не в ASCII: с core.quotePath git печатал их в кавычках с экранами,
+# и ни имя, ни diff по нему не находились.
+R=$(fresh_repo); mkdir -p "$R/конфиг"; printf 'DB_PASSWORD=Xk9mQr2vTn4wLp8s\n' > "$R/конфиг/.env"
+git -C "$R" add -f "конфиг/.env"
+form_case "кириллица в пути: .env в индексе"            "$R" 'git commit -m wip'               deny
+R=$(fresh_repo); mkdir -p "$R/конфиг"; printf '%s\n' "$TOKEN" > "$R/конфиг/app.js"
+git -C "$R" add "конфиг/app.js"
+form_case "кириллица в пути: токен в строке"            "$R" 'git commit -m wip'               deny
+
+R=$(git -C "$TMP" init -q first 2>/dev/null; printf '%s' "$TMP/first")
+git -C "$R" config user.email t@t; git -C "$R" config user.name t
+printf '%s\n' "$TOKEN" > "$R/app.js"
+form_case "первый коммит, HEAD ещё нет"                 "$R" 'git add . && git commit -m init' deny
+
 # --- 5. Файлы мимо Write/Edit -------------------------------------------------
 echo "== файл, созданный командой, а не инструментом записи =="
 printf 'STRIPE_SECRET=sk_live_51H8kQrLmNoPqRsTuVwXyZ\n' > "$REPO/config.yml"
@@ -123,6 +230,13 @@ json=$(jq -n '{tool_name:"Bash",tool_input:{command:"cp template config.yml"}}')
 out=$(printf '%s' "$json" | CLAUDE_PROJECT_DIR="$REPO" "$SCRIPTS/scan-tree.sh" 2>&1); rc=$?
 [[ $rc -eq 2 ]] && ok "секрет в файле от команды находится" \
   || bad "scan-tree" "код 2" "$rc ($out)"
+
+R=$(fresh_repo); mkdir -p "$R/конфиг"
+printf 'STRIPE_SECRET=sk_live_51H8kQrLmNoPqRsTuVwXyZ\n' > "$R/конфиг/app.yml"
+json=$(jq -n '{tool_name:"Bash",tool_input:{command:"cp template конфиг/app.yml"}}')
+out=$(printf '%s' "$json" | CLAUDE_PROJECT_DIR="$R" "$SCRIPTS/scan-tree.sh" 2>&1); rc=$?
+[[ $rc -eq 2 ]] && ok "секрет в файле с кириллицей в пути находится" \
+  || bad "scan-tree, кириллица" "код 2" "$rc ($out)"
 
 json=$(jq -n '{tool_name:"Bash",tool_input:{command:"ls -la"}}')
 out=$(printf '%s' "$json" | CLAUDE_PROJECT_DIR="$REPO" "$SCRIPTS/scan-tree.sh" 2>&1); rc=$?

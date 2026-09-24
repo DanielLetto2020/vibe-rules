@@ -9,14 +9,25 @@ set -uo pipefail
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 RULES_DIR="$PROJECT_DIR/.claude/rules"
 
-# Проект не подключён к стандартам — это нормально, молчим
-[[ -d "$RULES_DIR" ]] || exit 0
-
 json_escape() {
   local s="$1"; s=${s//\\/\\\\}; s=${s//\"/\\\"}
   s=${s//$'\n'/\\n}; s=${s//$'\r'/\\r}; s=${s//$'\t'/\\t}
   printf '%s' "$s"
 }
+
+# Старый bash — до проверки подключения: замки безопасности работают во всех
+# проектах, и на bash 3.2 они спрашивают о каждом действии. Человек должен
+# узнать причину один раз на старте, а не догадываться по вопросам.
+. "$(dirname "${BASH_SOURCE[0]}")/bash-min.sh"
+if ! std_bash_min session "${BASH_SOURCE[0]}"; then
+  printf '{"systemMessage":"%s","hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' \
+    "$(json_escape "$STD_BASH_WHY")" \
+    "$(json_escape "ВНИМАНИЕ: $STD_BASH_WHY До установки считай, что автоматических проверок в этом проекте нет.")"
+  exit 0
+fi
+
+# Проект не подключён к стандартам — это нормально, молчим
+[[ -d "$RULES_DIR" ]] || exit 0
 
 # --- std:jq-guard — о поломке защиты человек узнаёт на старте сессии -----------
 # Раньше при отсутствии jq этот хук просто выходил, а замки в это время молча
