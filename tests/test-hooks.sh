@@ -586,6 +586,36 @@ PATH="$BARE" bash "$ROOT/plugins/std-gauntlet/scripts/ratchet.sh" check 5 >/dev/
 [[ $? -ne 0 ]] && ok "храповик без jq падает, а не пропускает" \
   || bad "ratchet без jq" "ненулевой код" "0"
 
+echo "== старый bash не выключает замки молча =="
+# В macOS по умолчанию bash 3.2. На нём mapfile и declare -A — ошибки
+# выполнения, а не синтаксиса: guard-bash делил команду на ноль сегментов
+# и пропускал всё. Версия подменяется переменной — собирать bash 3.2 в CI
+# дороже, чем проверить ветку решения.
+DANGER=$(jq -n '{tool_name:"Bash",tool_input:{command:"rm -rf /etc"}}')
+old_case() { # <описание> <кандидаты> <ожидаемое>
+  local got
+  got=$(printf '%s' "$DANGER" | STD_TEST_BASH_VERSION=3.2 STD_BASH_CANDIDATES="$2" \
+          bash "$SCRIPTS/guard-bash.sh" 2>/dev/null | jq -r '.hookSpecificOutput.permissionDecision // "allow"')
+  [[ "$got" == "$3" ]] && ok "$1" || bad "$1" "$3" "$got"
+}
+old_case "bash 3.2 без нового рядом — вопрос, а не пропуск" ""              ask
+old_case "bash 3.2, рядом есть новый — перезапуск и запрет"  "$(command -v bash)" deny
+for h in guard-secrets guard-tests guard-infra guard-deps precommit-secrets; do
+  got=$(printf '{}' | STD_TEST_BASH_VERSION=4.3 STD_BASH_CANDIDATES="" bash "$SCRIPTS/$h.sh" 2>/dev/null \
+          | jq -r '.hookSpecificOutput.permissionDecision // "allow"')
+  [[ "$got" == "ask" ]] && ok "$h на bash 4.3 спрашивает" || bad "$h на старом bash" ask "$got"
+done
+printf '{}' | STD_TEST_BASH_VERSION=3.2 STD_BASH_CANDIDATES="" bash "$SCRIPTS/secret-scan.sh" >/dev/null 2>&1
+[[ $? -eq 2 ]] && ok "secret-scan на старом bash сообщает, а не молчит" || bad "secret-scan на старом bash" "код 2" "$?"
+msg=$(STD_TEST_BASH_VERSION=3.2 STD_BASH_CANDIDATES="" CLAUDE_PROJECT_DIR="$TMP" bash "$SCRIPTS/session-check.sh" \
+        | jq -r '.systemMessage // empty')
+[[ "$msg" == *"brew install bash"* ]] && ok "старт сессии называет причину и лекарство" \
+  || bad "session-check на старом bash" "brew install bash" "${msg:-<пусто>}"
+msg=$(STD_TEST_BASH_VERSION=3.2 STD_BASH_CANDIDATES="$(command -v bash)" CLAUDE_PROJECT_DIR="$TMP" \
+        bash "$SCRIPTS/session-check.sh" | jq -r '.systemMessage // empty')
+[[ "$msg" != *"bash 4.4"* ]] && ok "новый bash найден — старт сессии не пугает" \
+  || bad "session-check с новым bash рядом" "без предупреждения" "$msg"
+
 echo "== std:hooks-off: вопросы выключены, запреты остаются =="
 # Выключатель проверяется с обеих сторон. Тест «с маркером молчит» в одиночку
 # зелен и тогда, когда замок сломан насовсем, — поэтому рядом стоит тот же

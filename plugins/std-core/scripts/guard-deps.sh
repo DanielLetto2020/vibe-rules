@@ -10,6 +10,7 @@
 # вектор, который система автопроверок не закрывает в принципе.
 set -uo pipefail
 
+. "$(dirname "${BASH_SOURCE[0]}")/bash-min.sh"; std_bash_min pre "${BASH_SOURCE[0]}"   # до чтения stdin
 INPUT=$(cat)
 
 # std:hooks-off — человек отключил замки в этом проекте (.claude/std-hooks-off).

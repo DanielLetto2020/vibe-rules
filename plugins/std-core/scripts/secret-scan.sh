@@ -17,6 +17,7 @@
 # распознавание заглушек, а не отключение проверки для целых каталогов.
 set -uo pipefail
 
+. "$(dirname "${BASH_SOURCE[0]}")/bash-min.sh"; std_bash_min post "${BASH_SOURCE[0]}"   # до чтения stdin
 INPUT=$(cat)
 
 # std:hooks-off — человек отключил замки в этом проекте (.claude/std-hooks-off).

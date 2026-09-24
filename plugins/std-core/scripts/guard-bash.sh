@@ -18,6 +18,7 @@ set -uo pipefail
 # в список каталогов корня, по которому правило уже ничего не узнает.
 set -f
 
+. "$(dirname "${BASH_SOURCE[0]}")/bash-min.sh"; std_bash_min pre "${BASH_SOURCE[0]}"   # до чтения stdin
 INPUT=$(cat)
 
 # std:hooks-off — человек отключил замки в этом проекте (.claude/std-hooks-off).

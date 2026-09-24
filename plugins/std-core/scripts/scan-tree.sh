@@ -16,6 +16,7 @@ set -uo pipefail
 
 [[ "${STD_SCAN_TREE:-1}" == "0" ]] && exit 0
 
+. "$(dirname "${BASH_SOURCE[0]}")/bash-min.sh"; std_bash_min post "${BASH_SOURCE[0]}"   # до чтения stdin
 INPUT=$(cat)
 
 # std:hooks-off — человек отключил замки в этом проекте (.claude/std-hooks-off).
