@@ -101,6 +101,31 @@ write_case "правка существующего теста -> ask"  "$TMP/te
 write_case "создание нового теста -> allow"     "$TMP/tests/Feature/NewTest.php"        allow
 write_case "правка обычного кода -> allow"      "$TMP/app/Order.php"                    allow
 write_case "правка .spec.ts -> ask"             "$(touch "$TMP/cart.spec.ts"; echo "$TMP/cart.spec.ts")" ask
+# Маски без якоря находили test_ внутри имени, а короткий список пропускал
+# тесты фронтенда: .tsx, __tests__/, test/, spec/, Cypress.
+mkdir -p "$TMP/src/__tests__" "$TMP/test" "$TMP/spec" "$TMP/cypress/e2e"
+touch "$TMP/src/Cart.test.tsx" "$TMP/src/__tests__/cart.js" "$TMP/test/cart.mjs" \
+      "$TMP/spec/cart_spec.rb" "$TMP/cypress/e2e/cart.cy.ts" \
+      "$TMP/app/latest_prices.py" "$TMP/app/contest_rules.py"
+write_case "правка .test.tsx -> ask"            "$TMP/src/Cart.test.tsx"                ask
+write_case "правка в __tests__/ -> ask"         "$TMP/src/__tests__/cart.js"            ask
+write_case "правка в test/ -> ask"              "$TMP/test/cart.mjs"                    ask
+write_case "правка в spec/ -> ask"              "$TMP/spec/cart_spec.rb"                ask
+write_case "правка .cy.ts -> ask"               "$TMP/cypress/e2e/cart.cy.ts"           ask
+write_case "latest_prices.py — не тест"         "$TMP/app/latest_prices.py"             allow
+write_case "contest_rules.py — не тест"         "$TMP/app/contest_rules.py"             allow
+# Проект, лежащий внутри каталога tests, не превращается в тест целиком
+NESTED="$TMP/tests/sandbox/proj"; mkdir -p "$NESTED/.claude" "$NESTED/app"
+echo '{"guardTests":"ask"}' > "$NESTED/.claude/gauntlet.json"; touch "$NESTED/app/Order.php"
+json=$(jq -n --arg p "$NESTED/app/Order.php" '{tool_name:"Edit",tool_input:{file_path:$p}}')
+got=$(CLAUDE_PROJECT_DIR="$NESTED" decision "$SCRIPTS/guard-tests.sh" "$json")
+[[ "$got" == "allow" ]] && ok "проект внутри …/tests/… — код не считается тестом" \
+  || bad "проект внутри tests" allow "$got"
+# NotebookEdit передаёт путь в notebook_path
+touch "$TMP/tests/test_model.ipynb"
+json=$(jq -n --arg p "$TMP/tests/test_model.ipynb" '{tool_name:"NotebookEdit",tool_input:{notebook_path:$p,new_source:"x"}}')
+got=$(decision "$SCRIPTS/guard-tests.sh" "$json")
+[[ "$got" == "ask" ]] && ok "NotebookEdit теста -> ask" || bad "NotebookEdit теста" ask "$got"
 
 echo "== guard-infra: то, что тестами не откатишь =="
 mkdir -p "$TMP/k8s" "$TMP/ansible" "$TMP/database/migrations" "$TMP/.github/workflows"
@@ -134,6 +159,15 @@ infra_case "конфигурация гейтов"          "$TMP/.claude/gauntl
 infra_case "политика стека"               "$TMP/.claude/policy.json"        ask
 infra_case "правило уровня проекта"       "$TMP/.claude/rules/50-project.md" ask
 infra_case "git-хук"                      "$TMP/.githooks/pre-push"         ask
+# Слои, которые модель могла снять правкой одного файла: исключения словаря
+# секретов (единственный запрет, а не вопрос) и состояние храповиков.
+infra_case "исключения словаря секретов"  "$TMP/.claude/secret-allow"       ask
+infra_case "дополнения словаря секретов"  "$TMP/.claude/secret-patterns"    ask
+infra_case "планка мутационного храповика" "$TMP/.claude/.ratchet.json"     ask
+infra_case "планка храповика долга"       "$TMP/.claude/.debt.json"         ask
+infra_case "отметка прохода гейтов"       "$TMP/.claude/.gauntlet-pass"     ask
+infra_case "скрипт проверки коммита"      "$TMP/plugins/std-core/scripts/precommit-secrets.sh" ask
+infra_case "скрипт храповика"             "$TMP/plugins/std-gauntlet/scripts/ratchet.sh" ask
 
 echo "== guard-deps: обход через прямую правку файла зависимостей =="
 printf '{"require":{"php":"^8.3"}}' > "$TMP/composer.json"
@@ -150,6 +184,31 @@ deps_case "новый пакет в composer.json"  "$TMP/composer.json" '"guzzl
 deps_case "новый пакет в package.json"   "$TMP/package.json"  '"lodash": "^4.17.21"'         ask
 deps_case "правка скриптов не трогает"   "$TMP/package.json"  '"scripts": { "dev": "vite" }' allow
 deps_case "обычный файл не трогает"      "$TMP/app/Order.php" 'class Order {}'               allow
+# Формы, которыми пакет подменяют, и манифесты, которые раньше не проверялись
+# никогда: признак «значение начинается с цифры» был только у JSON.
+for f in pyproject.toml requirements.txt requirements-dev.txt go.mod Cargo.toml; do printf 'x\n' > "$TMP/$f"; done
+deps_case "версия latest"                "$TMP/package.json"  '"lodahs": "latest"'           ask
+deps_case "пакет из github:"             "$TMP/package.json"  '"evil": "github:attacker/evil"' ask
+deps_case "пакет из git+https"           "$TMP/package.json"  '"x": "git+https://e.com/x.git"' ask
+deps_case "псевдоним npm:"               "$TMP/package.json"  '"lodash": "npm:lodahs@4"'     ask
+deps_case "скрипт postinstall"           "$TMP/package.json"  '"postinstall": "node x.js"'   ask
+deps_case "версия пакета и новый пакет"  "$TMP/package.json"  "$(printf '"version": "1.2.4",\n"lodahs": "latest"')" ask
+deps_case "поднятая версия проекта"      "$TMP/package.json"  '"version": "1.2.4"'           allow
+deps_case "источник пакетов composer"    "$TMP/composer.json" '"repositories": [{"type": "vcs", "url": "https://github.com/a/b"}]' ask
+deps_case "requirements: опечатка"       "$TMP/requirements.txt" 'reqeusts'                  ask
+deps_case "requirements: git+"           "$TMP/requirements.txt" 'evil @ git+https://e.com/x' ask
+deps_case "requirements: чужой индекс"   "$TMP/requirements.txt" '--extra-index-url https://evil' ask
+deps_case "requirements-dev.txt"         "$TMP/requirements-dev.txt" 'pytest==8.0'           ask
+deps_case "pyproject: PEP 621"           "$TMP/pyproject.toml" '"reqeusts>=2.0",'            ask
+deps_case "pyproject: Poetry"            "$TMP/pyproject.toml" 'requests = "^2.31"'          ask
+deps_case "pyproject: настройка ruff"    "$TMP/pyproject.toml" 'line-length = 100'           allow
+deps_case "go.mod: require"              "$TMP/go.mod"         'require github.com/evil/x v1.0.0' ask
+deps_case "go.mod: версия Go"            "$TMP/go.mod"         'go 1.22'                     allow
+deps_case "Cargo: опечатка"              "$TMP/Cargo.toml"     'serde_jsonn = "1.0"'         ask
+deps_case "Cargo: edition"               "$TMP/Cargo.toml"     'edition = "2021"'            allow
+json=$(jq -n --arg p "$TMP/package.json" '{tool_name:"MultiEdit",tool_input:{file_path:$p,edits:[{old_string:"a",new_string:"\"lodahs\": \"latest\""}]}}')
+got=$(decision "$SCRIPTS/guard-deps.sh" "$json")
+[[ "$got" == "ask" ]] && ok "MultiEdit: пакет в массиве правок" || bad "MultiEdit в guard-deps" ask "$got"
 
 echo "== guard-commit: коммит без прогона гейтов =="
 GT="$ROOT/plugins/std-gauntlet/scripts/guard-commit.sh"

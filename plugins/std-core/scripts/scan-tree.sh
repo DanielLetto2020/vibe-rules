@@ -56,8 +56,17 @@ git -C "$PROJECT_DIR" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 
 # Изменённое и неотслеживаемое. Игнорируемое git не берём: это сборка, кэш
 # и сам .env, который уже закрыт правилом, — их содержимое никуда не уедет.
-mapfile -t FILES < <(git -C "$PROJECT_DIR" status --porcelain --untracked-files=all 2>/dev/null \
-                       | sed 's/^...//' | head -50)
+# -z: без него имя не в ASCII приходит в кавычках с экранами (core.quotePath),
+# и файл «конфиг/app.js» искался по несуществующему пути. У переименования
+# в этом формате два имени подряд — новое и старое; старое пропускаем.
+FILES=()
+skip_next=0
+while IFS= read -r -d '' entry; do
+  if ((skip_next)); then skip_next=0; continue; fi
+  [[ "${entry:0:1}" == [RC] ]] && skip_next=1
+  FILES+=("${entry:3}")
+  [[ ${#FILES[@]} -ge 50 ]] && break
+done < <(git -C "$PROJECT_DIR" status --porcelain -z --untracked-files=all 2>/dev/null)
 [[ ${#FILES[@]} -eq 0 ]] && exit 0
 
 # Один и тот же файл не сканируем повторно, пока он не менялся: за сессию

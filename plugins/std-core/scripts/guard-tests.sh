@@ -83,13 +83,19 @@ project_uses_standards || exit 0
 if ! FILE=$(read_field file_path); then
   emit ask "Замок на правку тестов не может прочитать запрос: на машине нет ни jq, ни python3. Молча пропустить правку нельзя — подтверди её сам или поставь jq."
 fi
+# NotebookEdit передаёт путь в другом поле; без этого тест в .ipynb
+# правился мимо замка.
+[[ -z "$FILE" ]] && FILE=$(read_field notebook_path)
 [[ -z "$FILE" ]] && exit 0
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 GAUNTLET="$PROJECT_DIR/.claude/gauntlet.json"
 CFG="$PROJECT_DIR/.claude/std-guard.json"
 
-DEFAULT_PATTERNS='tests/|/tests/|Test\.php$|_test\.py$|test_.*\.py$|\.spec\.(ts|js)$|\.test\.(ts|js)$|/Feature/|/Unit/'
+# Маски сверяются с путём внутри проекта, а не с абсолютным. Иначе проект,
+# лежащий в …/tests/…, целиком считался тестом, а маска без якоря находила
+# test_ в latest_prices.py и contest_rules.py.
+DEFAULT_PATTERNS='(^|/)(tests?|spec|specs|__tests__|Feature|Unit)/|Test\.php$|(^|/)test_[^/]*\.py$|_test\.(py|go)$|\.(spec|test)\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$|\.cy\.(ts|js)$|_spec\.rb$'
 MODE="ask"
 
 # Строгость задаётся профилем проекта: на прототипе замок мешает, в регулируемой
@@ -105,7 +111,8 @@ p=$(read_cfg "$CFG" protectedRegex);  [[ -n "$p" ]] && DEFAULT_PATTERNS="$p"
 [[ "$MODE" == "off" ]] && exit 0
 
 # Не защищённый путь — выходим молча
-printf '%s' "$FILE" | grep -Eq "$DEFAULT_PATTERNS" || exit 0
+REL="${FILE#"$PROJECT_DIR"/}"
+printf '%s' "$REL" | grep -Eq "$DEFAULT_PATTERNS" || exit 0
 
 # Новый файл — создавать тесты можно свободно
 [[ -e "$FILE" ]] || exit 0

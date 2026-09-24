@@ -162,6 +162,67 @@ mkdir -p "$REPO/.claude"; printf 'ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4\n' > "$REPO/.
 commit_case "разрешённая строка перестаёт блокировать" allow
 rm -f "$REPO/.claude/secret-allow"
 
+# Хук срабатывает ДО команды. Если команда сама наполняет индекс (git add в той
+# же строке, commit -a, commit <путь>), старый индекс — не то, что уедет.
+# Каждый случай — в свежем репозитории: состояние одного не влияет на другой.
+fresh_repo() { # -> путь к репозиторию с одним коммитом
+  local r; r=$(mktemp -d "$TMP/r.XXXX")
+  git -C "$r" init -q 2>/dev/null
+  git -C "$r" config user.email t@t; git -C "$r" config user.name t
+  printf 'ok\n' > "$r/README.md"; git -C "$r" add README.md; git -C "$r" commit -qm init
+  printf '%s' "$r"
+}
+form_case() { # <описание> <репозиторий> <команда> <ожидание>
+  local json got
+  json=$(jq -n --arg c "$3" '{tool_name:"Bash",tool_input:{command:$c}}')
+  got=$(decision "$SCRIPTS/precommit-secrets.sh" "$json" "$2")
+  [[ "$got" == "$4" ]] && ok "$1" || bad "$1" "$4" "$got"
+}
+TOKEN='const t = "ghp_A1b2C3d4E5f6G7h8I9j0K1l2M3n4";'
+
+R=$(fresh_repo); printf '%s\n' "$TOKEN" > "$R/app.js"
+form_case "git add . && git commit: новый файл с токеном" "$R" 'git add . && git commit -m wip' deny
+form_case "git add -A; git commit"                      "$R" 'git add -A; git commit -m wip'  deny
+
+R=$(fresh_repo); printf 'DB_PASSWORD=Xk9mQr2vTn4wLp8s\n' > "$R/.env"; printf '.env\n' > "$R/.gitignore"
+git -C "$R" add .gitignore; git -C "$R" commit -qm ignore
+form_case "git add -f .env && commit: игнорируемый .env" "$R" 'git add -f .env && git commit -m wip' deny
+form_case "без add игнорируемый .env не мешает коммиту" "$R" 'git commit -m wip' allow
+
+R=$(fresh_repo); printf '%s\n' "$TOKEN" >> "$R/README.md"
+form_case "commit <путь> берёт файл из рабочей копии"   "$R" 'git commit -m wip README.md'     deny
+form_case "commit --only <путь>"                        "$R" 'git commit --only -m wip -- README.md' deny
+form_case "commit без индекса и без -a — нечего брать"  "$R" 'git commit -m wip'               allow
+form_case "обычная форма Claude Code с heredoc"         "$R" "$(printf 'git commit -m "$(cat <<%sEOF%s\nfix README.md\nEOF\n)"' "'" "'")" allow
+
+R=$(fresh_repo); printf '%s\n' "$TOKEN" > "$R/app.js"; git -C "$R" add app.js
+form_case "git -C . commit"                             "$R" 'git -C . commit -m wip'          deny
+form_case "git -c user.name=x commit"                   "$R" 'git -c user.name=x commit -m wip' deny
+form_case "git --no-pager commit"                       "$R" 'git --no-pager commit -m wip'    deny
+form_case "полный путь /usr/bin/git"                    "$R" '/usr/bin/git commit -m wip'      deny
+form_case "bash -c 'git commit'"                        "$R" "bash -c 'git commit -m wip'"     deny
+form_case "коммит в подоболочке"                        "$R" '(git commit -m wip)'             deny
+form_case "перенос строки перед commit"                 "$R" "$(printf 'git \\\ncommit -m wip')" deny
+form_case "git log не считается коммитом"               "$R" 'git log --oneline -3'            allow
+
+SUB=$(fresh_repo); mkdir -p "$SUB/inner"; mv "$(fresh_repo)" "$SUB/inner/repo"
+printf '%s\n' "$TOKEN" > "$SUB/inner/repo/app.js"; git -C "$SUB/inner/repo" add app.js
+form_case "git -C <другой репозиторий> проверяет его"   "$SUB" 'git -C inner/repo commit -m wip' deny
+
+# Имена не в ASCII: с core.quotePath git печатал их в кавычках с экранами,
+# и ни имя, ни diff по нему не находились.
+R=$(fresh_repo); mkdir -p "$R/конфиг"; printf 'DB_PASSWORD=Xk9mQr2vTn4wLp8s\n' > "$R/конфиг/.env"
+git -C "$R" add -f "конфиг/.env"
+form_case "кириллица в пути: .env в индексе"            "$R" 'git commit -m wip'               deny
+R=$(fresh_repo); mkdir -p "$R/конфиг"; printf '%s\n' "$TOKEN" > "$R/конфиг/app.js"
+git -C "$R" add "конфиг/app.js"
+form_case "кириллица в пути: токен в строке"            "$R" 'git commit -m wip'               deny
+
+R=$(git -C "$TMP" init -q first 2>/dev/null; printf '%s' "$TMP/first")
+git -C "$R" config user.email t@t; git -C "$R" config user.name t
+printf '%s\n' "$TOKEN" > "$R/app.js"
+form_case "первый коммит, HEAD ещё нет"                 "$R" 'git add . && git commit -m init' deny
+
 # --- 5. Файлы мимо Write/Edit -------------------------------------------------
 echo "== файл, созданный командой, а не инструментом записи =="
 printf 'STRIPE_SECRET=sk_live_51H8kQrLmNoPqRsTuVwXyZ\n' > "$REPO/config.yml"
@@ -169,6 +230,13 @@ json=$(jq -n '{tool_name:"Bash",tool_input:{command:"cp template config.yml"}}')
 out=$(printf '%s' "$json" | CLAUDE_PROJECT_DIR="$REPO" "$SCRIPTS/scan-tree.sh" 2>&1); rc=$?
 [[ $rc -eq 2 ]] && ok "секрет в файле от команды находится" \
   || bad "scan-tree" "код 2" "$rc ($out)"
+
+R=$(fresh_repo); mkdir -p "$R/конфиг"
+printf 'STRIPE_SECRET=sk_live_51H8kQrLmNoPqRsTuVwXyZ\n' > "$R/конфиг/app.yml"
+json=$(jq -n '{tool_name:"Bash",tool_input:{command:"cp template конфиг/app.yml"}}')
+out=$(printf '%s' "$json" | CLAUDE_PROJECT_DIR="$R" "$SCRIPTS/scan-tree.sh" 2>&1); rc=$?
+[[ $rc -eq 2 ]] && ok "секрет в файле с кириллицей в пути находится" \
+  || bad "scan-tree, кириллица" "код 2" "$rc ($out)"
 
 json=$(jq -n '{tool_name:"Bash",tool_input:{command:"ls -la"}}')
 out=$(printf '%s' "$json" | CLAUDE_PROJECT_DIR="$REPO" "$SCRIPTS/scan-tree.sh" 2>&1); rc=$?

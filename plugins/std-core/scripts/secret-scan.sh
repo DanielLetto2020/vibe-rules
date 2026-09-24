@@ -48,6 +48,7 @@ if ! FILE=$(read_field file_path); then
   printf '%s\n' "Файл записан, но на секреты не проверен: на машине нет ни jq, ни python3. Поставь jq — до тех пор этот слой защиты не работает." >&2
   exit 2
 fi
+[[ -z "$FILE" ]] && FILE=$(read_field notebook_path)   # NotebookEdit
 [[ -z "$FILE" || ! -f "$FILE" ]] && exit 0
 
 case "$FILE" in
