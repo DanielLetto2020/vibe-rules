@@ -36,6 +36,9 @@ for h in guard-secrets guard-tests guard-infra guard-deps precommit-secrets; do
   [[ "$got" == "ask" ]] && ok "$h спрашивает" || bad "$h на bash $ver" ask "$got"
 done
 
+out=$(STD_BASH_CANDIDATES="" CLAUDE_PROJECT_DIR="$TMP" "$OLD" "$ROOT/plugins/std-gauntlet/scripts/gauntlet.sh" 2>&1); rc=$?
+[[ "$rc" == "2" ]] && ok "gauntlet.sh: «прогон не проводился», а не «пройдено»" || bad "gauntlet.sh на bash $ver" "код 2" "$rc: $out"
+
 # Перезапуск: если новый bash стоит в известном месте (Homebrew), замок
 # работает в полную силу, хотя запущен старым.
 . "$SCRIPTS/bash-min.sh"

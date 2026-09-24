@@ -27,9 +27,9 @@ import argparse
 import json
 import re
 import shutil
+import signal
 import subprocess
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -45,6 +45,11 @@ TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
 # наблюдаемым: сдвиг на единицу ловит границы, ноль ловит пустой случай.
 NUMBER_RE = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)(?![\w.])")
 QUOTED_RE = re.compile(r'"([^"]{1,60})"|«([^»]{1,60})»')
+
+# Копия исходника на время мутации лежит рядом с файлом, а не во временном
+# каталоге: SIGKILL не перехватить, и следующий запуск должен найти, что
+# вернуть на место. Расширение не .feature — раннер сценариев её не подхватит.
+BACKUP_SUFFIX = ".gherkin-mutate-orig"
 
 
 @dataclass
@@ -82,40 +87,43 @@ class Report:
 
 
 def mutate_number(text: str) -> list[tuple[str, str]]:
-    """Число → соседнее и → ноль. Сдвиг на единицу ловит ошибки на границе."""
+    """Каждое число строки → соседнее и → ноль. Сдвиг на единицу ловит ошибки
+    на границе.
+
+    Каждое, а не первое: в строке примеров «| 1000 | 900 |» вторая колонка —
+    ожидаемый результат, и раньше она не портилась никогда. Тест, который
+    читал из примера сумму заказа, а итог держал в себе, получал 100%."""
     out = []
-    m = NUMBER_RE.search(text)
-    if not m:
-        return out
-    raw = m.group(1)
-    sep = "," if "," in raw else "."
-    try:
-        if sep in raw:
-            val = float(raw.replace(",", "."))
-            shifted = f"{val + 1:.2f}".replace(".", sep)
-        else:
-            val = int(raw)
-            shifted = str(val + 1)
-    except ValueError:
-        return out
-    out.append((text[: m.start(1)] + shifted + text[m.end(1) :], "число сдвинуто"))
-    if raw not in ("0", "0.0", "0,0"):
-        zero = "0" + (f"{sep}00" if sep in raw else "")
-        out.append((text[: m.start(1)] + zero + text[m.end(1) :], "число обнулено"))
+    for m in NUMBER_RE.finditer(text):
+        raw = m.group(1)
+        sep = "," if "," in raw else "."
+        try:
+            if sep in raw:
+                val = float(raw.replace(",", "."))
+                shifted = f"{val + 1:.2f}".replace(".", sep)
+            else:
+                val = int(raw)
+                shifted = str(val + 1)
+        except ValueError:
+            continue
+        out.append((text[: m.start(1)] + shifted + text[m.end(1) :], "число сдвинуто"))
+        if raw not in ("0", "0.0", "0,0"):
+            zero = "0" + (f"{sep}00" if sep in raw else "")
+            out.append((text[: m.start(1)] + zero + text[m.end(1) :], "число обнулено"))
     return out
 
 
 def mutate_quoted(text: str) -> list[tuple[str, str]]:
-    """Значение в кавычках → заведомо другое."""
-    m = QUOTED_RE.search(text)
-    if not m:
-        return []
-    val = m.group(1) if m.group(1) is not None else m.group(2)
-    if not val.strip():
-        return []
-    replaced = "ЗАВЕДОМО-ДРУГОЕ" if any(c.isalpha() and ord(c) > 127 for c in val) else "DEFINITELY-OTHER"
-    start, end = (m.start(1), m.end(1)) if m.group(1) is not None else (m.start(2), m.end(2))
-    return [(text[:start] + replaced + text[end:], "значение подменено")]
+    """Каждое значение в кавычках → заведомо другое."""
+    out = []
+    for m in QUOTED_RE.finditer(text):
+        val = m.group(1) if m.group(1) is not None else m.group(2)
+        if not val.strip():
+            continue
+        replaced = "ЗАВЕДОМО-ДРУГОЕ" if any(c.isalpha() and ord(c) > 127 for c in val) else "DEFINITELY-OTHER"
+        start, end = (m.start(1), m.end(1)) if m.group(1) is not None else (m.start(2), m.end(2))
+        out.append((text[:start] + replaced + text[end:], "значение подменено"))
+    return out
 
 
 def collect(features: Path) -> list[tuple[Path, int, str, str, str]]:
@@ -134,6 +142,41 @@ def collect(features: Path) -> list[tuple[Path, int, str, str, str]]:
                 if mutated != line:
                     found.append((f, i, line, mutated, kind))
     return found
+
+
+def restore_leftovers(features: Path) -> list[Path]:
+    """Возвращает на место спецификации, оставшиеся испорченными после
+    прогона, убитого без возможности прибраться (SIGKILL, выключение)."""
+    root = features if features.is_dir() else features.parent
+    restored = []
+    for b in sorted(root.rglob("*" + BACKUP_SUFFIX)):
+        orig = b.with_name(b.name[: -len(BACKUP_SUFFIX)])
+        shutil.copy2(b, orig)
+        b.unlink()
+        restored.append(orig)
+    return restored
+
+
+# SIGTERM (так Bash-инструмент останавливает команду по таймауту) и SIGHUP
+# по умолчанию убивают процесс, не выполнив finally, — и спецификация
+# оставалась испорченной: «Дано заказ на 1001 рублей». Сигнал превращается
+# в обычный выход; пока файл восстанавливается, он откладывается.
+_restoring = False
+_pending: list[int] = []
+
+
+def _on_signal(signum, _frame):
+    if _restoring:
+        _pending.append(signum)
+        return
+    raise SystemExit(128 + signum)
+
+
+def install_signal_handlers() -> None:
+    for name in ("SIGTERM", "SIGHUP"):
+        sig = getattr(signal, name, None)
+        if sig is not None:
+            signal.signal(sig, _on_signal)
 
 
 def run_tests(cmd: str, cwd: Path, timeout: int) -> bool:
@@ -158,6 +201,7 @@ def run_tests(cmd: str, cwd: Path, timeout: int) -> bool:
 
 
 def main() -> int:
+    global _restoring
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("--features", default="features", help="файл или каталог .feature")
     ap.add_argument("--run", default="", help="команда прогона тестов")
@@ -171,6 +215,10 @@ def main() -> int:
     if not features.exists():
         print(f"нет спецификаций: {features}", file=sys.stderr)
         return 2
+
+    install_signal_handlers()
+    for f in restore_leftovers(features):
+        print(f"восстановлена спецификация после прерванного прогона: {f}", file=sys.stderr)
 
     candidates = collect(features)
     if not candidates:
@@ -216,9 +264,8 @@ def main() -> int:
         return 2
 
     for idx, (f, ln, orig, mut, kind) in enumerate(candidates, 1):
-        backup = tempfile.NamedTemporaryFile(delete=False, suffix=".feature")
-        backup.close()
-        shutil.copy2(f, backup.name)
+        backup = f.with_name(f.name + BACKUP_SUFFIX)
+        shutil.copy2(f, backup)
         try:
             lines = f.read_text(encoding="utf-8").splitlines(keepends=True)
             ending = "\n" if lines[ln - 1].endswith("\n") else ""
@@ -232,8 +279,12 @@ def main() -> int:
                 mark = "\033[31mВЫЖИЛ\033[0m" if green else "\033[32mубит\033[0m"
                 print(f"  [{idx}/{len(candidates)}] {mark}  {m.where}  {kind}")
         finally:
-            shutil.copy2(backup.name, f)
-            Path(backup.name).unlink(missing_ok=True)
+            _restoring = True
+            shutil.copy2(backup, f)
+            backup.unlink()
+            _restoring = False
+            if _pending:
+                raise SystemExit(128 + _pending[0])
 
     if args.json:
         print(json.dumps({

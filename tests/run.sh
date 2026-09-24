@@ -11,17 +11,17 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RC=0
 hdr() { printf '\n\033[1m▸ %s\033[0m\n' "$1"; }
 
-hdr "1/18 Страж приватных данных"
+hdr "1/19 Страж приватных данных"
 python3 "$ROOT/tests/no-private-data.py" || RC=1
 
-hdr "2/18 Права на исполнение скриптов"
+hdr "2/19 Права на исполнение скриптов"
 noexec=0
 while IFS= read -r s; do
   [[ -x "$s" ]] || { printf '  не исполняемый: %s\n' "${s#$ROOT/}"; noexec=1; }
 done < <(find "$ROOT/plugins" "$ROOT/tests" -name '*.sh' -type f)
 [[ $noexec -eq 0 ]] && echo "  ok" || { echo "  почини: chmod +x"; RC=1; }
 
-hdr "3/18 Статический анализ shell-скриптов"
+hdr "3/19 Статический анализ shell-скриптов"
 # Замки — это shell, а в shell ошибка часто выглядит как работающий код:
 # неэкранированная переменная, маска там, где ждали строку, cd без проверки.
 # Порог — warning: стилистику не навязываем, дефекты не пропускаем.
@@ -36,55 +36,58 @@ if command -v shellcheck >/dev/null 2>&1; then
     RC=1
   fi
 else
-  # Как и на шаге 18: пропуск называем вслух, чтобы он не выглядел пройденным.
+  # Как и на шаге 19: пропуск называем вслух, чтобы он не выглядел пройденным.
   # В CI shellcheck ставится закреплённой версией, там шаг не пропускается.
   echo "  shellcheck не найден в PATH — шаг пропущен"
   echo "  поставь: pip install shellcheck-py  |  apt install shellcheck  |  brew install shellcheck"
 fi
 
-hdr "4/18 Структура модулей и frontmatter"
+hdr "4/19 Структура модулей и frontmatter"
 python3 "$ROOT/tests/lint-modules.py" || RC=1
 
-hdr "5/18 Замки (unit-тесты хуков)"
+hdr "5/19 Замки (unit-тесты хуков)"
 bash "$ROOT/tests/test-hooks.sh" || RC=1
 
-hdr "6/18 Утечка секретов: чтение, команда, запись, коммит"
+hdr "6/19 Утечка секретов: чтение, команда, запись, коммит"
 bash "$ROOT/tests/test-secrets.sh" || RC=1
 
-hdr "7/18 Обходы замков, ложные срабатывания, известные границы"
+hdr "7/19 Обходы замков, ложные срабатывания, известные границы"
 python3 "$ROOT/tests/test-hook-corpus.py" || RC=1
 
-hdr "8/18 Фаззинг разбора команд"
+hdr "8/19 Фаззинг разбора команд"
 python3 "$ROOT/tests/fuzz-guard-bash.py" || RC=1
 
-hdr "9/18 Автодетект стека и целостность связей"
+hdr "9/19 Автодетект стека и целостность связей"
 bash "$ROOT/tests/test-link.sh" || RC=1
 
-hdr "10/18 Профили, храповик, единая настройка"
+hdr "10/19 Профили, храповик, единая настройка"
 bash "$ROOT/tests/test-profile.sh" || RC=1
 
-hdr "11/18 Храповик долга соответствия"
+hdr "11/19 Храповик долга соответствия"
 bash "$ROOT/tests/test-debt.sh" || RC=1
 
-hdr "12/18 Покрытие изменённых строк"
+hdr "12/19 Покрытие изменённых строк"
 bash "$ROOT/tests/test-diff-coverage.sh" || RC=1
 
-hdr "13/18 Политика стека"
+hdr "13/19 Строй проверок и замок на коммит"
+bash "$ROOT/tests/test-gauntlet.sh" || RC=1
+
+hdr "14/19 Политика стека"
 bash "$ROOT/tests/test-policy.sh" || RC=1
 
-hdr "14/18 Правила уровня проекта"
+hdr "15/19 Правила уровня проекта"
 bash "$ROOT/tests/test-rule.sh" || RC=1
 
-hdr "15/18 Мутация данных спецификации"
+hdr "16/19 Мутация данных спецификации"
 bash "$ROOT/tests/test-gherkin-mutate.sh" || RC=1
 
-hdr "16/18 Публикация"
+hdr "17/19 Публикация"
 bash "$ROOT/tests/test-publish.sh" || RC=1
 
-hdr "17/18 Согласованность документации"
+hdr "18/19 Согласованность документации"
 python3 "$ROOT/tests/test-docs-sync.py" || RC=1
 
-hdr "18/18 Валидация манифестов средствами Claude Code"
+hdr "19/19 Валидация манифестов средствами Claude Code"
 if command -v claude >/dev/null 2>&1; then
   for p in "$ROOT"/plugins/*/; do
     out=$(claude plugin validate "$p" --strict 2>&1)

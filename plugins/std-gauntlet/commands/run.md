@@ -1,6 +1,6 @@
 ---
 description: Прогнать все гейты проекта и выдать вердикт
-argument-hint: "[--fast | --only <гейт> | --list]"
+argument-hint: "[--fast | --only <гейт или семейство> | --list]"
 allowed-tools: Bash, Read, Grep, Glob
 ---
 

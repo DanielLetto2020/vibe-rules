@@ -30,7 +30,7 @@ jobs:
     steps:
       # Action запинен на полный SHA, а не на тег: тег подвижен, и его владелец
       # может изменить содержимое задним числом.
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
 
       - name: Установить jq
         run: sudo apt-get update && sudo apt-get install -y jq
@@ -43,7 +43,7 @@ jobs:
       # Без CLI шаг валидации манифестов в CI пропускался: зелёная галочка
       # не включала проверку, которую README обещает «по каждому модулю».
       # `plugin validate` работает локально и не требует ключа.
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af  # v4.1.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38  # v6.5.0
         with:
           node-version: 22
 
@@ -70,9 +70,16 @@ jobs:
   old-bash-macos:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
 
-      - name: Замки под /bin/bash 3.2
+      - name: Замки под /bin/bash 3.2, нового bash нет
         run: |
           command -v jq >/dev/null || brew install jq
+          bash tests/test-real-old-bash.sh
+
+      # Второй прогон — с Homebrew bash: проверяется, что замок, запущенный
+      # старым bash, находит новый и перезапускается под ним.
+      - name: Замки под /bin/bash 3.2, рядом Homebrew bash
+        run: |
+          brew install bash
           bash tests/test-real-old-bash.sh
